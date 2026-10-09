@@ -2,7 +2,7 @@ import { Room, Client, ServerError } from "colyseus";
 import type { IncomingMessage } from "node:http";
 import type { PokClientEvents } from "../../../shared/pokdeng";
 import { requestIp, type GuestIdentity } from "../auth/GuestManager";
-import { GameManager } from "../pokdeng/GameManager";
+import { GameManager, type GameOptions } from "../pokdeng/GameManager";
 import { GameError, objectPayload } from "../pokdeng/errors";
 import { casinoAccess, economy, guests } from "../services";
 
@@ -15,8 +15,11 @@ export class PokDengRoom extends Room {
   private unsubscribeWallet?: () => void;
 
   onCreate() {
-    this.game = new GameManager(this.roomId, economy, {
-      onRemove: id => casinoAccess.release(id, this.roomId),
+    this.game = this.createGame({
+      onRemove: id => {
+        casinoAccess.release(id, this.roomId);
+        for (const client of [...this.clients]) if (this.identity(client).playerId === id) client.leave();
+      },
     });
     this.unsubscribeWallet = economy.subscribe((id, wallet) => {
       for (const client of this.clients) if (this.identity(client).playerId === id) client.send("wallet:update", wallet);
@@ -40,7 +43,9 @@ export class PokDengRoom extends Room {
     handle("table:sync", (id, _message, client) => this.sendState(client, id));
     handle("table:sit", (id, msg) => this.game.sit(id, objectPayload(msg).seat));
     handle("table:stand", id => this.game.stand(id));
-    handle("table:leave", (id, _msg, client) => { this.game.leave(id); client.leave(); });
+    // Active stakes remain binding. Removal/transport departure happen after payout and the result display.
+    handle("table:leave", id => this.game.leave(id));
+    handle("table:dealer", id => this.game.becomeDealer(id));
     handle("game:bet", (id, msg) => this.game.bet(id, objectPayload(msg).amount));
     handle("game:cancel_bet", id => this.game.cancelBet(id));
     handle("game:start", id => this.game.start(id));
@@ -84,12 +89,15 @@ export class PokDengRoom extends Room {
   onLeave(client: Client, consented: boolean) {
     const identity = client.userData as GuestIdentity | undefined;
     if (!identity) return;
-    if (consented) this.game.leave(identity.playerId); else this.game.disconnect(identity.playerId);
+    this.game.disconnect(identity.playerId);
+    if (consented) this.game.leave(identity.playerId);
     this.flush();
     if (this.game.size === 0) this.autoDispose = true;
   }
 
   onDispose() { this.unsubscribeWallet?.(); this.game.dispose(); }
+
+  protected createGame(options: GameOptions): GameManager { return new GameManager(this.roomId, economy, options); }
 
   private identity(client: Client): GuestIdentity { return (client.userData ?? client.auth) as GuestIdentity; }
 

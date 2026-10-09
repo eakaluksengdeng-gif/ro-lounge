@@ -36,6 +36,12 @@ try {
   await dealer.page.locator(".pok-seat.mine").waitFor();
   await enter(player.page, 1);
   await player.page.locator('[data-seat="1"]').click();
+  await player.page.locator("#pokBetAmount").waitFor();
+  assert.match(await player.page.locator("#pokWallet").innerText(), /100 ชิป/);
+  assert.match(await dealer.page.locator("#pokBetSummary").innerText(), /เจ้ามือไม่ต้องลงเดิมพันเอง/);
+  const betPosition = await player.page.locator("#pokBetAmount").boundingBox();
+  const seatPosition = await player.page.locator("#pokSeats").boundingBox();
+  assert.ok(betPosition.y < seatPosition.y, "betting must be prominent above the seats");
   await player.page.getByRole("button", { name: "ลงเดิมพัน", exact: true }).click();
   await player.page.waitForFunction(() => document.querySelector("#casinoToolbar")?.textContent.includes("สำรอง 50"));
   await dealer.page.getByRole("button", { name: "เริ่มเกม", exact: true }).click();
@@ -44,6 +50,7 @@ try {
   assert.equal(await dealer.page.locator(".pok-seat.mine .back").count(), 0);
   assert.equal(await player.page.locator(".pok-seat.mine .back").count(), 0);
   await dealer.page.screenshot({ path: "/tmp/ro-lounge-table.png" });
+  const firstRound = await dealer.page.locator("#pokPhase").innerText();
   // Refresh keeps guest credentials and reconnects into the retained round at the doorway.
   await player.page.reload();
   await player.page.getByRole("button", { name: "เข้าเมือง", exact: true }).click();
@@ -60,13 +67,23 @@ try {
   await player.page.setViewportSize({ width: 390, height: 844 });
   await player.page.screenshot({ path: "/tmp/ro-lounge-table-mobile.png", fullPage: true });
   assert.equal(await player.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-  for (const page of [dealer.page, player.page]) {
-    await page.waitForFunction(() => document.querySelector("#pokPhase")?.textContent.includes("เลือกที่นั่ง"), { timeout: 12000 });
-    await page.getByRole("button", { name: "ออกสู่เมือง", exact: true }).click();
-    await page.waitForFunction(() => document.querySelector("#casino")?.hidden === true);
-  }
+  await player.page.waitForFunction(() => document.querySelector("#pokPhase")?.textContent.includes("เลือกที่นั่ง"), null, { timeout: 12000 });
+  assert.match(await player.page.locator("#pokBetSummary").innerText(), /เดิมพันที่ยืนยัน: 10 ชิป/);
+  assert.match(await player.page.locator("#pokWallet").innerText(), /ตาล่าสุด/);
+  // No second click on Start: the next hand must be dealt after the betting countdown.
+  await dealer.page.waitForFunction(first => {
+    const phase = document.querySelector("#pokPhase")?.textContent ?? "";
+    return phase.includes("กำลังแจก") && phase !== first;
+  }, firstRound, { timeout: 15000 });
+  assert.match(await dealer.page.locator("#pokPhase").innerText(), /ตาที่ 2/);
+  await player.page.getByRole("button", { name: "ออกสู่เมือง", exact: true }).click();
+  assert.match(await player.page.locator("#pokNotice").innerText(), /รอคิดชิป/);
+  await player.page.waitForFunction(() => document.querySelector("#casino")?.hidden === true, null, { timeout: 30000 });
+  await dealer.page.waitForFunction(() => document.querySelector("#pokAutoStatus")?.textContent.includes("รอลูกมือลงเดิมพัน"));
+  await dealer.page.getByRole("button", { name: "ออกสู่เมือง", exact: true }).click();
+  await dealer.page.waitForFunction(() => document.querySelector("#casino")?.hidden === true, null, { timeout: 30000 });
   assert.deepEqual(errors, []);
-  console.log("PASS: two guests, doorway, seats, bet, private cards, refresh/rejoin, timed settlement, mobile, leave");
+  console.log("PASS: prominent betting/wallet, private cards, refresh, payouts, mobile, automatic second round and queued exit");
 } finally {
   await browser.close();
 }

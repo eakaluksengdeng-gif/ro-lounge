@@ -1,12 +1,26 @@
 #casinoToolbar { position: fixed; top: 12px; right: 12px; z-index: 6; display: flex; align-items: center; gap: 10px; padding: 8px; background: #172133ed; border: 3px solid #0f1420; font-size: 14px; }
 #casinoToolbar button { background: #ffe27a; }
 #casino[hidden] { display: none; }
-#casino { position: fixed; inset: 0; z-index: 15; display: grid; place-items: center; background: #101525e8; padding: 16px; overflow: auto; }
+#casino { position: fixed; inset: 0; z-index: 15; display: grid; place-items: start center; background: #101525e8; padding: 16px; overflow: auto; }
 .pok-panel { width: min(1020px, 100%); background: #212b3e; border: 4px solid #d4a95e; box-shadow: 0 8px 0 #0c111b; padding: 20px; }
 .pok-panel header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .pok-panel h2 { margin: 0; color: #ffe27a; font-size: 26px; }
 .pok-status { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #cce8d3; }
 #pokTimer { color: #ffe27a; font-size: 20px; white-space: nowrap; }
+#pokWallet { margin-top: 14px; padding: 12px 16px; color: #efffde; background: #16372d; border: 2px solid #88bd82; font: 700 18px "Noto Sans Thai", sans-serif; overflow-wrap: anywhere; }
+#pokBetting { padding: 16px; margin: 10px 0; background: #333029; border: 3px solid #ffe27a; }
+#pokBetTitle { margin: 0; color: #ffe27a; font-size: 22px; }
+#pokBetSummary, #pokAutoStatus, #pokBetHelp { font: 14px "Noto Sans Thai", sans-serif; line-height: 1.6; }
+#pokBetSummary { color: #fff4cf; }
+#pokBetting label { display: block; font: 700 16px "Noto Sans Thai", sans-serif; margin-bottom: 8px; }
+.pok-amount-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+#pokBetAmount { width: 150px; max-width: 100%; font-size: 30px; font-weight: 700; text-align: center; background: #fff4d8; color: #172133; border: 3px solid #ffe27a; padding: 8px; }
+.pok-amount-row button:first-of-type { background: #ffe27a; }
+.pok-quick-bets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.pok-quick-bets button { padding: 6px 12px; font-size: 14px; }
+#pokBetHelp { color: #d4d8dd; }
+#pokAutoStatus { color: #b9edc6; margin-bottom: 0; }
+#casino [hidden] { display: none; }
 #pokSeats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; background: #194a3c; border: 6px solid #714733; padding: 16px; }
 .pok-seat { background: #122e2be8; border: 2px solid #426f5c; padding: 10px; min-height: 176px; min-width: 0; }
 .pok-seat.dealer { border-color: #d4a95e; background: #3c3430; }
@@ -30,6 +44,11 @@ button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
   #casino { padding: 8px; place-items: start center; }
   .pok-panel { padding: 10px; }
   .pok-panel h2 { font-size: 20px; }
+  #pokWallet { font-size: 15px; padding: 10px; }
+  #pokBetting { padding: 12px; }
+  #pokBetAmount { width: 110px; }
+  .pok-status { align-items: start; }
+  #pokTimer { font-size: 16px; }
   #pokSeats { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 8px; gap: 6px; }
   .pok-seat { min-height: 140px; padding: 7px; }
   .pok-seat button { padding: 7px; }

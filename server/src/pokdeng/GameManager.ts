@@ -2,11 +2,12 @@ import { randomUUID } from "node:crypto";
 import type { Card, Phase, PrivateHand, RoundResult, TableState } from "../../../shared/pokdeng";
 import { EconomyManager, type Reservation, type Settlement } from "../economy/EconomyManager";
 import { DEFAULT_RULES, evaluate, isPok, maximumMultiplier, points, shuffledDeck, type Rules } from "./cards";
-import { requireGame } from "./errors";
+import { GameError, requireGame } from "./errors";
 
 interface Member {
   id: string; name: string; seat: number | null; connected: boolean;
   expiresAt: number | null; bet: number; cards: Card[]; acted: boolean;
+  repeatBet: number; leaving: boolean; betIssue: "player_chips" | "dealer_chips" | null;
 }
 
 export interface GameOptions {
@@ -27,6 +28,8 @@ export class GameManager {
   private participants: string[] = [];
   private deck: Card[] = [];
   private results: RoundResult[] = [];
+  private autoPlay = false;
+  private roundNumber = 0;
   private dirty = false;
   private now: () => number;
   private deckFactory: () => Card[];
@@ -42,7 +45,7 @@ export class GameManager {
     for (const strength of Object.values(this.rules.ranking)) {
       requireGame(Number.isSafeInteger(strength) && strength >= 0 && strength <= Number.MAX_SAFE_INTEGER - 9, "BAD_RULES", "Invalid hand ranking");
     }
-    for (const duration of [this.rules.actionMs, this.rules.dealingMs, this.rules.checkPokMs, this.rules.showdownMs, this.rules.reconnectMs]) {
+    for (const duration of [this.rules.actionMs, this.rules.dealingMs, this.rules.checkPokMs, this.rules.showdownMs, this.rules.bettingMs, this.rules.reconnectMs]) {
       requireGame(Number.isSafeInteger(duration) && duration >= 0, "BAD_RULES", "Invalid duration");
     }
   }
@@ -57,10 +60,13 @@ export class GameManager {
     if (existing) {
       existing.connected = true;
       existing.expiresAt = null;
+      existing.leaving = false;
     } else {
       requireGame(this.members.size < 8, "TABLE_FULL", "Table accepts at most eight guests");
-      this.members.set(id, { id, name: name.slice(0, 16), seat: null, connected: true, expiresAt: null, bet: 0, cards: [], acted: false });
+      this.members.set(id, { id, name: name.slice(0, 16), seat: null, connected: true, expiresAt: null, bet: 0, cards: [], acted: false,
+        repeatBet: 0, leaving: false, betIssue: null });
     }
+    if (this.phase === "betting") this.restoreBets();
     this.dirty = true;
   }
 
@@ -72,7 +78,16 @@ export class GameManager {
     requireGame(this.seats[seat] === null, "SEAT_TAKEN", "Seat is occupied");
     this.seats[seat] = id;
     member.seat = seat;
+    if (seat === 0) this.restoreBets();
     this.dirty = true;
+  }
+
+  /** Accepting the dealer role is explicit: never silently assign another person's bankroll. */
+  becomeDealer(id: string): void {
+    this.requireBetting();
+    requireGame(this.seats[0] === null, "SEAT_TAKEN", "Dealer seat is occupied");
+    this.stand(id);
+    this.sit(id, 0);
   }
 
   stand(id: string): void {
@@ -82,6 +97,9 @@ export class GameManager {
     else this.cancelBet(id);
     if (member.seat !== null) this.seats[member.seat] = null;
     member.seat = null;
+    member.repeatBet = 0;
+    member.betIssue = null;
+    this.updateCountdown();
     this.dirty = true;
   }
 
@@ -100,13 +118,19 @@ export class GameManager {
       { playerId: dealer.id, key: this.holdKey(dealer.id), amount: dealerExposure },
     ]);
     member.bet = amount;
+    member.repeatBet = amount;
+    member.betIssue = null;
+    this.updateCountdown();
     this.dirty = true;
   }
 
   cancelBet(id: string): void {
     this.requireBetting();
     const member = this.member(id);
-    if (!member.bet) return;
+    member.repeatBet = 0;
+    member.betIssue = null;
+    this.dirty = true;
+    if (!member.bet) { this.updateCountdown(); return; }
     const dealer = this.dealer();
     const remaining = [...this.members.values()].reduce((sum, m) => sum + (m.id === id ? 0 : m.bet), 0);
     this.economy.reserveBatch([
@@ -114,13 +138,14 @@ export class GameManager {
       { playerId: dealer.id, key: this.holdKey(dealer.id), amount: remaining * maximumMultiplier(this.rules) },
     ]);
     member.bet = 0;
+    this.updateCountdown();
     this.dirty = true;
   }
 
   start(id: string): void {
     this.requireBetting();
     requireGame(this.dealer().id === id, "NOT_DEALER", "Only the dealer may start a round");
-    this.member(id);
+    requireGame(this.member(id).connected, "DEALER_OFFLINE", "Dealer must be connected");
     const bettors = [...this.members.values()].filter(m => m.bet > 0);
     requireGame(bettors.length > 0, "NO_BETS", "At least one player must bet");
     requireGame(bettors.every(m => m.connected), "PLAYER_OFFLINE", "All betting players must be connected");
@@ -129,6 +154,8 @@ export class GameManager {
       deck.every(c => Number.isInteger(c.rank) && c.rank >= 1 && c.rank <= 13 && ["clubs", "diamonds", "hearts", "spades"].includes(c.suit)), "BAD_DECK", "Expected a complete unique deck");
     this.deck = deck.map(c => ({ ...c }));
     this.roundId = randomUUID();
+    this.autoPlay = true;
+    this.roundNumber++;
     this.results = [];
     this.participants = [id, ...bettors.map(m => m.id)];
     for (const member of this.members.values()) { member.cards = []; member.acted = false; }
@@ -159,7 +186,11 @@ export class GameManager {
     member.connected = false;
     member.expiresAt = this.now() + this.rules.reconnectMs;
     if (this.phase === "betting") {
+      // A transport interruption cancels unbound holds, not the remembered stake.
+      const remembered = member.repeatBet;
       if (member.seat === 0) this.cancelAllBets(); else this.cancelBet(id);
+      member.repeatBet = remembered;
+      this.updateCountdown();
     }
     this.dirty = true;
   }
@@ -168,7 +199,10 @@ export class GameManager {
     if (!this.members.has(id)) return;
     if (this.phase !== "betting") {
       // Bets are binding until showdown even when someone closes the tab or voluntarily leaves.
-      this.disconnect(id);
+      const member = this.member(id);
+      member.leaving = true;
+      member.repeatBet = 0;
+      this.dirty = true;
       return;
     }
     this.stand(id);
@@ -205,13 +239,21 @@ export class GameManager {
         this.roundId = null;
         this.phase = "betting";
         this.deadline = null;
+        for (const member of [...this.members.values()]) {
+          if (member.leaving || (!member.connected && member.expiresAt !== null && now >= member.expiresAt)) this.leave(member.id);
+        }
+        this.restoreBets();
         this.dirty = true;
+      } else if (this.phase === "betting") {
+        // Start once: subsequent rounds use only successfully reserved, consenting stakes.
+        this.start(this.dealer().id);
       }
     }
     // Retain offline participants through payout. Clean up only once a table returns to betting.
     if (this.phase === "betting") for (const member of [...this.members.values()]) {
       if (!member.connected && member.expiresAt !== null && now >= member.expiresAt) this.leave(member.id);
     }
+    if (this.phase === "betting") this.updateCountdown();
   }
 
   snapshot(): TableState {
@@ -220,6 +262,7 @@ export class GameManager {
       roomId: this.roomId, roundId: this.roundId, phase: this.phase,
       serverTime: this.now(), deadline: this.deadline, dealerSeat: 0,
       minBet: this.rules.minBet, maxMultiplier: maximumMultiplier(this.rules),
+      autoPlay: this.autoPlay, roundNumber: this.roundNumber,
       seats: this.seats.map((id, seat) => {
         if (!id) return null;
         const m = this.members.get(id)!;
@@ -227,6 +270,7 @@ export class GameManager {
         return {
           seat, playerId: id, name: m.name, connected: m.connected, dealer: seat === 0,
           bet: m.bet, cardCount: m.cards.length, acted: m.acted,
+          repeatBet: m.repeatBet, leaving: m.leaving, betIssue: m.betIssue,
           ...(visible ? { cards: m.cards.map(c => ({ ...c })), value: evaluate(m.cards, this.rules) } : {}),
         };
       }),
@@ -236,7 +280,7 @@ export class GameManager {
 
   privateHand(id: string): PrivateHand {
     const member = this.members.get(id);
-    const canDraw = !!member && this.phase === "action" && this.participants.includes(id) && !member.acted && this.now() < this.deadline!;
+    const canDraw = !!member?.connected && !member.leaving && this.phase === "action" && this.participants.includes(id) && !member.acted && this.now() < this.deadline!;
     return {
       roundId: this.roundId, cards: member?.cards.map(c => ({ ...c })) ?? [],
       canDraw, canStay: canDraw && points(member!.cards) >= 4, deadline: this.deadline,
@@ -269,7 +313,7 @@ export class GameManager {
     requireGame(roundId === this.roundId && this.roundId !== null, "STALE_ROUND", "Round identifier does not match");
     requireGame(this.phase === "action" && this.deadline !== null && this.now() < this.deadline, "NOT_ACTION_PHASE", "Action window has ended or has not started");
     const member = this.member(id);
-    requireGame(member.connected && this.participants.includes(id) && !member.acted, "ACTION_NOT_ALLOWED", "Cannot act again or on another player's hand");
+    requireGame(member.connected && !member.leaving && this.participants.includes(id) && !member.acted, "ACTION_NOT_ALLOWED", "Cannot act again or on another player's hand");
     return member;
   }
 
@@ -318,7 +362,35 @@ export class GameManager {
       .map(m => ({ playerId: m.id, key: this.holdKey(m.id), amount: 0 }));
     this.economy.reserveBatch(reservations);
     for (const member of this.members.values()) member.bet = 0;
+    this.updateCountdown();
     this.dirty = true;
+  }
+
+  private restoreBets(): void {
+    const dealerId = this.seats[0];
+    if (!this.autoPlay || !dealerId || !this.members.get(dealerId)?.connected) return;
+    for (const member of this.members.values()) {
+      if (member.seat === null || member.seat === 0 || !member.connected || member.leaving || member.bet || !member.repeatBet) continue;
+      const amount = member.repeatBet;
+      try { this.bet(member.id, amount); }
+      catch (error) {
+        if (!(error instanceof GameError) || error.code !== "INSUFFICIENT_CHIPS") throw error;
+        member.betIssue = this.economy.view(member.id).available < amount * maximumMultiplier(this.rules) ? "player_chips" : "dealer_chips";
+        // Pause this player's automatic stake until they explicitly bet again.
+        member.repeatBet = 0;
+        this.dirty = true;
+      }
+    }
+    this.updateCountdown();
+  }
+
+  private updateCountdown(): void {
+    if (this.phase !== "betting") return;
+    const dealerId = this.seats[0];
+    const ready = this.autoPlay && dealerId && this.members.get(dealerId)?.connected &&
+      [...this.members.values()].some(member => member.bet > 0 && member.connected && !member.leaving);
+    if (ready && this.deadline === null) { this.deadline = this.now() + this.rules.bettingMs; this.dirty = true; }
+    else if (!ready && this.deadline !== null) { this.deadline = null; this.dirty = true; }
   }
 
   private remove(id: string): void {

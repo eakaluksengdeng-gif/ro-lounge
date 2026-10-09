@@ -73,13 +73,24 @@ Guest หนึ่ง UUID อยู่ได้ทีละโต๊ะ แล�
 ถ้าหลุดระหว่างรอบ เดิมพันยังมีผลและ timeout จะเล่นให้จน payout
 เก็บที่นั่งที่หลุดไว้ 60 วินาที และเก็บผู้ร่วมรอบให้ครบจน payout เสมอ
 Rejoin ด้วย `joinById(roomId, { sessionId })` เพื่อคืนมือ/ที่นั่งเดิม โดยไม่ต้องใช้ ticket อีก
-การออกโดยสมัครใจระหว่างรอบก็ไม่ยกเลิกการเดิมพัน
-เมื่อกลับถึง betting และพ้น grace period จะปล่อยที่นั่ง/registry
+การออกโดยสมัครใจระหว่างรอบก็ไม่ยกเลิกการเดิมพัน: ตั้ง `leaving` แล้วปล่อยที่นั่ง/registry
+และปิด connection หลังคิดเงินและแสดง showdown ก่อนเริ่มตาถัดไป ไม่ต้องรอ grace period
+คำขอออกไม่ทำให้ connection ที่ยังเปิดอยู่เข้าซ้ำได้ และตาที่ออกจะไม่มีการลงเดิมพันซ้ำ
+กรณีหลุดจริง เมื่อกลับถึง betting และพ้น grace period จะปล่อยที่นั่ง/registry
 Room ที่ไม่เหลือ guest จะ dispose; dispose ก่อนจบรอบคืน reserve ไม่คิดผลรอบที่ยกเลิก
 
 ## State machine
 
 `betting → dealing (0.5s) → check_pok (0.5s) → action (15s) → showdown (8s) → betting`
+
+เจ้ามือกด `game:start` ครั้งแรกแล้ว `autoPlay=true` โต๊ะเล่นต่อเนื่อง
+หลัง showdown ระบบสำรองเดิมพันเดิมเฉพาะคนที่ยังเชื่อมต่อและยืนยันเดิมพันไว้
+เมื่อมีเจ้ามือและเดิมพันที่สำรองสำเร็จ จะนับช่วง betting 8 วินาทีแล้วเริ่มตาใหม่เอง
+ช่วงนี้แก้จำนวนเดิมพันหรือ `game:cancel_bet` เพื่อหยุดเดิมพันซ้ำของตัวเองได้
+ชิปได้/เสียเป็นการโอนระหว่าง Wallet จริง ไม่รีเซ็ต Wallet ทุกตาหรือเมื่อออกโต๊ะ
+ถ้าชิปลูกมือหรือเจ้ามือไม่พอสำรอง จะพักผู้เล่นนั้นพร้อม `betIssue` และต้องยืนยันเดิมพันใหม่
+ผู้เล่นที่เหลือยังเล่นต่อได้; ถ้าเจ้ามือออก โต๊ะรอผู้สมัครใหม่ด้วย `table:dealer`
+ไม่ย้ายบทบาทเจ้ามือและความเสี่ยงให้ใครโดยอัตโนมัติ
 
 เมื่อ dealer ป๊อก ข้าม action แล้วคิดผลทุกคู่ทันที
 ลูกมือป๊อกจะเปิดไพ่ตั้งแต่ check_pok และไม่มีสิทธิ์จั่ว
@@ -140,10 +151,11 @@ Shared types อย่างเดียวไม่ได้เป็น securi
 | `table:sync` | `{}` | ส่ง public snapshot + private hand + Wallet |
 | `table:sit` | `{ seat: 0..7 }` | betting, เก้าอี้ต้องว่าง |
 | `table:stand` | `{}` | betting; คืน reserve; เจ้ามือลุกยกเลิกทุก bet |
-| `table:leave` | `{}` | ปิด connection; รอบที่เริ่มแล้วคิดเงินตามปกติ |
-| `game:bet` | `{ amount: 10 }` | betting; integer ≥ minBet และทั้งคู่มี chip reserve พอ |
-| `game:cancel_bet` | `{}` | betting |
-| `game:start` | `{}` | เจ้ามือเท่านั้น; มีลูกมือเดิมพันที่เชื่อมต่อ |
+| `table:leave` | `{}` | betting ออกทันที; กลางตาเข้าคิวออกหลังคิดชิป/แสดงผล |
+| `table:dealer` | `{}` | betting; สมัครเป็นเจ้ามือเมื่อเก้าอี้ 0 ว่าง รวมคนที่นั่งลูกมืออยู่ |
+| `game:bet` | `{ amount: 10 }` | betting; integer ≥ minBet และทั้งคู่มี chip reserve พอ; ยืนยันเดิมพันซ้ำตาถัดไป |
+| `game:cancel_bet` | `{}` | betting; คืน reserve และหยุดเดิมพันซ้ำ |
+| `game:start` | `{}` | เจ้ามือเท่านั้น; มีลูกมือเดิมพันที่เชื่อมต่อ; เปิดโหมดเล่นต่อเนื่อง |
 | `game:draw` | `{ roundId }` | action, ไม่ป๊อก, ยังไม่เลือก, ไม่หมดเวลา |
 | `game:stay` | `{ roundId }` | เหมือน draw แต่ต้อง ≥4 แต้ม |
 
@@ -157,7 +169,9 @@ Shared types อย่างเดียวไม่ได้เป็น securi
 | `game:hand` | private `{ roundId, cards, canDraw, canStay, deadline }` |
 | `api:error` | `{ event, code, message }`; ไม่มีการเปลี่ยนเงิน/ไพ่เมื่อคำสั่งผิด |
 
-แต่ละ seat มี `playerId, name, connected, dealer, bet, cardCount, acted`
+แต่ละ seat มี `playerId, name, connected, dealer, bet, cardCount, acted, repeatBet, leaving, betIssue`
+โดย `betIssue` เป็น `player_chips` / `dealer_chips` / `null`
+`TableState` เพิ่ม `autoPlay` และ `roundNumber` สำหรับแสดงสถานะเล่นต่อเนื่องและเลขตา
 พร้อม `cards/value` เฉพาะที่เปิดตามกติกาแล้ว
 `results` มีผลของลูกมือแต่ละคน `{ playerId, outcome, delta, multiplier }`
 ผลเจ้ามือคำนวณเป็นลบผลรวม `delta`; Wallet ที่ส่งให้เจ้าของเป็นยอด authoritative หลังคิดเงิน
