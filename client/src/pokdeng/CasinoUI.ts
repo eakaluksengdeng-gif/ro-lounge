@@ -1,9 +1,10 @@
 import type { Room } from "colyseus.js";
-import type { ApiError, CasinoEntry, GuestReady, PrivateHand, TableState, WalletView, Card } from "../../../shared/pokdeng";
+import type { ApiError, CasinoEntry, GuestReady, PrivateHand, TableState, WalletView } from "../../../shared/pokdeng";
 import { CASINO_DOOR } from "../../../shared/casinoWorld";
 import { SERVER_URL } from "../net";
 import type { TownScene } from "../scenes/TownScene";
 import { joinPokTable, sendPok } from "./connect";
+import { coinAmount, playingCard } from "./PixelCards";
 import "./casino.css";
 
 const ERRORS: Record<string, string> = {
@@ -38,6 +39,11 @@ export class CasinoUI {
   private notice = document.createElement("p");
   private balance = document.createElement("span");
   private walletPanel = document.createElement("div");
+  private handPanel = document.createElement("section");
+  private handCards = document.createElement("div");
+  private handValue = document.createElement("p");
+  private handHint = document.createElement("p");
+  private handSignature = "";
   private bettingPanel = document.createElement("section");
   private betTitle = document.createElement("h3");
   private betSummary = document.createElement("p");
@@ -101,6 +107,29 @@ export class CasinoUI {
     this.bet.addEventListener("input", () => this.renderBetHelp());
     this.walletPanel.id = "pokWallet";
     this.walletPanel.setAttribute("role", "status");
+    this.handPanel.id = "pokHand";
+    this.handPanel.setAttribute("aria-label", "ไพ่ของคุณ");
+    this.handPanel.hidden = true;
+    const handHeader = document.createElement("div");
+    handHeader.className = "pok-hand-header";
+    const handTitle = document.createElement("h3");
+    handTitle.textContent = "ไพ่ของคุณ";
+    const privacy = document.createElement("span");
+    privacy.textContent = "ไพ่ส่วนตัว · เปิดตามกติกาเท่านั้น";
+    handHeader.append(handTitle, privacy);
+    this.handCards.id = "pokHandCards";
+    this.handValue.id = "pokHandValue";
+    this.handHint.id = "pokHandHint";
+    const decisions = document.createElement("div");
+    decisions.className = "pok-hand-decisions";
+    const handActions = document.createElement("div");
+    handActions.className = "pok-hand-actions";
+    handActions.append(this.draw, this.stay);
+    decisions.append(this.handValue, this.handHint, handActions);
+    const handBody = document.createElement("div");
+    handBody.className = "pok-hand-body";
+    handBody.append(this.handCards, decisions);
+    this.handPanel.append(handHeader, handBody);
     this.bettingPanel.id = "pokBetting";
     this.betTitle.id = "pokBetTitle";
     this.betSummary.id = "pokBetSummary";
@@ -119,7 +148,7 @@ export class CasinoUI {
     this.betEntry.append(label, amountRow, quick, this.betHelp);
     this.autoStatus.id = "pokAutoStatus";
     this.bettingPanel.append(this.betTitle, this.betSummary, this.betEntry, this.start, this.takeDealer, this.autoStatus);
-    controls.append(this.draw, this.stay, this.stand, this.retry);
+    controls.append(this.stand, this.retry);
     this.notice.id = "pokNotice";
     this.notice.setAttribute("role", "status");
     const rules = document.createElement("p");
@@ -127,7 +156,7 @@ export class CasinoUI {
     rules.textContent = "ชิปเล่นฟรี ไม่มีเงินจริง • ขั้นต่ำ 10 • สำรองสูงสุด 5 เท่า • 2/3 เด้ง ×2/×3 · เซียน/เรียง ×3 · ตอง ×5 · ป๊อกชนะไพ่สามใบ · เสมอคืนชิป";
     const panel = document.createElement("div");
     panel.className = "pok-panel";
-    panel.append(header, this.walletPanel, status, this.bettingPanel, controls, this.notice, this.seats, rules);
+    panel.append(header, this.walletPanel, status, this.handPanel, this.bettingPanel, controls, this.notice, this.seats, rules);
     this.modal.append(panel);
     document.body.append(this.modal);
     this.town.onMessage<GuestReady>("auth:ready", guest => {
@@ -249,19 +278,11 @@ export class CasinoUI {
   }
   private updateWallet(wallet: WalletView) {
     this.wallet = wallet;
-    this.balance.textContent = "ชิป " + wallet.balance + " · ใช้ได้ " + wallet.available + " · สำรอง " + wallet.reserved;
+    const details = document.createElement("span");
+    details.className = "wallet-hud-details";
+    details.textContent = " · ใช้ได้ " + wallet.available + " · สำรอง " + wallet.reserved;
+    this.balance.replaceChildren(coinAmount(wallet.balance, "prefix"), details);
     this.render();
-  }
-  private card(card?: Card) {
-    const el = document.createElement("span");
-    el.className = card ? "pok-card" : "pok-card back";
-    if (card) {
-      const suits = { clubs: "♣", diamonds: "♦", hearts: "♥", spades: "♠" };
-      el.textContent = ({ 1: "A", 11: "J", 12: "Q", 13: "K" } as Record<number, string>)[card.rank] ?? String(card.rank);
-      el.append(document.createTextNode(suits[card.suit]));
-      if (card.suit === "diamonds" || card.suit === "hearts") el.classList.add("red");
-    } else { el.textContent = "♠"; el.setAttribute("aria-label", "ไพ่คว่ำ"); }
-    return el;
   }
   private render() {
     const table = this.table;
@@ -271,9 +292,17 @@ export class CasinoUI {
     this.phase.textContent = table ? PHASES[table.phase] + " · ตาที่ " + (table.roundNumber || 1) + " · โต๊ะ " + table.roomId : "บ้านป๊อกเด้ง · 1–8 คน";
     this.exit.disabled = this.joining || this.leaving;
     this.exit.title = betting ? "ออกได้ทันที" : "ขอออกได้ตอนนี้ ระบบจะคิดชิปตานี้ก่อนพาออก";
-    this.walletPanel.textContent = this.wallet ? "กระเป๋าของคุณ: " + this.wallet.balance + " ชิป  •  ใช้ได้ " + this.wallet.available + "  •  สำรอง " + this.wallet.reserved +
-      (this.lastDelta !== undefined ? "  |  ตาล่าสุด " + (this.lastDelta > 0 ? "+" : "") + this.lastDelta + " ชิป" : "") : "กำลังโหลดกระเป๋าชิป…";
-    this.betEntry.hidden = !me || me.dealer;
+    if (this.wallet) {
+      const title = document.createElement("span");
+      title.className = "pok-wallet-label";
+      title.textContent = "กระเป๋าของคุณ: ";
+      const details = document.createElement("span");
+      details.className = "pok-wallet-details";
+      details.textContent = "  •  ใช้ได้ " + this.wallet.available + "  •  สำรอง " + this.wallet.reserved +
+        (this.lastDelta !== undefined ? "  |  ตาล่าสุด " + (this.lastDelta > 0 ? "+" : "") + this.lastDelta + " ชิป" : "");
+      this.walletPanel.replaceChildren(title, coinAmount(this.wallet.balance, "suffix"), details);
+    } else this.walletPanel.textContent = "กำลังโหลดกระเป๋าชิป…";
+    this.betEntry.hidden = !me || me.dealer || !betting;
     this.bet.disabled = this.betButton.disabled = this.cancel.disabled = !betting || this.leaving;
     this.bet.min = String(table?.minBet ?? 10);
     this.bet.max = String(Math.floor(((this.wallet?.available ?? 0) + (me?.bet ?? 0) * (table?.maxMultiplier ?? 5)) / (table?.maxMultiplier ?? 5)));
@@ -284,7 +313,7 @@ export class CasinoUI {
     this.takeDealer.hidden = !betting || !!dealer;
     this.takeDealer.disabled = this.leaving;
     const totalBets = table?.seats.reduce((sum, seat) => sum + (seat?.bet ?? 0), 0) ?? 0;
-    this.betTitle.textContent = !me ? "เลือกที่นั่งเพื่อเล่น" : me.dealer ? "♛ คุณเป็นเจ้ามือ" : "ลงเดิมพันของคุณ";
+    this.betTitle.textContent = !me ? "เลือกที่นั่งเพื่อเล่น" : me.dealer ? "♛ คุณเป็นเจ้ามือ" : betting ? "ลงเดิมพันของคุณ" : "เดิมพันตานี้";
     this.betSummary.textContent = !me ? "เจ้ามือ 1 คน · ลูกมือสูงสุด 7 คน" : me.dealer
       ? "เดิมพันรวม " + totalBets + " ชิป · รับได้สูงสุด " + Math.floor((this.wallet?.balance ?? 0) / (table?.maxMultiplier ?? 5)) + " ชิป · เจ้ามือไม่ต้องลงเดิมพันเอง ลูกมือเสีย = ชิปเข้าเจ้ามือ / ลูกมือชนะ = หักจากเจ้ามือ"
       : "เดิมพันที่ยืนยัน: " + me.bet + " ชิป · ตาถัดไป: " + (me.repeatBet ? me.repeatBet + " ชิป" : "พักเดิมพัน") +
@@ -299,6 +328,22 @@ export class CasinoUI {
     this.draw.disabled = !this.room || !ownedHand?.canDraw;
     this.stay.disabled = !this.room || !ownedHand?.canStay;
     this.stay.title = ownedHand?.canDraw && !ownedHand.canStay ? "ต่ำกว่า 4 แต้ม ต้องจั่ว; หมดเวลาเซิร์ฟเวอร์จะจั่วให้" : "";
+    // Only the authenticated owner's private/public hand can populate this featured display.
+    const myCards = me?.cards ?? ownedHand?.cards;
+    this.handPanel.hidden = !me?.cardCount;
+    const signature = JSON.stringify([table?.roundId, me?.cardCount, myCards]);
+    if (signature !== this.handSignature) {
+      this.handSignature = signature;
+      this.handCards.replaceChildren(...Array.from({ length: me?.cardCount ?? 0 }, (_, i) => playingCard(myCards?.[i], true)));
+    }
+    const score = myCards?.reduce((sum, card) => sum + Math.min(card.rank, 10), 0);
+    const myPayout = me?.dealer && table?.phase === "showdown" ? -table.results.reduce((sum, item) => sum + item.delta, 0)
+      : table?.results.find(item => item.playerId === this.playerId)?.delta;
+    this.handValue.textContent = myCards?.length ? (me?.value && me.value.kind !== "points" ? KINDS[me.value.kind] : (score! % 10) + " แต้ม") : "กำลังรับไพ่…";
+    if (myPayout !== undefined) this.handValue.append(document.createTextNode(" · " + (myPayout > 0 ? "+" : "") + myPayout + " ชิป"));
+    this.handHint.textContent = table?.phase === "showdown" ? "เปิดไพ่แล้ว · ยอดได้–เสียเข้ากระเป๋าคุณแล้ว" : this.leaving ? "รอคิดชิปตานี้ก่อนออก"
+      : ownedHand?.canDraw ? ownedHand.canStay ? "เลือกจั่วใบที่ 3 หรืออยู่ · ดูเวลาที่ด้านบน" : "ต่ำกว่า 4 แต้ม · ต้องจั่วใบที่ 3"
+      : table?.phase === "action" ? "เลือกแล้วหรือป๊อก · รอคนอื่นในโต๊ะ" : "รอแจกไพ่และตรวจป๊อก";
     this.retry.hidden = !!this.room || this.joining;
     this.seats.replaceChildren();
     for (let index = 0; index < 8; index++) {
@@ -321,7 +366,7 @@ export class CasinoUI {
         const cards = document.createElement("div");
         cards.className = "pok-cards";
         const visible = seat.cards ?? (seat.playerId === this.playerId ? ownedHand?.cards : undefined);
-        for (let i = 0; i < seat.cardCount; i++) cards.append(this.card(visible?.[i]));
+        for (let i = 0; i < seat.cardCount; i++) cards.append(playingCard(visible?.[i]));
         const result = document.createElement("p");
         result.className = "pok-result";
         if (seat.value) result.textContent = (seat.value.kind === "points" ? seat.value.points + " แต้ม" : KINDS[seat.value.kind]) + " ×" + seat.value.multiplier;
