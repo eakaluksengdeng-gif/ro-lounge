@@ -55,7 +55,7 @@ try {
   assert.match(await dealer.page.locator("#pokBetSummary").innerText(), /เจ้ามือไม่ต้องลงเดิมพันเอง/);
   const betPosition = await player.page.locator("#pokBetAmount").boundingBox();
   const seatPosition = await player.page.locator("#pokSeats").boundingBox();
-  assert.ok(betPosition.y < seatPosition.y, "betting must be prominent above the seats");
+  assert.ok(betPosition.x >= seatPosition.x + seatPosition.width, "desktop betting controls must remain prominent beside the table");
   await player.page.getByRole("button", { name: "ลงเดิมพัน", exact: true }).click();
   await player.page.waitForFunction(() => document.querySelector("#casinoToolbar")?.textContent.includes("สำรอง 50"));
   await dealer.page.getByRole("button", { name: "เริ่มเกม", exact: true }).click();
@@ -68,6 +68,9 @@ try {
     const featured = await page.locator("#pokHandCards .pok-card").evaluateAll(cards => cards.map(card => [card.dataset.rank, card.dataset.suit]));
     const seated = await page.locator(".pok-seat.mine .pok-card").evaluateAll(cards => cards.map(card => [card.dataset.rank, card.dataset.suit]));
     assert.deepEqual(featured, seated, "large hand must show only the owner's actual private cards");
+    await page.locator("#pokHandCards").evaluate(async hand => {
+      await Promise.allSettled(hand.getAnimations({ subtree: true }).map(animation => animation.finished));
+    });
     assert.ok((await page.locator("#pokHandCards .pok-card").first().boundingBox()).width >= 100);
   }
   await dealer.page.screenshot({ path: "/tmp/ro-lounge-table.png" });
