@@ -24,6 +24,9 @@
 .creator-tile input { position: absolute; opacity: 0; width: 1px; height: 1px; padding: 0; border: 0; }
 .creator-card { width: 62px; height: 68px; position: relative; display: flex; justify-content: center; align-items: center; background: #e3e9e2; border: 2px solid #b6c9c8; box-shadow: inset 0 -3px 0 #d0dcd5; transition: border-color 100ms, background-color 100ms; }
 .creator-card canvas { image-rendering: pixelated; max-width: 56px; max-height: 52px; }
+.creator-tile[data-part="gender"] .creator-card { width: 112px; gap: 10px; }
+.creator-tile[data-part="gender"] canvas { width: 36px; height: 48px; }
+.creator-tile[data-part="gender"] .creator-card > span:last-child { font: 600 14px "Noto Sans Thai", sans-serif; color: #345762; }
 .creator-tile:hover .creator-card { background: #f7f5e9; border-color: #68959d; }
 .creator-tile input:checked + .creator-card { border-color: #347e8b; background: #cce5df; box-shadow: inset 0 0 0 2px #f9f5d4, 0 2px 0 #609a9f; }
 .creator-tile input:focus-visible + .creator-card { outline: 3px solid #c67e32; outline-offset: 3px; }

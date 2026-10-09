@@ -1,0 +1,23 @@
+#natureBar { position: fixed; top: 12px; left: 12px; display: flex; gap: 10px; align-items: center; padding: 8px 10px; z-index: 6; border: 3px solid #0f1420; background: #1e3442ed; color: #e3f3da; font-size: 13px; }
+#natureBar button { font-size: 13px; background: #b0d4aa; padding: 6px 9px; }
+#fishBag { position: relative; }
+#fishBag summary { cursor: pointer; white-space: nowrap; }
+#fishBag > div { position: absolute; top: 30px; right: 0; width: 185px; padding: 8px 12px; background: #233a45; border: 2px solid #92b5a3; box-shadow: 0 5px 0 #0c1927; }
+#fishBag p { font: 12px "Noto Sans Thai", sans-serif; margin: 7px 0; }
+#fishingPanel[hidden] { display: none; }
+#fishingPanel { position: fixed; bottom: 16px; right: 16px; width: min(340px, calc(100vw - 24px)); z-index: 6; border: 3px solid #adcd9d; background: #203846f2; padding: 16px; box-shadow: 0 5px 0 #101b26; }
+#fishingPanel strong { display: block; color: #ffe18c; font: 600 17px "Noto Sans Thai", sans-serif; }
+#fishingPanel p { font: 14px "Noto Sans Thai", sans-serif; min-height: 40px; color: #e1efd9; margin: 10px 0; }
+#fishAction { background: #f5d37f; }
+#fishingPanel button { font-size: 13px; padding: 8px 10px; }
+#fishingPanel button + button { margin-left: 6px; background: #b0cbd1; }
+#fishReaction { height: 10px; background: #122631; border: 1px solid #587668; margin: 8px 0 12px; }
+#fishReaction[hidden] { display: none; }
+#fishReaction span { height: 100%; display: block; background: #ffcc72; }
+#fishingPanel[data-phase="bite"] { border-color: #ffe18c; box-shadow: 0 0 0 4px #ffe18c33; }
+@media (max-width: 680px) {
+  #natureBar { left: 8px; right: 8px; top: 78px; justify-content: space-between; font-size: 11px; gap: 4px; padding: 6px; }
+  #natureBar button { font-size: 11px; padding: 5px; }
+  #fishingPanel { bottom: 78px; right: 12px; padding: 12px; }
+  #hud.fishing-active #log, #hud.fishing-active #emotes { display: none; }
+}

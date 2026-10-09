@@ -3,8 +3,10 @@ import type { IncomingMessage } from "node:http";
 import { requestIp, type GuestIdentity } from "../auth/GuestManager";
 import { CASINO_DOOR } from "../pokdeng/CasinoAccess";
 import { GameError } from "../pokdeng/errors";
-import { casinoAccess, economy, guests } from "../services";
-import { Player, TownState } from "../schema/TownState";
+import { casinoAccess, economy, guests, fishing } from "../services";
+import { Player, TownState, Wildlife } from "../schema/TownState";
+import { EnvironmentManager } from "../nature/EnvironmentManager";
+import { objectPayload } from "../pokdeng/errors";
 import { clampToMap, isBlocked, spawnPoint } from "../world";
 
 // ค่าตั้งต้น ปรับได้ตามต้องการ
@@ -36,6 +38,7 @@ interface JoinOptions {
     skin?: number;
     pants?: number;
     style?: number;
+    gender?: number;
   };
 }
 
@@ -44,6 +47,8 @@ export class TownRoom extends Room<TownState> {
   private lastChat = new Map<string, number>();
   private atDoor = new Set<string>();
   private unsubscribeWallet?: () => void;
+  private environment!: EnvironmentManager;
+  private natureElapsed = 0;
 
   onAuth(_client: Client, options: JoinOptions, request?: IncomingMessage): GuestIdentity {
     try { return guests.connect(options?.sessionId, requestIp(request)); }
@@ -52,6 +57,33 @@ export class TownRoom extends Room<TownState> {
 
   onCreate() {
     this.setState(new TownState());
+    const phaseMs = Number(process.env.RO_WEATHER_PHASE_MS ?? 120000);
+    this.environment = new EnvironmentManager(Date.now(), phaseMs);
+    for (const [id, animal] of this.environment.animals) {
+      const value = new Wildlife();
+      value.kind = animal.kind; value.variant = animal.variant; value.x = animal.x; value.y = animal.y;
+      this.state.wildlife.set(id, value);
+    }
+    const fishEvent = (event: string, action: (client: Client, p: Player, message: unknown) => void) => {
+      this.onMessage(event, (client, message: unknown) => {
+        const p = this.state.players.get(client.sessionId);
+        if (!p) return;
+        try { action(client, p, message); }
+        catch (error) {
+          client.send("api:error", { event, code: error instanceof GameError ? error.code : "FISH_ERROR",
+            message: error instanceof GameError ? error.message : "Could not process fishing request" });
+        }
+        this.sendFishing(client, p);
+      });
+    };
+    fishEvent("fish:sync", () => {});
+    fishEvent("fish:cast", (client, p) => {
+      fishing.cast(p.playerId, this.fishingOwner(client), p.x, p.y, !!casinoAccess.roomFor(p.playerId));
+      p.targetX = p.x; p.targetY = p.y;
+    });
+    fishEvent("fish:reel", (client, p, message) => fishing.reel(p.playerId, this.fishingOwner(client), objectPayload(message).castId));
+    fishEvent("fish:cancel", (client, p) => { fishing.cancel(p.playerId, this.fishingOwner(client)); });
+    this.onMessage("nature:sync", client => client.send("nature:weather", this.environment.weather(Date.now())));
     this.unsubscribeWallet = economy.subscribe((id, wallet) => {
       for (const client of this.clients) if ((client.auth as GuestIdentity)?.playerId === id) client.send("wallet:update", wallet);
     });
@@ -66,6 +98,7 @@ export class TownRoom extends Room<TownState> {
       if (!p || typeof msg?.x !== "number" || typeof msg?.y !== "number") return;
       if (casinoAccess.roomFor(p.playerId)) return;
       if (!Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return;
+      if (fishing.cancel(p.playerId, this.fishingOwner(client))) this.sendFishing(client, p);
       const t = clampToMap(msg.x, msg.y);
       p.targetX = t.x;
       p.targetY = t.y;
@@ -91,8 +124,24 @@ export class TownRoom extends Room<TownState> {
 
     // เซิร์ฟเวอร์เป็นคนขยับตัวละคร ด้วยความเร็วคงที่ กันโกง
     this.setSimulationInterval((dtMs) => {
+      const now = Date.now();
+      this.natureElapsed += dtMs;
+      if (this.natureElapsed >= 100) {
+        this.environment.update(now, this.natureElapsed); this.natureElapsed = 0;
+        for (const [id, animal] of this.environment.animals) {
+          const value = this.state.wildlife.get(id)!;
+          value.x = animal.x; value.y = animal.y; value.facing = animal.facing; value.moving = animal.moving;
+        }
+      }
+      const weather = this.environment.weather(now);
+      this.state.weatherNextChangeAt = weather.nextChangeAt;
+      if (this.state.weather !== weather.kind) {
+        this.state.weather = weather.kind; this.broadcast("nature:weather", weather);
+      }
       const dt = dtMs / 1000;
       this.state.players.forEach((p, id) => {
+        const connection = this.clients.getById(id);
+        if (connection && fishing.tick(p.playerId, this.fishingOwner(connection))) this.sendFishing(connection, p);
         const nearDoor = casinoAccess.isAtDoor(p.x, p.y);
         if (nearDoor && !this.atDoor.has(id)) {
           this.atDoor.add(id);
@@ -139,6 +188,7 @@ export class TownRoom extends Room<TownState> {
     p.skin = optionIndex(appearance?.skin, 3);
     p.pants = optionIndex(appearance?.pants, 3);
     p.style = optionIndex(appearance?.style, 3);
+    p.gender = optionIndex(appearance?.gender, 2);
     const sp = spawnPoint();
     if (casinoAccess.roomFor(identity.playerId)) {
       sp.x = CASINO_DOOR.x;
@@ -150,6 +200,8 @@ export class TownRoom extends Room<TownState> {
   }
 
   onLeave(client: Client) {
+    const p = this.state.players.get(client.sessionId);
+    if (p) fishing.cancel(p.playerId, this.fishingOwner(client));
     this.state.players.delete(client.sessionId);
     this.lastChat.delete(client.sessionId);
     this.atDoor.delete(client.sessionId);
@@ -162,6 +214,7 @@ export class TownRoom extends Room<TownState> {
     if (!p) return;
     try {
       const entry = casinoAccess.enter(p.playerId, p.x, p.y);
+      if (fishing.cancel(p.playerId, this.fishingOwner(client))) this.sendFishing(client, p);
       p.targetX = p.x;
       p.targetY = p.y;
       client.send("casino:entered", entry);
@@ -169,5 +222,14 @@ export class TownRoom extends Room<TownState> {
       if (!(error instanceof GameError)) throw error;
       client.send("api:error", { event: "casino:enter", code: error.code, message: error.message });
     }
+  }
+
+  private fishingOwner(client: Client): string { return this.roomId + ":" + client.sessionId; }
+  private sendFishing(client: Client, p: Player) {
+    const owner = this.fishingOwner(client);
+    const state = fishing.state(p.playerId, owner);
+    p.fishing = fishing.publicPhase(p.playerId, owner);
+    p.fishingSpot = state.spot ?? 0;
+    client.send("fish:state", state);
   }
 }

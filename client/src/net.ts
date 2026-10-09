@@ -14,6 +14,9 @@ export interface PlayerState {
   skin: number;
   pants: number;
   style: number;
+  gender: number;
+  fishing: string;
+  fishingSpot: number;
 }
 
 export interface Appearance {
@@ -22,6 +25,7 @@ export interface Appearance {
   skin: number;
   pants: number;
   style: number;
+  gender: number;
 }
 
 export type ChatMsg = { id: string; name: string; text: string };

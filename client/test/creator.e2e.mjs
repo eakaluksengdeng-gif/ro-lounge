@@ -10,11 +10,16 @@ try {
   page.on("pageerror", error => errors.push(error.message));
   await page.goto(url, { waitUntil: "networkidle" });
   assert.equal(await page.locator("#customize select").count(), 0);
-  assert.equal(await page.locator(".creator-card canvas").count(), 22);
-  assert.equal(await page.locator(".creator-tile input:checked").count(), 5);
+  assert.equal(await page.locator(".creator-card canvas").count(), 24);
+  assert.equal(await page.locator(".creator-tile input:checked").count(), 6);
   const preview = () => page.locator("#characterPreview").evaluate(canvas => canvas.toDataURL());
   const initial = await preview();
   const select = async (part, value) => page.locator('input[name="appearance-' + part + '"][value="' + value + '"]').evaluate(input => input.closest("label").click());
+  const maleStyles = await page.locator('[data-part="style"] canvas').evaluateAll(canvases => canvases.map(canvas => canvas.toDataURL()));
+  await select("gender", 1);
+  const femaleStyles = await page.locator('[data-part="style"] canvas').evaluateAll(canvases => canvases.map(canvas => canvas.toDataURL()));
+  assert.notDeepEqual(maleStyles, femaleStyles, "gender changes the actual hair previews");
+  assert.equal(await page.locator('fieldset[data-part="pants"] legend').textContent(), "กระโปรง");
   for (const [part, value] of [["style", 2], ["hair", 5], ["color", 1], ["skin", 2], ["pants", 2]]) {
     await select(part, value);
     assert.equal(await page.locator("#characterPreview").evaluate((canvas, key) => JSON.parse(canvas.dataset.look)[key], part), value);
@@ -28,7 +33,7 @@ try {
   await page.getByRole("button", { name: "หมุนตัวละครไปทางขวา", exact: true }).click();
   assert.notEqual(await preview(), side);
   await page.reload({ waitUntil: "networkidle" });
-  const saved = { color: 1, hair: 5, style: 2, skin: 2, pants: 2 };
+  const saved = { color: 1, hair: 5, style: 2, skin: 2, pants: 2, gender: 1 };
   assert.deepEqual(JSON.parse(await page.locator("#characterPreview").getAttribute("data-look")), saved);
   // Native radio arrow keys retain keyboard accessibility even without text dropdowns.
   const focused = page.locator('input[name="appearance-color"][value="1"]');
@@ -52,15 +57,15 @@ try {
   // Bad or blocked storage must not prevent the character chooser from loading.
   await page.evaluate(() => localStorage.setItem("ro-look", '{"hair":999,"color":-1,"style":"oops"}'));
   await page.reload({ waitUntil: "networkidle" });
-  assert.deepEqual(JSON.parse(await page.locator("#characterPreview").getAttribute("data-look")), { color: 3, hair: 0, style: 0, skin: 0, pants: 0 });
+  assert.deepEqual(JSON.parse(await page.locator("#characterPreview").getAttribute("data-look")), { color: 3, hair: 0, style: 0, skin: 0, pants: 0, gender: 0 });
   const privateContext = await browser.newContext();
   await privateContext.addInitScript(() => Object.defineProperty(window, "localStorage", { get: () => { throw new Error("Storage disabled"); } }));
   const privatePage = await privateContext.newPage();
   privatePage.on("pageerror", error => errors.push(error.message));
   await privatePage.goto(url, { waitUntil: "networkidle" });
-  assert.equal(await privatePage.locator(".creator-card canvas").count(), 22);
+  assert.equal(await privatePage.locator(".creator-card canvas").count(), 24);
   assert.deepEqual(errors, []);
-  console.log("PASS: 22 picture choices, live preview, rotation, name, saved appearance, keyboard, mobile, bad/disabled storage");
+  console.log("PASS: 24 picture choices, gender-matched hair/outfit, live preview, rotation, name, saved appearance, keyboard, mobile, bad/disabled storage");
 } finally {
   await browser.close();
 }
