@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RO Lounge</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #1e2a38; font-family: system-ui, sans-serif; color: #eef2f7; }
+      #game { position: fixed; inset: 0; }
+      #login { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(20,28,40,.92); z-index: 10; }
+      #login form { display: flex; flex-direction: column; gap: 12px; width: 280px; }
+      #login h1 { margin: 0 0 4px; font-size: 22px; }
+      input { padding: 10px 12px; border-radius: 8px; border: 1px solid #4a5a70; background: #14202e; color: inherit; font-size: 15px; }
+      button { padding: 10px 12px; border-radius: 8px; border: 0; background: #5aa9e6; color: #0b1622; font-weight: 600; cursor: pointer; font-size: 15px; }
+      #hud { position: fixed; left: 12px; right: 12px; bottom: 12px; display: none; flex-direction: column; gap: 8px; max-width: 460px; z-index: 5; }
+      #log { max-height: 140px; overflow-y: auto; background: rgba(20,28,40,.65); border-radius: 8px; padding: 8px 10px; font-size: 14px; line-height: 1.5; }
+      #log .who { font-weight: 600; color: #8fd0ff; }
+      #row { display: flex; gap: 6px; }
+      #row input { flex: 1; }
+      #emotes { display: flex; gap: 6px; flex-wrap: wrap; }
+      #emotes button { padding: 6px 10px; background: rgba(255,255,255,.12); color: inherit; font-size: 18px; }
+      #status { position: fixed; top: 10px; right: 12px; font-size: 13px; opacity: .8; z-index: 5; }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <div id="status"></div>
+
+    <div id="login">
+      <form id="loginForm">
+        <h1>RO Lounge</h1>
+        <input id="nameInput" maxlength="16" placeholder="ชื่อตัวละคร" autocomplete="off" />
+        <button type="submit">เข้าเมือง</button>
+      </form>
+    </div>
+
+    <div id="hud">
+      <div id="log"></div>
+      <div id="emotes"></div>
+      <form id="chatForm">
+        <div id="row">
+          <input id="chatInput" maxlength="120" placeholder="พิมพ์แล้วกด Enter" autocomplete="off" />
+          <button type="submit">ส่ง</button>
+        </div>
+      </form>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
