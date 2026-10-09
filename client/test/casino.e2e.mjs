@@ -50,7 +50,8 @@ try {
   await enter(player.page, 1);
   await player.page.locator('[data-seat="1"]').click();
   await player.page.locator("#pokBetAmount").waitFor();
-  assert.match(await player.page.locator("#pokWallet").innerText(), /100 ชิป/);
+  assert.equal(await player.page.locator("#pokWallet .gold-balance").getAttribute("data-balance"), "100");
+  assert.equal(await player.page.locator("#casinoToolbar .pixel-coin").count(), 1);
   assert.match(await dealer.page.locator("#pokBetSummary").innerText(), /เจ้ามือไม่ต้องลงเดิมพันเอง/);
   const betPosition = await player.page.locator("#pokBetAmount").boundingBox();
   const seatPosition = await player.page.locator("#pokSeats").boundingBox();
@@ -62,6 +63,13 @@ try {
   await player.page.waitForFunction(() => document.querySelectorAll(".pok-seat.mine .pok-card").length === 2);
   assert.equal(await dealer.page.locator(".pok-seat.mine .back").count(), 0);
   assert.equal(await player.page.locator(".pok-seat.mine .back").count(), 0);
+  for (const page of [dealer.page, player.page]) {
+    await page.waitForFunction(() => document.querySelectorAll("#pokHandCards .pok-card:not(.back)").length === 2);
+    const featured = await page.locator("#pokHandCards .pok-card").evaluateAll(cards => cards.map(card => [card.dataset.rank, card.dataset.suit]));
+    const seated = await page.locator(".pok-seat.mine .pok-card").evaluateAll(cards => cards.map(card => [card.dataset.rank, card.dataset.suit]));
+    assert.deepEqual(featured, seated, "large hand must show only the owner's actual private cards");
+    assert.ok((await page.locator("#pokHandCards .pok-card").first().boundingBox()).width >= 100);
+  }
   await dealer.page.screenshot({ path: "/tmp/ro-lounge-table.png" });
   const firstRound = await dealer.page.locator("#pokPhase").innerText();
   // Refresh keeps guest credentials and reconnects into the retained round at the doorway.
@@ -80,6 +88,8 @@ try {
   await player.page.setViewportSize({ width: 390, height: 844 });
   await player.page.screenshot({ path: "/tmp/ro-lounge-table-mobile.png", fullPage: true });
   assert.equal(await player.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  const mobileHand = await player.page.locator("#pokHandCards").boundingBox();
+  assert.ok(mobileHand.x >= 0 && mobileHand.x + mobileHand.width <= 390, "two/three large cards must fit mobile");
   await player.page.waitForFunction(() => document.querySelector("#pokPhase")?.textContent.includes("เลือกที่นั่ง"), null, { timeout: 12000 });
   assert.match(await player.page.locator("#pokBetSummary").innerText(), /เดิมพันที่ยืนยัน: 10 ชิป/);
   assert.match(await player.page.locator("#pokWallet").innerText(), /ตาล่าสุด/);

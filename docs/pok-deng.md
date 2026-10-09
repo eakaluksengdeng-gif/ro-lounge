@@ -18,9 +18,15 @@
 | `client/src/pokdeng/guest.ts` | เก็บ guest UUID ใน LocalStorage และ sync Wallet |
 | `client/src/pokdeng/connect.ts` | `joinPokTable()` และ `sendPok()` สำหรับ UI |
 | `client/src/pokdeng/CasinoUI.ts` | โต๊ะ 8 ที่นั่ง ไพ่ส่วนตัว ปุ่มเล่น ชิป และ reconnect |
+| `client/src/pokdeng/PixelCards.ts` | ไพ่พิกเซล 52 หน้า/หลังไพ่ และเหรียญทอง SVG วาดจากโค้ด |
 | `shared/casinoWorld.ts` | พิกัดประตูและตัวบ้านที่ใช้ทั้ง Client/Server |
 
 Manager ไม่ผูกกับ Phaser หรือ Colyseus จึงทดสอบหรือเปลี่ยน transport ได้
+
+ไพ่ส่วนตัวแสดงใหญ่เหนือโต๊ะ พร้อมแต้มและปุ่มจั่ว/อยู่ โดยใช้เฉพาะมือเจ้าของจาก server
+ไพ่ A–10 มีดอกตามจำนวน; J/Q/K เป็นภาพพิกเซลกลับหัวสองด้าน เลขและดอกอยู่ทั้งสองมุม
+ยอดชิปแสดงเป็นเหรียญทองพร้อมตัวเลข ทั้งบนแมพและในห้อง เป็น Wallet เดิม ไม่ใช่สกุลเงินใหม่
+รัน `npm run test:cards` ใน client ขณะเปิด Vite เพื่อทดสอบ 52 หน้าและจอ 1280/390/360/320px
 
 ## Guest และชิป
 

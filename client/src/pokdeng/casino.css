@@ -1,5 +1,10 @@
 #casinoToolbar { position: fixed; top: 12px; right: 12px; z-index: 6; display: flex; align-items: center; gap: 10px; padding: 8px; background: #172133ed; border: 3px solid #0f1420; font-size: 14px; }
 #casinoToolbar button { background: #ffe27a; }
+#casinoToolbar > span { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.gold-balance { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; vertical-align: middle; }
+.pixel-coin { width: 32px; height: 32px; flex: 0 0 32px; image-rendering: pixelated; filter: drop-shadow(0 2px 0 #33271b); }
+.gold-amount { color: #ffe68f; font: 700 24px "Pixelify Sans", sans-serif; line-height: 1; font-variant-numeric: tabular-nums; }
+.pok-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 #casino[hidden] { display: none; }
 #casino { position: fixed; inset: 0; z-index: 15; display: grid; place-items: start center; background: #101525e8; padding: 16px; overflow: auto; }
 .pok-panel { width: min(1020px, 100%); background: #212b3e; border: 4px solid #d4a95e; box-shadow: 0 8px 0 #0c111b; padding: 20px; }
@@ -8,6 +13,10 @@
 .pok-status { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #cce8d3; }
 #pokTimer { color: #ffe27a; font-size: 20px; white-space: nowrap; }
 #pokWallet { margin-top: 14px; padding: 12px 16px; color: #efffde; background: #16372d; border: 2px solid #88bd82; font: 700 18px "Noto Sans Thai", sans-serif; overflow-wrap: anywhere; }
+#pokWallet { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+#pokWallet .pixel-coin { width: 40px; height: 40px; flex-basis: 40px; }
+#pokWallet .gold-amount { font-size: 36px; }
+.pok-wallet-details { font-size: 14px; font-weight: 400; }
 #pokBetting { padding: 16px; margin: 10px 0; background: #333029; border: 3px solid #ffe27a; }
 #pokBetTitle { margin: 0; color: #ffe27a; font-size: 22px; }
 #pokBetSummary, #pokAutoStatus, #pokBetHelp { font: 14px "Noto Sans Thai", sans-serif; line-height: 1.6; }
@@ -28,9 +37,46 @@
 .pok-seat h3 { margin: 0 0 6px; font-size: 16px; color: #ffe27a; }
 .pok-seat p { margin: 5px 0; font-size: 13px; overflow-wrap: anywhere; }
 .pok-cards { display: flex; gap: 5px; min-height: 60px; margin: 8px 0; }
-.pok-card { width: 40px; height: 56px; display: flex; align-items: center; justify-content: center; flex-direction: column; background: #fff5df; border: 2px solid #d8cfb9; color: #182331; font-family: system-ui, sans-serif; font-size: 19px; font-weight: 700; box-shadow: 2px 3px 0 #091a19; }
+.pok-card { position: relative; display: inline-block; width: 44px; height: 66px; flex: 0 0 auto; background: #fff5df; border: 2px solid #b7a88a; color: #233344; box-shadow: inset 0 0 0 1px #fffdf1, 2px 3px 0 #091a19; font-family: "Pixelify Sans", sans-serif; font-weight: 700; }
 .pok-card.red { color: #ba3341; }
-.pok-card.back { color: #d2e5fc; border-color: #96b8dc; background: repeating-conic-gradient(#2b4771 0 25%, #233959 0 50%) 0 0 / 8px 8px; }
+.pok-card.back { border-color: #d5ba79; background: #183953; }
+.pok-back-pattern { position: absolute; inset: 4px; display: grid; place-items: center; border: 1px solid #e6c77e; background: repeating-conic-gradient(#254d70 0 25%, #1d3957 0 50%) 0 0 / 6px 6px; }
+.pok-back-pattern > svg { width: 18px; height: 18px; background: #213d59; }
+.pok-index { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 1px; line-height: .95; z-index: 1; }
+.pok-index.top { top: 2px; left: 2px; }
+.pok-index.bottom { bottom: 2px; right: 2px; transform: rotate(180deg); }
+.pok-rank { font-size: 12px; }
+.pixel-suit { width: 7px; height: 7px; image-rendering: pixelated; }
+.pok-pips { position: absolute; inset: 19% 22%; }
+.pok-pip { position: absolute; width: 6px; height: 6px; }
+.pok-card[data-rank="1"] .pok-pip { width: 14px; height: 14px; }
+.pok-face { position: absolute; inset: 16% 22%; display: flex; flex-direction: column; justify-content: center; background: #efe5cc; border: 1px solid #cbaf78; overflow: hidden; }
+.pixel-royal { width: 100%; height: 50%; image-rendering: pixelated; }
+.pixel-royal:last-child { transform: rotate(180deg); }
+#pokHand { position: sticky; top: 8px; z-index: 2; margin: 12px 0 18px; padding: 16px 20px; border: 3px solid #dab970; background: #143b32; box-shadow: inset 0 0 0 3px #225348, 0 5px 0 #101e23; }
+.pok-hand-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
+.pok-hand-header h3 { margin: 0; color: #ffe68f; font-size: 22px; }
+.pok-hand-header > span { color: #bdd4c8; font: 12px "Noto Sans Thai", sans-serif; }
+.pok-hand-body { display: flex; align-items: center; justify-content: center; gap: 40px; padding-top: 16px; }
+#pokHandCards { display: flex; justify-content: center; gap: 14px; padding: 8px 12px 14px; }
+.pok-card.large { width: 106px; height: 152px; border-width: 3px; box-shadow: inset 0 0 0 2px #fffdf1, 4px 6px 0 #091e18; }
+.pok-card.large:first-child { transform: rotate(-4deg) translateY(2px); }
+.pok-card.large:last-child { transform: rotate(4deg) translateY(2px); }
+.pok-card.large:only-child { transform: none; }
+.pok-card.large .pok-index.top { top: 5px; left: 6px; }
+.pok-card.large .pok-index.bottom { bottom: 5px; right: 6px; }
+.pok-card.large .pok-rank { font-size: 25px; }
+.pok-card.large .pok-index .pixel-suit { width: 14px; height: 14px; }
+.pok-card.large .pok-pip { width: 18px; height: 18px; }
+.pok-card.large[data-rank="9"] .pok-pip, .pok-card.large[data-rank="10"] .pok-pip { width: 14px; height: 14px; }
+.pok-card.large[data-rank="1"] .pok-pip { width: 36px; height: 36px; }
+.pok-card.large .pok-back-pattern { inset: 8px; border-width: 2px; background-size: 10px 10px; }
+.pok-card.large .pok-back-pattern > svg { width: 36px; height: 36px; }
+.pok-hand-decisions { max-width: 300px; }
+#pokHandValue { margin: 0 0 6px; color: #ffe68f; font-size: 25px; font-weight: 700; }
+#pokHandHint { margin: 0 0 12px; color: #cee4d5; font: 14px "Noto Sans Thai", sans-serif; }
+.pok-hand-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pok-hand-actions button:first-child { background: #ffe27a; }
 .pok-result { color: #ffe27a; }
 #pokControls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 #pokControls input { width: 100px; }
@@ -53,5 +99,34 @@ button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
   .pok-seat { min-height: 140px; padding: 7px; }
   .pok-seat button { padding: 7px; }
   .pok-cards { min-height: 48px; }
-  .pok-card { width: 34px; height: 48px; font-size: 16px; }
+  .pok-card { width: 34px; height: 50px; }
+  .pok-rank { font-size: 10px; }
+  .pok-pip { width: 5px; height: 5px; }
+  .pok-index .pixel-suit { width: 5px; height: 5px; }
+  #casinoToolbar .pixel-coin { width: 24px; height: 24px; flex-basis: 24px; }
+  #casinoToolbar .gold-amount { font-size: 22px; }
+  #casinoToolbar .wallet-hud-details { flex-basis: 100%; font-size: 10px; }
+  #pokWallet .gold-amount { font-size: 30px; }
+  #pokWallet .pixel-coin { width: 32px; height: 32px; flex-basis: 32px; }
+  .pok-wallet-details { flex-basis: 100%; font-size: 12px; }
+  #pokHand { padding: 12px; top: 4px; }
+  .pok-hand-body { flex-direction: column; gap: 8px; padding-top: 8px; }
+  #pokHandCards { gap: 8px; padding: 8px 6px 12px; }
+  .pok-card.large { width: 82px; height: 120px; }
+  .pok-card.large .pok-rank { font-size: 20px; }
+  .pok-card.large .pok-index .pixel-suit { width: 10px; height: 10px; }
+  .pok-card.large .pok-pip { width: 13px; height: 13px; }
+  .pok-card.large[data-rank="9"] .pok-pip, .pok-card.large[data-rank="10"] .pok-pip { width: 10px; height: 10px; }
+  .pok-card.large[data-rank="1"] .pok-pip { width: 27px; height: 27px; }
+  .pok-hand-header h3 { font-size: 19px; }
+  .pok-hand-header > span { font-size: 10px; }
+  .pok-hand-decisions { width: 100%; max-width: none; text-align: center; }
+  #pokHandValue { font-size: 22px; }
+  #pokHandHint { font-size: 12px; }
+  .pok-hand-actions { justify-content: center; }
+}
+@media (max-width: 380px) {
+  .pok-card.large { width: 72px; height: 104px; }
+  .pok-card.large .pok-rank { font-size: 18px; }
+  #pokHandCards { gap: 6px; }
 }
