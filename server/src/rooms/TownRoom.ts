@@ -1,4 +1,9 @@
-import { Room, Client } from "colyseus";
+import { Room, Client, ServerError } from "colyseus";
+import type { IncomingMessage } from "node:http";
+import { requestIp, type GuestIdentity } from "../auth/GuestManager";
+import { CASINO_DOOR } from "../pokdeng/CasinoAccess";
+import { GameError } from "../pokdeng/errors";
+import { casinoAccess, economy, guests } from "../services";
 import { Player, TownState } from "../schema/TownState";
 import { clampToMap, isBlocked, spawnPoint } from "../world";
 
@@ -24,6 +29,7 @@ function optionIndex(raw: unknown, count: number, fallback = 0): number {
 
 interface JoinOptions {
   name?: string;
+  sessionId?: unknown;
   appearance?: {
     color?: number;
     hair?: number;
@@ -36,14 +42,29 @@ interface JoinOptions {
 export class TownRoom extends Room<TownState> {
   maxClients = 50;
   private lastChat = new Map<string, number>();
+  private atDoor = new Set<string>();
+  private unsubscribeWallet?: () => void;
+
+  onAuth(_client: Client, options: JoinOptions, request?: IncomingMessage): GuestIdentity {
+    try { return guests.connect(options?.sessionId, requestIp(request)); }
+    catch (error) { throw new ServerError(403, error instanceof GameError ? error.code : "AUTH_FAILED"); }
+  }
 
   onCreate() {
     this.setState(new TownState());
+    this.unsubscribeWallet = economy.subscribe((id, wallet) => {
+      for (const client of this.clients) if ((client.auth as GuestIdentity)?.playerId === id) client.send("wallet:update", wallet);
+    });
+    this.onMessage("auth:sync", client => client.send("auth:ready", guests.ready(client.auth as GuestIdentity)));
+    this.onMessage("wallet:sync", client => client.send("wallet:update", economy.view((client.auth as GuestIdentity).playerId)));
+    this.onMessage("casino:locate", client => client.send("casino:door", CASINO_DOOR));
+    this.onMessage("casino:enter", client => this.enterCasino(client));
 
     // client -> server: เจตนาจะเดินไปที่จุดนี้
     this.onMessage("move", (client, msg: { x?: number; y?: number }) => {
       const p = this.state.players.get(client.sessionId);
       if (!p || typeof msg?.x !== "number" || typeof msg?.y !== "number") return;
+      if (casinoAccess.roomFor(p.playerId)) return;
       if (!Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return;
       const t = clampToMap(msg.x, msg.y);
       p.targetX = t.x;
@@ -71,7 +92,14 @@ export class TownRoom extends Room<TownState> {
     // เซิร์ฟเวอร์เป็นคนขยับตัวละคร ด้วยความเร็วคงที่ กันโกง
     this.setSimulationInterval((dtMs) => {
       const dt = dtMs / 1000;
-      this.state.players.forEach((p) => {
+      this.state.players.forEach((p, id) => {
+        const nearDoor = casinoAccess.isAtDoor(p.x, p.y);
+        if (nearDoor && !this.atDoor.has(id)) {
+          this.atDoor.add(id);
+          const client = this.clients.getById(id);
+          if (client) this.enterCasino(client);
+        } else if (!nearDoor) this.atDoor.delete(id);
+        if (casinoAccess.roomFor(p.playerId)) return;
         const dx = p.targetX - p.x;
         const dy = p.targetY - p.y;
         const dist = Math.hypot(dx, dy);
@@ -101,7 +129,9 @@ export class TownRoom extends Room<TownState> {
   }
 
   onJoin(client: Client, options: JoinOptions) {
+    const identity = client.auth as GuestIdentity;
     const p = new Player();
+    p.playerId = identity.playerId;
     p.name = cleanName(options?.name);
     const appearance = options?.appearance;
     p.color = COLORS[optionIndex(appearance?.color, COLORS.length, Math.floor(Math.random() * COLORS.length))];
@@ -118,5 +148,22 @@ export class TownRoom extends Room<TownState> {
   onLeave(client: Client) {
     this.state.players.delete(client.sessionId);
     this.lastChat.delete(client.sessionId);
+    this.atDoor.delete(client.sessionId);
+  }
+
+  onDispose() { this.unsubscribeWallet?.(); }
+
+  private enterCasino(client: Client) {
+    const p = this.state.players.get(client.sessionId);
+    if (!p) return;
+    try {
+      const entry = casinoAccess.enter(p.playerId, p.x, p.y);
+      p.targetX = p.x;
+      p.targetY = p.y;
+      client.send("casino:entered", entry);
+    } catch (error) {
+      if (!(error instanceof GameError)) throw error;
+      client.send("api:error", { event: "casino:enter", code: error.code, message: error.message });
+    }
   }
 }

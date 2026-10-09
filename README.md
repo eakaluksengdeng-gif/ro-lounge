@@ -35,6 +35,16 @@ npm run dev
 
 ระบบบัญชีและบันทึกตัวละครข้ามอุปกรณ์, หลายแมพ, ตัวกรองคำหยาบ, report/mute, sprite จริง
 
+## บ้านป๊อกเด้ง (Server API)
+
+เพิ่ม guest UUID + Wallet เริ่มต้น 100 ชิป, ทางเข้า casino ที่ตรวจตำแหน่งฝั่ง server,
+โต๊ะ Colyseus `pok_deng` 8 ที่นั่ง และเกมป๊อกเด้งแบบ server-authoritative
+มี private hand messages, timeout, reconnect และการคิดชิปแบบ atomic
+ภาพบ้าน/โต๊ะและ UI ไพ่เป็นงานฝั่ง Client ถัดไป
+
+ดู [โมดูล กติกา และ Event API](docs/pok-deng.md) สำหรับต่อกับ Phaser/UI
+รันทดสอบด้วย `cd server && npm test`
+
 ## ไฟล์สำคัญ
 
 | ไฟล์ | หน้าที่ |

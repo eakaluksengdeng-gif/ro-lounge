@@ -2,6 +2,7 @@ import { Server } from "colyseus";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import { createServer } from "node:http";
 import { TownRoom } from "./rooms/TownRoom";
+import { PokDengRoom } from "./rooms/PokDengRoom";
 
 const port = Number(process.env.PORT ?? 2567);
 
@@ -18,6 +19,7 @@ const gameServer = new Server({
 });
 
 gameServer.define("town", TownRoom);
+gameServer.define("pok_deng", PokDengRoom);
 
 gameServer.listen(port).then(() => {
   console.log(`[ro-lounge] server listening on ws://localhost:${port}`);
