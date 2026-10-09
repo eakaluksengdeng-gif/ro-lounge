@@ -227,13 +227,16 @@ export class TownScene extends Phaser.Scene {
   }
 
   private lookFor(p: PlayerState, id: string): Look {
+    // ค่า fallback ทำให้ client ใหม่ยังใช้กับ server เวอร์ชันก่อนมีตัวเลือกหน้าตาได้ระหว่าง deploy
     const h = hashString(id + p.name);
-    const hair = h % 6;
-    const skin = (h >> 3) % 3;
-    const pants = (h >> 5) % 3;
-    const style = (h >> 7) % 3;
+    const index = (value: number, count: number, fallback: number) =>
+      Number.isInteger(value) ? Math.max(0, Math.min(count - 1, value)) : fallback;
+    const hair = index(p.hair, HAIR.length, h % HAIR.length);
+    const skin = index(p.skin, SKIN.length, (h >> 3) % SKIN.length);
+    const pants = index(p.pants, PANTS.length, (h >> 5) % PANTS.length);
+    const style = index(p.style, 3, (h >> 7) % 3);
     return {
-      id: `${p.color}-${hair}${skin}${pants}${style}`,
+      id: `${p.color}-${hair}-${skin}-${pants}-${style}`,
       shirt: "#" + p.color.toString(16).padStart(6, "0"),
       hair: HAIR[hair],
       skin: SKIN[skin],

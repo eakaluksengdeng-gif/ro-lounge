@@ -17,6 +17,22 @@ function cleanName(raw: unknown): string {
   return s || "Guest" + Math.floor(Math.random() * 1000);
 }
 
+function optionIndex(raw: unknown, count: number, fallback = 0): number {
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 0 && n < count ? n : fallback;
+}
+
+interface JoinOptions {
+  name?: string;
+  appearance?: {
+    color?: number;
+    hair?: number;
+    skin?: number;
+    pants?: number;
+    style?: number;
+  };
+}
+
 export class TownRoom extends Room<TownState> {
   maxClients = 50;
   private lastChat = new Map<string, number>();
@@ -84,13 +100,18 @@ export class TownRoom extends Room<TownState> {
     }, TICK_MS);
   }
 
-  onJoin(client: Client, options: { name?: string }) {
+  onJoin(client: Client, options: JoinOptions) {
     const p = new Player();
     p.name = cleanName(options?.name);
+    const appearance = options?.appearance;
+    p.color = COLORS[optionIndex(appearance?.color, COLORS.length, Math.floor(Math.random() * COLORS.length))];
+    p.hair = optionIndex(appearance?.hair, 6);
+    p.skin = optionIndex(appearance?.skin, 3);
+    p.pants = optionIndex(appearance?.pants, 3);
+    p.style = optionIndex(appearance?.style, 3);
     const sp = spawnPoint();
     p.x = p.targetX = sp.x;
     p.y = p.targetY = sp.y;
-    p.color = COLORS[Math.floor(Math.random() * COLORS.length)];
     this.state.players.set(client.sessionId, p);
   }
 
