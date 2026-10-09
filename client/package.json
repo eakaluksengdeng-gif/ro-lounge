@@ -5,13 +5,15 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "node test/casino.e2e.mjs"
   },
   "dependencies": {
     "colyseus.js": "^0.15.28",
     "phaser": "^3.80.1"
   },
   "devDependencies": {
+    "playwright": "^1.64.0",
     "typescript": "^5.5.0",
     "vite": "^5.4.0"
   }

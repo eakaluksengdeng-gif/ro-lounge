@@ -1,5 +1,6 @@
 // ค่าของโลกเกมฝั่งเซิร์ฟเวอร์ ต้องตรงกับ client/src/world.ts (ถ้าแก้ที่นี่ ให้แก้ที่ client ด้วย)
 
+import { CASINO_BUILDING } from "../../shared/casinoWorld";
 export const TILE_PX = 48;
 export const MAP_W = 30 * TILE_PX; // 1440
 export const MAP_H = 18 * TILE_PX; // 864
@@ -28,6 +29,8 @@ export function clampToMap(x: number, y: number) {
 
 // จุดที่เดินผ่านไม่ได้: สระน้ำ น้ำพุ ต้นไม้
 export function isBlocked(x: number, y: number): boolean {
+  const house = CASINO_BUILDING;
+  if (x > house.x - 8 && x < house.x + house.width + 8 && y > house.y && y < house.y + house.height + 8) return true;
   const pond = ((x / TILE_PX - POND.cx) / POND.rx) ** 2 + ((y / TILE_PX - POND.cy) / POND.ry) ** 2;
   if (pond < 0.95) return true;
   if (((x - FOUNTAIN.x) / 54) ** 2 + ((y - (FOUNTAIN.y + 18)) / 32) ** 2 < 1) return true;

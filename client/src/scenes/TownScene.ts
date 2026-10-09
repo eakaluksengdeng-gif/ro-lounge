@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { CASINO_BUILDING, CASINO_DOOR } from "../../../shared/casinoWorld";
 import type { Room } from "colyseus.js";
 import type { ChatMsg, EmoteMsg, PlayerState } from "../net";
 import {
@@ -42,6 +43,8 @@ interface Avatar {
 }
 
 export class TownScene extends Phaser.Scene {
+  casinoOpen = false;
+  onManualMove?: () => void;
   private avatars = new Map<string, Avatar>();
   private waterTiles: Phaser.GameObjects.Image[] = [];
   private fountain?: Phaser.GameObjects.Image;
@@ -71,6 +74,10 @@ export class TownScene extends Phaser.Scene {
 
     // คลิกพื้นเพื่อเดิน
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
+      // Phaser can receive document-level pointer events over HTML overlays.
+      if (!(p.event?.target instanceof HTMLCanvasElement)) return;
+      if (this.casinoOpen) return;
+      this.onManualMove?.();
       const x = Math.round(p.worldX);
       const y = Math.round(p.worldY);
       this.room.send("move", { x, y });
@@ -145,6 +152,7 @@ export class TownScene extends Phaser.Scene {
     }
 
     // น้ำพุ
+    this.buildCasino();
     this.fountain = this.add.image(FOUNTAIN.x, FOUNTAIN.y, "fountain0").setScale(PX).setDepth(FOUNTAIN.y + 40);
 
     // ม้านั่งและโคมไฟ
@@ -170,6 +178,42 @@ export class TownScene extends Phaser.Scene {
   }
 
   /* ---------------- ตัวละคร ---------------- */
+
+  private buildCasino() {
+    const { x, y, width: w, height: h } = CASINO_BUILDING;
+    const g = this.add.graphics().setDepth(y + h);
+    g.fillStyle(0x101525, .35).fillRect(x + 9, y + h - 9, w + 12, 27);
+    g.fillStyle(0x2b1f30).fillRect(x, y + 36, w, h - 36);
+    g.fillStyle(0xb77b55).fillRect(x + 9, y + 42, w - 18, h - 48);
+    for (let row = y + 54; row < y + h - 6; row += 15) {
+      g.fillStyle(0x9d6047).fillRect(x + 9, row, w - 18, 3);
+    }
+    g.fillStyle(0x302038).fillRect(x - 9, y + 24, w + 18, 27);
+    for (let row = 0; row < 5; row++) {
+      const inset = (4 - row) * 9;
+      g.fillStyle(row % 2 ? 0x6a354b : 0x874353)
+        .fillRect(x - 12 + inset, y + row * 9, w + 24 - inset * 2, 9);
+    }
+    g.fillStyle(0xffd477).fillRect(x - 12, y + 45, w + 24, 6);
+    for (const wx of [x + 24, x + w - 57]) {
+      g.fillStyle(0x372539).fillRect(wx, y + 75, 33, 33);
+      g.fillStyle(0xf7c870).fillRect(wx + 3, y + 78, 27, 27);
+      g.fillStyle(0x8b523c).fillRect(wx + 15, y + 78, 3, 27).fillRect(wx + 3, y + 90, 27, 3);
+    }
+    g.fillStyle(0x382536).fillRect(x + w / 2 - 24, y + h - 51, 48, 51);
+    g.fillStyle(0xe3ae66).fillRect(x + w / 2 - 21, y + h - 48, 42, 3);
+    g.fillStyle(0x171a29).fillRect(x + w / 2 - 18, y + h - 45, 36, 45);
+    g.fillStyle(0xd7aa7b).fillRect(x + w / 2 - 30, y + h, 60, 9);
+    this.add.text(x + w / 2, y + 61, "บ้านป๊อกเด้ง", {
+      fontFamily: FONT, fontSize: "17px", color: "#ffe27a", backgroundColor: "#352436", padding: { x: 7, y: 2 },
+    }).setOrigin(.5).setDepth(y + h + 1);
+    const ring = this.add.circle(CASINO_DOOR.x, CASINO_DOOR.y, 22, 0xffe27a, .12)
+      .setStrokeStyle(3, 0xffe27a, .7).setDepth(-10);
+    this.tweens.add({ targets: ring, alpha: .35, duration: 900, yoyo: true, repeat: -1 });
+    this.add.text(CASINO_DOOR.x, CASINO_DOOR.y + 28, "เดินเข้าประตูเพื่อเล่น • ชิปฟรี", {
+      fontFamily: FONT, fontSize: "13px", color: "#fff4d6", backgroundColor: "#1b2230cc", padding: { x: 5, y: 3 },
+    }).setOrigin(.5, 0).setDepth(CASINO_DOOR.y + 70);
+  }
 
   update(_t: number, dtMs: number) {
     const players = this.room.state?.players;
@@ -227,13 +271,16 @@ export class TownScene extends Phaser.Scene {
   }
 
   private lookFor(p: PlayerState, id: string): Look {
+    // ค่า fallback ทำให้ client ใหม่ยังใช้กับ server เวอร์ชันก่อนมีตัวเลือกหน้าตาได้ระหว่าง deploy
     const h = hashString(id + p.name);
-    const hair = h % 6;
-    const skin = (h >> 3) % 3;
-    const pants = (h >> 5) % 3;
-    const style = (h >> 7) % 3;
+    const index = (value: number, count: number, fallback: number) =>
+      Number.isInteger(value) ? Math.max(0, Math.min(count - 1, value)) : fallback;
+    const hair = index(p.hair, HAIR.length, h % HAIR.length);
+    const skin = index(p.skin, SKIN.length, (h >>> 3) % SKIN.length);
+    const pants = index(p.pants, PANTS.length, (h >>> 5) % PANTS.length);
+    const style = index(p.style, 3, (h >>> 7) % 3);
     return {
-      id: `${p.color}-${hair}${skin}${pants}${style}`,
+      id: `${p.color}-${hair}-${skin}-${pants}-${style}`,
       shirt: "#" + p.color.toString(16).padStart(6, "0"),
       hair: HAIR[hair],
       skin: SKIN[skin],
