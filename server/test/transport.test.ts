@@ -144,10 +144,12 @@ test("wire repeated rounds: queued exit pays the dealer, remaining guest plays o
     const playerPaid = message<WalletView>(towns[1], "wallet:update", wallet => wallet.balance === 90 && wallet.reserved === 0);
     const dealerPaid = message<WalletView>(towns[0], "wallet:update", wallet => wallet.balance === 120 && wallet.reserved === 0);
     const departed = new Promise<void>(resolve => leaving.onLeave(() => resolve()));
+    const acknowledgement = message<{ wallet: WalletView }>(leaving, "table:left");
     const second = message<TableState>(remaining, "table:state", state => state.roundNumber === 2 && state.phase === "dealing");
     const queued = message<TableState>(remaining, "table:state", state => state.seats[1]?.leaving === true);
     leaving.send("table:leave", {}); await queued;
     await Promise.all([playerPaid, dealerPaid, departed]);
+    assert.deepEqual((await acknowledgement).wallet, { balance: 90, reserved: 0, available: 90 });
     const secondState = await second;
     assert.equal(secondState.seats[1], null);
     assert.equal(secondState.seats[2]?.bet, 10);

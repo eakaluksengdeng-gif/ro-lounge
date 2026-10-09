@@ -166,6 +166,7 @@ Shared types อย่างเดียวไม่ได้เป็น securi
 | `casino:door` | `{ x, y, radius }` |
 | `casino:entered` | `{ ticket, expiresAt, roomType, resumeRoomId? }` private |
 | `table:state` | public `TableState`: phase, roundId, deadline, 8 seats, showdown results |
+| `table:left` | private `{ wallet }`; ยืนยันคิดเงิน/ปล่อยที่นั่งแล้ว UI กลับเมืองได้ ไม่ต้องรอ WebSocket close ผ่าน proxy |
 | `game:hand` | private `{ roundId, cards, canDraw, canStay, deadline }` |
 | `api:error` | `{ event, code, message }`; ไม่มีการเปลี่ยนเงิน/ไพ่เมื่อคำสั่งผิด |
 
