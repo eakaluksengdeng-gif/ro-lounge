@@ -1,5 +1,8 @@
 # Character-creator courtyard
 
+Current background: [cute low-resolution pixel courtyard](character-courtyard-pixel.md).
+The source and prompt below describe the previous detailed illustration, retained for recovery.
+
 Generated using the built-in image generation tool; an original pixel-art fantasy village,
 not a copied Ragnarok game asset.
 

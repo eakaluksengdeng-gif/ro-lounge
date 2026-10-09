@@ -1,0 +1,11 @@
+# Cute pixel courtyard
+
+Generated with the built-in image generation tool, replacing the detailed courtyard in the character creator. Existing illustration remains in the repository for recovery.
+
+- Source: `character-courtyard-pixel-source.png`
+- Shipped asset: `client/public/art/character-courtyard-pixel.png`, 128 × 128 PNG, nearest-neighbor resize for a coarse, crisp pixel grid and fast loading
+- CSS uses `image-rendering: pixelated`; live character renderer and selections remain unchanged.
+
+## Final generation prompt
+
+Use case: stylized-concept. Asset type: production background for the character-creation preview of a cute 2D top-down pixel multiplayer game. Primary request: an original VERY SIMPLE, CHUNKY low-resolution pixel-art town garden, matching small blocky chibi sprites and a tile-based game map, not a detailed fantasy illustration. Style: genuine coarse 16-bit pixel art drawn on a virtual 128x128 grid then enlarged by nearest-neighbor; visibly large square pixels, hard stepped edges, flat solid color clusters, limited approximately 24-color palette, only 2 or 3 shades per object. Scene: cheerful bright green grass, round chunky leafy trees, a couple of small cream-and-brown cottages with muted mauve tile roofs, a little blue fountain farther back, tiny pink/yellow flower clusters. Composition: SQUARE background, gentle elevated RPG town view. At bottom center an EMPTY broad cream-stone plaza/platform spanning the middle 55 percent of the width, keep center foreground and central vertical strip uncluttered because a live character sprite will be overlaid there in code. Frame with cute greenery and simple houses near the upper sides; calm readable center. Palette should match a game with grass #7fd06c, cream stone #d9d0bb, blue water #5db6ea, dark outlines #2b2233. Mood: sweet cozy sunny village, playful and welcoming. Constraints: ONLY the background, absolutely no people, no characters, no text, no lettering, no interface, no border, no watermark. Avoid painterly detail, realism, smooth gradients, antialiasing, high-frequency texture, complex architecture, distant epic mountains or castles. The priority is big clean pixels and adorable simple shapes, not intricate scenery.
