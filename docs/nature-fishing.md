@@ -42,6 +42,17 @@ Public schema มีสถานะตกปลา/จุดตกปลา เ�
 
 `cd server && npm test`: กติกาอากาศ สัตว์ collision เวลา/จังหวะ/สิทธิ์ตกปลา และ regression เดิม
 
+ทดสอบสิทธิ์ผ่าน WebSocket จริงโดยเฉพาะ: `cd server && npx tsx --test test/nature-transport.test.ts`
+
+- ผู้เล่นคนอื่นที่รู้ castId ก็สั่งดึงหรือยกเลิกเบ็ดเจ้าของไม่ได้ แม้ปลากินเหยื่อแล้ว
+- ข้อมูล playerId/sessionId/owner ที่แอบใส่ใน payload ไม่แทนตัวตนของ connection ที่ผ่าน auth
+- อีกแท็บของ Guest เดียวกันเห็นยอดปลา/ชิปของบัญชีร่วมกัน แต่ไม่เห็น castId และสั่งดึงเบ็ดของแท็บแรกไม่ได้
+- castId ที่หายไป รูปแบบผิด ของอีกผู้เล่น หรือหมดอายุหลังกลับเข้าเกม ถูกปฏิเสธ
+- เจ้าของได้ปลา 1 ตัวและ 10 ชิปเท่านั้น แม้ส่ง total/rewardChips ปลอม; replay ไม่เพิ่มรางวัล
+- ข้อความ private และ public schema ไม่เผย castId ของเจ้าของให้ผู้เล่นอื่น
+
+ชุดทดสอบเปิดเซิร์ฟเวอร์ชั่วคราวบน localhost/พอร์ตสุ่ม ไม่แตะเกม production หรือยอดชิปผู้เล่นจริง
+
 Local browser QA:
 
 1. `cd server && RO_WEATHER_PHASE_MS=5000 npm start` (เฉพาะ QA; production ใช้ default)
