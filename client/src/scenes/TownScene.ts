@@ -1,4 +1,6 @@
 import Phaser from "phaser";
+import { TownNature } from "../nature/TownNature";
+import { avatarMotion } from "../../../shared/avatarMotion";
 import { CASINO_BUILDING, CASINO_DOOR } from "../../../shared/casinoWorld";
 import { HAIR_COLORS as HAIR, SKIN_COLORS as SKIN, PANTS_COLORS as PANTS } from "../character/appearance";
 import type { Room } from "colyseus.js";
@@ -46,6 +48,13 @@ export class TownScene extends Phaser.Scene {
   private avatars = new Map<string, Avatar>();
   private waterTiles: Phaser.GameObjects.Image[] = [];
   private fountain?: Phaser.GameObjects.Image;
+  private nature?: TownNature;
+  private route: { x: number; y: number }[] = [];
+  navigateTo(points: { x: number; y: number }[]) {
+    this.route = points.map(point => ({ ...point }));
+    if (this.route[0]) this.room.send("move", this.route[0]);
+  }
+  stopNavigation() { this.route = []; }
 
   constructor(private room: Room<any>, private onChat: (m: ChatMsg) => void) {
     super("town");
@@ -57,6 +66,7 @@ export class TownScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, MAP_W, MAP_H);
     this.cameras.main.setRoundPixels(true);
     this.buildMap();
+    this.nature = new TownNature(this, this.room);
 
     // ภาพเคลื่อนไหวของน้ำและน้ำพุ
     let tick = 0;
@@ -76,6 +86,7 @@ export class TownScene extends Phaser.Scene {
       if (!(p.event?.target instanceof HTMLCanvasElement)) return;
       if (this.casinoOpen) return;
       this.onManualMove?.();
+      this.stopNavigation();
       const x = Math.round(p.worldX);
       const y = Math.round(p.worldY);
       this.room.send("move", { x, y });
@@ -214,6 +225,12 @@ export class TownScene extends Phaser.Scene {
   }
 
   update(_t: number, dtMs: number) {
+    this.nature?.update(_t, dtMs);
+    const me = this.room.state?.players?.get(this.room.sessionId);
+    if (me && this.route[0] && Math.hypot(me.x - this.route[0].x, me.y - this.route[0].y) < 12) {
+      this.route.shift();
+      if (this.route[0]) this.room.send("move", this.route[0]);
+    }
     const players = this.room.state?.players;
     if (!players) return;
 
@@ -240,17 +257,15 @@ export class TownScene extends Phaser.Scene {
 
   private moveAvatar(av: Avatar, p: PlayerState, dtMs: number) {
     const c = av.container;
-    const k = 1 - Math.pow(0.001, dtMs / 1000);
-    const nx = c.x + (p.x - c.x) * k;
-    const ny = c.y + (p.y - c.y) * k;
-    const dx = nx - c.x;
-    const dy = ny - c.y;
-    const dist = Math.hypot(dx, dy);
-    c.setPosition(Math.round(nx), Math.round(ny));
+    const motion = avatarMotion(c, p, dtMs);
+    const { x: nx, y: ny, dx, dy, distance: dist } = motion;
+    // Preserve subpixels for convergence. Rounding here left a permanent residual,
+    // which repeatedly triggered walking/facing changes on an otherwise idle avatar.
+    c.setPosition(nx, ny);
     c.setDepth(c.y);
 
     let frame = 0;
-    if (dist > 0.12) {
+    if (motion.walking) {
       if (Math.abs(dx) > Math.abs(dy)) {
         av.dir = "side";
         av.flip = dx < 0;
@@ -277,13 +292,15 @@ export class TownScene extends Phaser.Scene {
     const skin = index(p.skin, SKIN.length, (h >>> 3) % SKIN.length);
     const pants = index(p.pants, PANTS.length, (h >>> 5) % PANTS.length);
     const style = index(p.style, 3, (h >>> 7) % 3);
+    const gender = index(p.gender, 2, 0);
     return {
-      id: `${p.color}-${hair}-${skin}-${pants}-${style}`,
+      id: `${p.color}-${hair}-${skin}-${pants}-${style}-${gender}`,
       shirt: "#" + p.color.toString(16).padStart(6, "0"),
       hair: HAIR[hair],
       skin: SKIN[skin],
       pants: PANTS[pants],
       style,
+      gender,
     };
   }
 

@@ -1,4 +1,5 @@
 import type { WalletView } from "../../../shared/pokdeng";
+import { FISHING_REWARD_CHIPS } from "../../../shared/nature";
 import { requireGame } from "../pokdeng/errors";
 
 interface Wallet { balance: number; holds: Map<string, number> }
@@ -9,6 +10,7 @@ export interface Settlement { playerId: string; key: string; delta: number }
 export class EconomyManager {
   private wallets = new Map<string, Wallet>();
   private settled = new Set<string>();
+  private fishingRewards = new Set<string>();
   private listeners = new Set<(playerId: string, wallet: WalletView) => void>();
 
   create(playerId: string): void {
@@ -19,6 +21,18 @@ export class EconomyManager {
     const wallet = this.get(playerId);
     const reserved = [...wallet.holds.values()].reduce((a, b) => a + b, 0);
     return { balance: wallet.balance, reserved, available: wallet.balance - reserved };
+  }
+
+  /** Only a verified server-owned fishing cast can mint the fixed 10-chip reward. No client API. */
+  rewardFishingCatch(playerId: string, castId: string): boolean {
+    requireGame(typeof castId === "string" && castId.length > 0, "BAD_REWARD", "Missing fishing cast");
+    if (this.fishingRewards.has(castId)) return false;
+    const wallet = this.get(playerId);
+    requireGame(Number.isSafeInteger(wallet.balance + FISHING_REWARD_CHIPS), "BAD_REWARD", "Chip balance limit reached");
+    wallet.balance += FISHING_REWARD_CHIPS;
+    this.fishingRewards.add(castId);
+    this.notify([playerId]);
+    return true;
   }
 
   /** Validate every wallet first, then replace all holds together (e.g. player + dealer). */

@@ -4,6 +4,7 @@ import { TownScene } from "./scenes/TownScene";
 import { CasinoUI } from "./pokdeng/CasinoUI";
 import { forgetGuest } from "./pokdeng/guest";
 import { CharacterCreator } from "./character/CharacterCreator";
+import { NatureUI } from "./nature/NatureUI";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -81,6 +82,7 @@ loginForm.addEventListener("submit", async (e) => {
 
   const townScene = new TownScene(room, addLog);
   new CasinoUI(room, townScene, name);
+  new NatureUI(room, townScene);
   // รอฟอนต์พิกเซลโหลดสักครู่ (ไม่เกิน 1.5 วินาที) เพื่อให้ตัวหนังสือในเกมใช้ฟอนต์ถูกตัว
   try {
     await Promise.race([

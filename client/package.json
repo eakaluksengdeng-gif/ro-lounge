@@ -7,7 +7,8 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test:e2e": "node test/casino.e2e.mjs",
-    "test:creator": "node test/creator.e2e.mjs"
+    "test:creator": "node test/creator.e2e.mjs",
+    "test:nature": "node test/nature.e2e.mjs"
   },
   "dependencies": {
     "colyseus.js": "^0.15.28",

@@ -250,6 +250,7 @@ export interface Look {
   skin: string;
   pants: string;
   style: number; // 0 ผมสั้น, 1 ผมยาว, 2 มวยผม
+  gender?: number; // 0 male novice / 1 female novice; style variants depend on gender.
 }
 
 export const CHAR_W = 16;
@@ -259,6 +260,7 @@ export const CHAR_ORIGIN_Y = (CHAR_H + 1) / (CHAR_H + 2);
 
 function drawChar(c: Ctx, look: Look, dir: Dir, frame: number) {
   const { shirt, hair, skin, pants, style } = look;
+  const female = look.gender === 1;
   const shirtD = shade(shirt, -0.2);
   const hairL = shade(hair, 0.2);
   const swing = frame === 1 ? 1 : frame === 2 ? -1 : 0;
@@ -304,6 +306,23 @@ function drawChar(c: Ctx, look: Look, dir: Dir, frame: number) {
     rect(c, shirtD, 7, 11 + swing, 2, 3);
     rect(c, skin, 7, 14 + swing, 2, 1);
   }
+  // Distinct novice outfits: collared jacket/trousers or a bow blouse/pleated skirt.
+  if (female) {
+    rect(c, pants, dir === "side" ? 5 : 4, 16, dir === "side" ? 7 : 8, 3);
+    rect(c, shade(pants, -.2), 5, 17, 1, 2);
+    rect(c, shade(pants, .15), 9, 17, 1, 2);
+    rect(c, skin, 5, 19, 2, 1); rect(c, skin, 9, 19, 2, 1);
+    if (dir !== "up") {
+      rect(c, "#fff5df", 6, 11, 4, 1);
+      rect(c, shade(shirt, .5), 6, 12, 1, 1); rect(c, shade(shirt, .5), 9, 12, 1, 1);
+      rect(c, shirtD, 7, 12, 2, 2);
+    }
+  } else if (dir !== "up") {
+    rect(c, "#fff5df", 6, 11, 4, 1);
+    rect(c, "#fff5df", 7, 12, 2, 1);
+    rect(c, shirtD, 8, 13, 1, 3);
+    rect(c, "#ffe0a0", 8, 14);
+  }
 
   // หัว
   const roundCorners = (x0: number, y0: number, x1: number, y1: number) => {
@@ -314,8 +333,13 @@ function drawChar(c: Ctx, look: Look, dir: Dir, frame: number) {
   };
   const bun = () => {
     if (style === 2) {
-      rect(c, hair, 6, 0, 4, 2);
-      rect(c, hairL, 7, 0, 1, 1);
+      if (female) {
+        rect(c, hair, 1, 4, 2, 8); rect(c, hair, 13, 4, 2, 8);
+        rect(c, "#f8b4c9", 1, 4, 2, 1); rect(c, "#f8b4c9", 13, 4, 2, 1);
+      } else {
+        for (const x of [4, 7, 10]) rect(c, hair, x, 0, 2, 2);
+        rect(c, hairL, 7, 0);
+      }
     }
   };
 
@@ -325,6 +349,8 @@ function drawChar(c: Ctx, look: Look, dir: Dir, frame: number) {
     roundCorners(3, 1, 12, 9);
     rect(c, hairL, 5, 2, 3, 1);
     if (style === 1) rect(c, hair, 3, 10, 10, 1);
+    if (female && style === 1) rect(c, hair, 4, 10, 8, 4);
+    if (female && style === 0) rect(c, hair, 3, 8, 10, 3);
     bun();
     return;
   }
@@ -343,9 +369,11 @@ function drawChar(c: Ctx, look: Look, dir: Dir, frame: number) {
     rect(c, hair, 4, 4, 8, 1);
     rect(c, skin, 8, 4, 1, 1);
     if (style === 1) {
-      rect(c, hair, 3, 6, 1, 5);
-      rect(c, hair, 12, 6, 1, 5);
+      rect(c, hair, 3, 6, 1, female ? 8 : 3);
+      rect(c, hair, 12, 6, 1, female ? 8 : 3);
+      if (!female) { rect(c, hairL, 8, 3, 3, 1); rect(c, hair, 9, 4, 3, 1); }
     }
+    if (female && style === 0) { rect(c, hair, 3, 6, 1, 5); rect(c, hair, 12, 6, 1, 5); }
     rect(c, INK, 5, 6, 1, 2);
     rect(c, INK, 10, 6, 1, 2);
     rect(c, "#f6a5a0", 4, 8, 1, 1);
@@ -353,7 +381,7 @@ function drawChar(c: Ctx, look: Look, dir: Dir, frame: number) {
     rect(c, "#c46a6a", 7, 9, 2, 1);
   } else {
     // หันขวา (ด้านซ้ายใช้ flipX)
-    rect(c, hair, 3, 4, style === 1 ? 4 : 5, style === 1 ? 8 : 5);
+    rect(c, hair, 3, 4, style === 1 ? 4 : 5, style === 1 ? (female ? 10 : 6) : 5);
     rect(c, hair, 9, 4, 4, 1);
     rect(c, INK, 10, 6, 1, 2);
     rect(c, "#f6a5a0", 11, 8, 1, 1);

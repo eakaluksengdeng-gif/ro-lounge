@@ -5,11 +5,12 @@ import "./creator.css";
 
 type Part = keyof Appearance;
 const GROUPS: { key: Part; label: string; names: string[]; crop: [number, number, number, number] }[] = [
-  { key: "style", label: "ทรงผม", names: ["ผมสั้น", "ผมยาว", "มวยผม"], crop: [2, 0, 14, 13] },
+  { key: "gender", label: "เพศ", names: ["ชาย", "หญิง"], crop: [0, 0, 18, 24] },
+  { key: "style", label: "ทรงผม", names: ["ผมสั้น", "แสกข้าง", "ผมตั้ง"], crop: [2, 0, 14, 13] },
   { key: "hair", label: "สีผม", names: ["น้ำตาลเข้ม", "น้ำตาล", "ทอง", "แดง", "ดำอมม่วง", "ม่วง"], crop: [2, 0, 14, 13] },
   { key: "color", label: "เสื้อ", names: ["ชมพู", "เหลือง", "เขียว", "ฟ้า", "น้ำเงิน", "ม่วง", "ชมพูอ่อน"], crop: [2, 11, 14, 8] },
   { key: "skin", label: "สีผิว", names: ["สว่าง", "กลาง", "เข้ม"], crop: [2, 0, 14, 13] },
-  { key: "pants", label: "กางเกง", names: ["กรมท่า", "เทาม่วง", "น้ำตาล"], crop: [3, 17, 11, 7] },
+  { key: "pants", label: "กางเกง", names: ["กรมท่า", "เทาม่วง", "น้ำตาล"], crop: [2, 16, 14, 8] },
 ];
 
 /** Visual, keyboard-accessible appearance picker; no network connection needed to use it. */
@@ -72,6 +73,7 @@ export class CharacterCreator {
       for (let index = 0; index < OPTION_COUNTS[group.key]; index++) {
         const tile = document.createElement("label");
         tile.className = "creator-tile";
+        tile.dataset.part = group.key;
         tile.title = group.label + " · " + group.names[index];
         const input = document.createElement("input");
         input.type = "radio";
@@ -97,6 +99,11 @@ export class CharacterCreator {
         tick.textContent = "✓";
         tick.setAttribute("aria-hidden", "true");
         card.append(canvas, tick);
+        if (group.key === "gender") {
+          const caption = document.createElement("span");
+          caption.textContent = group.names[index];
+          card.append(caption);
+        }
         tile.append(input, card);
         list.append(tile);
         this.choices.push({ canvas, key: group.key, index, crop: group.crop, input });
@@ -127,7 +134,21 @@ export class CharacterCreator {
 
   private redraw() {
     this.drawPreview();
+    const female = this.look.gender === 1;
+    const pantsLegend = document.querySelector('fieldset[data-part="pants"] legend');
+    if (pantsLegend) pantsLegend.textContent = female ? "กระโปรง" : "กางเกง";
     for (const choice of this.choices) {
+      if (choice.key === "pants") {
+        const names = ["กรมท่า", "เทาม่วง", "น้ำตาล"];
+        const label = female ? "กระโปรง" : "กางเกง";
+        choice.input.setAttribute("aria-label", label + " " + names[choice.index]);
+        choice.input.closest("label")!.title = label + " · " + names[choice.index];
+      }
+      if (choice.key === "style") {
+        const names = female ? ["ผมบ๊อบ", "ผมยาว", "ผมแกละ"] : ["ผมสั้น", "แสกข้าง", "ผมตั้ง"];
+        choice.input.setAttribute("aria-label", "ทรงผม " + names[choice.index]);
+        choice.input.closest("label")!.title = "ทรงผม · " + names[choice.index];
+      }
       const sprite = renderCharacterCanvas(appearanceToLook({ ...this.look, [choice.key]: choice.index }));
       const ctx = choice.canvas.getContext("2d")!;
       ctx.imageSmoothingEnabled = false;

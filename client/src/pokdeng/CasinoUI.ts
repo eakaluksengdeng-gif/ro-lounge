@@ -30,7 +30,6 @@ export class CasinoUI {
   private leaving = false;
   private entry?: CasinoEntry;
   private clockOffset = 0;
-  private route: { x: number; y: number }[] = [];
   private modal = document.createElement("section");
   private heading = document.createElement("h2");
   private phase = document.createElement("p");
@@ -61,13 +60,11 @@ export class CasinoUI {
       } else {
         // Approach from below the fountain instead of walking through it.
         if (p) {
-          this.route = [{ x: p.x, y: 576 }, { x: CASINO_DOOR.x, y: 576 }, { x: CASINO_DOOR.x, y: CASINO_DOOR.y }];
-          this.town.send("move", this.route[0]);
+          this.scene.navigateTo([{ x: p.x, y: 576 }, { x: CASINO_DOOR.x, y: 576 }, { x: CASINO_DOOR.x, y: CASINO_DOOR.y }]);
         }
       }
     }));
     document.body.append(toolbar);
-    this.scene.onManualMove = () => { this.route = []; };
     this.modal.id = "casino";
     this.modal.hidden = true;
     this.modal.setAttribute("role", "dialog");
@@ -111,15 +108,11 @@ export class CasinoUI {
       if (p && Math.hypot(p.x - CASINO_DOOR.x, p.y - CASINO_DOOR.y) <= CASINO_DOOR.radius) this.town.send("casino:enter", {});
     });
     this.town.onMessage<CasinoEntry>("casino:entered", entry => { void this.enter(entry); });
-    this.town.onMessage<ApiError>("api:error", error => this.message(ERRORS[error.code] ?? error.message));
+    this.town.onMessage<ApiError>("api:error", error => {
+      if (!error.event.startsWith("fish:")) this.message(ERRORS[error.code] ?? error.message);
+    });
     this.town.send("auth:sync", {});
     window.setInterval(() => {
-      const p = this.town.state?.players?.get(this.town.sessionId);
-      const target = this.route[0];
-      if (p && target && Math.hypot(p.x - target.x, p.y - target.y) < 12) {
-        this.route.shift();
-        if (this.route[0]) this.town.send("move", this.route[0]);
-      }
       const deadline = this.table?.deadline;
       this.timer.textContent = deadline ? Math.max(0, Math.ceil((deadline - Date.now() - this.clockOffset) / 1000)) + " วินาที" : "";
     }, 200);
@@ -144,7 +137,7 @@ export class CasinoUI {
   private async enter(entry: CasinoEntry) {
     if (this.joining || this.room) return;
     this.joining = true;
-    this.route = [];
+    this.scene.stopNavigation();
     this.leaving = false;
     this.entry = entry;
     this.modal.hidden = false;

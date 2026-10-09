@@ -12,8 +12,23 @@ export class Player extends Schema {
   @type("uint8") skin = 0;
   @type("uint8") pants = 0;
   @type("uint8") style = 0;
+  @type("uint8") gender = 0;
+  @type("string") fishing = "";
+  @type("uint8") fishingSpot = 0;
+}
+
+export class Wildlife extends Schema {
+  @type("string") kind = "cat";
+  @type("uint8") variant = 0;
+  @type("number") x = 0;
+  @type("number") y = 0;
+  @type("int8") facing = 1;
+  @type("boolean") moving = false;
 }
 
 export class TownState extends Schema {
   @type({ map: Player }) players = new MapSchema<Player>();
+  @type({ map: Wildlife }) wildlife = new MapSchema<Wildlife>();
+  @type("string") weather = "sunny";
+  @type("number") weatherNextChangeAt = 0;
 }
