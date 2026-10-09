@@ -5,10 +5,13 @@ import type { AddressInfo } from "node:net";
 import { Server } from "colyseus";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import { Client, type Room } from "colyseus.js";
-import type { ApiError, CasinoEntry, GuestReady, PrivateHand, TableState } from "../../shared/pokdeng";
+import type { ApiError, CasinoEntry, GuestReady, PrivateHand, TableState, WalletView } from "../../shared/pokdeng";
 import { TownRoom } from "../src/rooms/TownRoom";
 import { PokDengRoom } from "../src/rooms/PokDengRoom";
 import { CASINO_DOOR } from "../src/pokdeng/CasinoAccess";
+import { GameManager, type GameOptions } from "../src/pokdeng/GameManager";
+import { createDeck, DEFAULT_RULES } from "../src/pokdeng/cards";
+import { economy } from "../src/services";
 
 function message<T>(room: Room, event: string, predicate: (payload: T) => boolean = () => true): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -90,6 +93,79 @@ test("real WebSocket auth, doorway, seat errors, private cards, disconnect/rejoi
     assert.ok([0, 50].includes((await wallet).wallet.reserved));
     const aSync = message<GuestReady>(a, "auth:ready"); a.send("auth:sync", {});
     assert.ok([0, 50].includes((await aSync).wallet.reserved));
+  } finally {
+    await Promise.allSettled(rooms.filter(room => room.connection?.isOpen).map(room => room.leave()));
+    await server.gracefullyShutdown(false);
+  }
+});
+
+test("wire repeated rounds: queued exit pays the dealer, remaining guest plays on, wallets survive table exit/rejoin", { timeout: 20_000 }, async () => {
+  class FastPokRoom extends PokDengRoom {
+    protected createGame(options: GameOptions) {
+      return new GameManager(this.roomId, economy, { ...options,
+        rules: { ...DEFAULT_RULES, dealingMs: 300, checkPokMs: 200, actionMs: 300, showdownMs: 300, bettingMs: 500 },
+        deck: () => {
+          // Dealer always Pok 9, against either one or two ordinary hands.
+          const deck = createDeck();
+          const prefix = [deck[4], deck[1], deck[2], deck[16], deck[27], deck[40]];
+          const keys = new Set(prefix.map(c => `${c.rank}:${c.suit}`));
+          return [...prefix, ...deck.filter(c => !keys.has(`${c.rank}:${c.suit}`))];
+        },
+      });
+    }
+  }
+  const http = createServer();
+  const server = new Server({ transport: new WebSocketTransport({ server: http }), greet: false, gracefullyShutdown: false });
+  server.define("town", TownRoom); server.define("pok_deng", FastPokRoom);
+  const rooms: Room[] = [];
+  await server.listen(0, "127.0.0.1");
+  const sdk = new Client(`ws://127.0.0.1:${(http.address() as AddressInfo).port}`);
+  const watch = (room: Room) => { rooms.push(room); room.onMessage("*", () => {}); return room; };
+  try {
+    const towns = await Promise.all(["Dealer", "Leaving", "Remaining"].map(async name => watch(await sdk.joinOrCreate("town", { name }))));
+    const guests = await Promise.all(towns.map(room => { const ready = message<GuestReady>(room, "auth:ready"); room.send("auth:sync", {}); return ready; }));
+    const entries = await Promise.all(towns.map(room => {
+      const entry = message<CasinoEntry>(room, "casino:entered"); room.send("move", { x: CASINO_DOOR.x, y: CASINO_DOOR.y }); return entry;
+    }));
+    const dealer = watch(await sdk.joinOrCreate("pok_deng", { sessionId: guests[0].sessionId, ticket: entries[0].ticket }));
+    const leaving = watch(await sdk.joinById(dealer.roomId, { sessionId: guests[1].sessionId, ticket: entries[1].ticket }));
+    const remaining = watch(await sdk.joinById(dealer.roomId, { sessionId: guests[2].sessionId, ticket: entries[2].ticket }));
+    const players = [dealer, leaving, remaining];
+    for (let seat = 0; seat < 3; seat++) {
+      const seated = message<TableState>(players[seat], "table:state", state => !!state.seats[seat]);
+      players[seat].send("table:sit", { seat }); await seated;
+    }
+    for (const [seat, room] of [[1, leaving], [2, remaining]] as const) {
+      const bet = message<TableState>(room, "table:state", state => state.seats[seat]?.bet === 10);
+      room.send("game:bet", { amount: 10 }); await bet;
+    }
+    const first = message<TableState>(remaining, "table:state", state => state.phase === "dealing");
+    dealer.send("game:start", {}); const firstState = await first;
+    const playerPaid = message<WalletView>(towns[1], "wallet:update", wallet => wallet.balance === 90 && wallet.reserved === 0);
+    const dealerPaid = message<WalletView>(towns[0], "wallet:update", wallet => wallet.balance === 120 && wallet.reserved === 0);
+    const departed = new Promise<void>(resolve => leaving.onLeave(() => resolve()));
+    const second = message<TableState>(remaining, "table:state", state => state.roundNumber === 2 && state.phase === "dealing");
+    const queued = message<TableState>(remaining, "table:state", state => state.seats[1]?.leaving === true);
+    leaving.send("table:leave", {}); await queued;
+    await Promise.all([playerPaid, dealerPaid, departed]);
+    const secondState = await second;
+    assert.equal(secondState.seats[1], null);
+    assert.equal(secondState.seats[2]?.bet, 10);
+    assert.notEqual(secondState.roundId, firstState.roundId);
+    assert.equal(secondState.seats[0]?.cards, undefined);
+    assert.equal(secondState.seats[2]?.cards, undefined);
+    const resumedTown = watch(await sdk.joinOrCreate("town", { sessionId: guests[1].sessionId, name: "Returned" }));
+    const auth = message<GuestReady>(resumedTown, "auth:ready"); resumedTown.send("auth:sync", {});
+    assert.equal((await auth).wallet.balance, 90);
+    // The former guest can leave the door: access was released after their binding round.
+    const moved = new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("Departed guest remained frozen")), 3000);
+      const check = setInterval(() => {
+        const p = towns[1].state.players.get(towns[1].sessionId);
+        if (p && p.y > CASINO_DOOR.y + 40) { clearInterval(check); clearTimeout(timeout); resolve(); }
+      }, 50);
+    });
+    towns[1].send("move", { x: CASINO_DOOR.x, y: CASINO_DOOR.y + 72 }); await moved;
   } finally {
     await Promise.allSettled(rooms.filter(room => room.connection?.isOpen).map(room => room.leave()));
     await server.gracefullyShutdown(false);

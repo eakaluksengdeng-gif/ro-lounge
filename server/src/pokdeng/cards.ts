@@ -8,6 +8,7 @@ export interface Rules {
   dealingMs: number;
   checkPokMs: number;
   showdownMs: number;
+  bettingMs: number;
   reconnectMs: number;
   multipliers: Record<HandKind, number>;
   ranking: Record<HandKind, number>;
@@ -16,7 +17,7 @@ export interface Rules {
 /** House rules: Pok > tong > straight > sian > ordinary points; ties push. */
 export const DEFAULT_RULES: Rules = {
   minBet: 10, actionMs: 15_000, dealingMs: 500, checkPokMs: 500,
-  showdownMs: 8_000, reconnectMs: 60_000,
+  showdownMs: 8_000, bettingMs: 8_000, reconnectMs: 60_000,
   multipliers: { points: 1, sian: 3, straight: 3, tong: 5, pok8: 1, pok9: 1 },
   ranking: { points: 0, sian: 100, straight: 200, tong: 300, pok8: 400, pok9: 500 },
 };

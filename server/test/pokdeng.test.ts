@@ -229,7 +229,7 @@ test("ties push and two-deng dealer winnings use dealer's multiplier", () => {
 test("offline players retain stakes, may rejoin privately, settle once and expire after the round", () => {
   const { game, action, advance, economy, removed } = table();
   game.bet("p1", 10); game.start("p0"); action();
-  game.leave("p1");
+  game.disconnect("p1");
   assert.equal(economy.view("p1").reserved, 50);
   game.connect("p1", "Reconnect");
   assert.equal(game.snapshot().seats[1]?.connected, true);
@@ -294,4 +294,130 @@ test("one dealer and seven bettors deal unique hands and settle the entire table
     assert.equal(economy.view(`p${i}`).reserved, 0);
     assert.ok(economy.view(`p${i}`).balance >= 0);
   }
+});
+
+test("start once repeats reserved stakes with fresh private hands and cumulative zero-sum wallets", () => {
+  const { game, economy, action, advance } = table();
+  game.bet("p1", 10); game.start("p0");
+  let previous: string | null = null;
+  for (let turn = 1; turn <= 3; turn++) {
+    const current = game.snapshot();
+    assert.equal(current.autoPlay, true);
+    assert.equal(current.roundNumber, turn);
+    assert.notEqual(current.roundId, previous);
+    if (previous) fails(() => game.stay("p1", previous), "STALE_ROUND");
+    previous = current.roundId;
+    assert.equal(current.seats[0]?.cards, undefined);
+    assert.equal(current.seats[1]?.cards, undefined);
+    action();
+    game.stay("p1", current.roundId); game.stay("p0", current.roundId);
+    assert.equal(economy.view("p1").balance, 100 + turn * 10);
+    assert.equal(economy.view("p0").balance, 100 - turn * 10);
+    advance(DEFAULT_RULES.showdownMs);
+    assert.equal(game.snapshot().phase, "betting");
+    assert.equal(game.snapshot().seats[1]?.bet, 10);
+    assert.equal(game.privateHand("p1").cards.length, 0);
+    assert.equal(economy.view("p1").reserved, 50);
+    if (turn < 3) advance(DEFAULT_RULES.bettingMs);
+  }
+  game.cancelBet("p1");
+  assert.equal(game.snapshot().deadline, null);
+  assert.equal(game.snapshot().seats[1]?.repeatBet, 0);
+  advance(DEFAULT_RULES.bettingMs * 2);
+  assert.equal(game.snapshot().roundNumber, 3);
+  game.leave("p1");
+  economy.create("p1"); // Existing wallets never receive the initial grant again.
+  assert.deepEqual(economy.view("p1"), { balance: 130, reserved: 0, available: 130 });
+});
+
+test("voluntary mid-round exit settles their stake once while remaining players continue automatically", () => {
+  const { game, economy, advance, removed } = table([
+    [card(5), card(4, "hearts")], [card(2), card(2, "diamonds")], [card(3), card(2, "spades")],
+  ]);
+  game.connect("p2", "Remaining"); game.sit("p2", 2);
+  game.bet("p1", 10); game.bet("p2", 10); game.start("p0");
+  game.leave("p1");
+  assert.equal(game.snapshot().seats[1]?.leaving, true);
+  fails(() => game.connect("p1", "Duplicate while exit is queued"), "ALREADY_CONNECTED");
+  assert.equal(economy.view("p1").reserved, 50);
+  assert.equal(removed.length, 0);
+  advance(DEFAULT_RULES.dealingMs); advance(DEFAULT_RULES.checkPokMs);
+  assert.equal(economy.view("p0").balance, 120);
+  assert.equal(economy.view("p1").balance, 90);
+  assert.equal(economy.view("p2").balance, 90);
+  game.tick(); assert.equal(economy.view("p0").balance, 120);
+  advance(DEFAULT_RULES.showdownMs);
+  assert.equal(game.has("p1"), false);
+  assert.deepEqual(removed, ["p1"]);
+  assert.equal(game.snapshot().seats[2]?.bet, 10);
+  advance(DEFAULT_RULES.bettingMs);
+  assert.equal(game.snapshot().roundNumber, 2);
+  advance(DEFAULT_RULES.dealingMs); advance(DEFAULT_RULES.checkPokMs);
+  if (game.snapshot().phase === "action") advance(DEFAULT_RULES.actionMs);
+  assert.equal(economy.view("p1").balance, 90);
+  assert.equal(["p0", "p1", "p2"].reduce((sum, id) => sum + economy.view(id).balance, 0), 300);
+});
+
+test("a departing dealer settles first; a remaining player explicitly accepts the role and play resumes", () => {
+  const { game, economy, advance } = table([
+    [card(5), card(4, "hearts")], [card(2), card(2, "diamonds")], [card(3), card(2, "spades")],
+  ]);
+  game.connect("p2", "Remaining"); game.sit("p2", 2);
+  game.bet("p1", 10); game.bet("p2", 10); game.start("p0"); game.leave("p0");
+  advance(DEFAULT_RULES.dealingMs); advance(DEFAULT_RULES.checkPokMs); advance(DEFAULT_RULES.showdownMs);
+  assert.equal(game.snapshot().seats[0], null);
+  assert.equal(game.snapshot().deadline, null);
+  assert.equal(game.snapshot().seats[2]?.repeatBet, 10);
+  assert.equal(economy.view("p0").balance, 120);
+  assert.equal(economy.view("p2").reserved, 0);
+  game.becomeDealer("p1");
+  assert.equal(game.snapshot().seats[0]?.playerId, "p1");
+  assert.equal(game.snapshot().seats[1], null);
+  assert.equal(game.snapshot().seats[2]?.bet, 10);
+  assert.equal(economy.view("p1").reserved, 50);
+  advance(DEFAULT_RULES.bettingMs);
+  assert.equal(game.snapshot().roundNumber, 2);
+  assert.equal(game.snapshot().phase, "dealing");
+});
+
+test("repeat betting pauses safely when either bankroll cannot cover exposure; no overdraft or free refills", () => {
+  for (const dealerWins of [false, true]) {
+    const fixture = dealerWins ? table([[card(5), card(4, "hearts")], [card(2), card(2, "diamonds")]]) : table();
+    const { game, economy, action, advance } = fixture;
+    game.bet("p1", 10); game.start("p0");
+    for (let turn = 1; turn <= 6; turn++) {
+      action();
+      if (!dealerWins) { game.stay("p1", game.snapshot().roundId); game.stay("p0", game.snapshot().roundId); }
+      advance(DEFAULT_RULES.showdownMs);
+      if (turn < 6) advance(DEFAULT_RULES.bettingMs);
+    }
+    assert.equal(game.snapshot().seats[1]?.bet, 0);
+    assert.equal(game.snapshot().seats[1]?.repeatBet, 0);
+    assert.equal(game.snapshot().seats[1]?.betIssue, dealerWins ? "player_chips" : "dealer_chips");
+    assert.equal(game.snapshot().deadline, null);
+    assert.equal(economy.view("p0").balance, dealerWins ? 160 : 40);
+    assert.equal(economy.view("p1").balance, dealerWins ? 40 : 160);
+    assert.equal(economy.view("p0").reserved, 0);
+    assert.equal(economy.view("p1").reserved, 0);
+    advance(DEFAULT_RULES.bettingMs * 10);
+    assert.equal(game.snapshot().roundNumber, 6);
+  }
+});
+
+test("dealer disconnect cancels the countdown and reconnect restores only remembered consenting stakes", () => {
+  const { game, action, advance, economy } = table();
+  game.bet("p1", 10); game.start("p0"); action();
+  game.stay("p1", game.snapshot().roundId); game.stay("p0", game.snapshot().roundId);
+  advance(DEFAULT_RULES.showdownMs);
+  game.disconnect("p0");
+  assert.equal(game.snapshot().deadline, null);
+  assert.equal(economy.view("p1").reserved, 0);
+  advance(DEFAULT_RULES.bettingMs);
+  assert.equal(game.snapshot().roundNumber, 1);
+  game.connect("p0", "Returned");
+  assert.equal(game.snapshot().seats[1]?.bet, 10);
+  game.cancelBet("p1");
+  game.disconnect("p0"); game.connect("p0", "Returned");
+  assert.equal(game.snapshot().seats[1]?.bet, 0);
+  assert.equal(game.snapshot().deadline, null);
 });

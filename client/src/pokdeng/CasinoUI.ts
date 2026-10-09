@@ -37,10 +37,20 @@ export class CasinoUI {
   private seats = document.createElement("div");
   private notice = document.createElement("p");
   private balance = document.createElement("span");
+  private walletPanel = document.createElement("div");
+  private bettingPanel = document.createElement("section");
+  private betTitle = document.createElement("h3");
+  private betSummary = document.createElement("p");
+  private betEntry = document.createElement("div");
+  private betHelp = document.createElement("p");
+  private autoStatus = document.createElement("p");
+  private lastDelta?: number;
+  private lastSettledRound?: string;
   private bet = document.createElement("input");
   private betButton = this.button("ลงเดิมพัน", () => this.send("game:bet", { amount: Number(this.bet.value) }));
   private cancel = this.button("ยกเลิกเดิมพัน", () => this.send("game:cancel_bet", {}));
   private start = this.button("เริ่มเกม", () => this.send("game:start", {}));
+  private takeDealer = this.button("รับเป็นเจ้ามือ", () => this.send("table:dealer", {}));
   private draw = this.button("จั่วไพ่", () => this.action("game:draw"));
   private stay = this.button("อยู่ / ผ่าน", () => this.action("game:stay"));
   private stand = this.button("ลุกจากที่นั่ง", () => this.send("table:stand", {}));
@@ -85,8 +95,31 @@ export class CasinoUI {
     this.bet.min = "10";
     this.bet.step = "1";
     this.bet.value = "10";
+    this.bet.id = "pokBetAmount";
+    this.bet.inputMode = "numeric";
     this.bet.setAttribute("aria-label", "จำนวนชิปเดิมพัน");
-    controls.append(this.bet, this.betButton, this.cancel, this.start, this.draw, this.stay, this.stand, this.retry);
+    this.bet.addEventListener("input", () => this.renderBetHelp());
+    this.walletPanel.id = "pokWallet";
+    this.walletPanel.setAttribute("role", "status");
+    this.bettingPanel.id = "pokBetting";
+    this.betTitle.id = "pokBetTitle";
+    this.betSummary.id = "pokBetSummary";
+    const label = document.createElement("label");
+    label.htmlFor = this.bet.id;
+    label.textContent = "จำนวนเงินเดิมพัน (ชิป)";
+    const amountRow = document.createElement("div");
+    amountRow.className = "pok-amount-row";
+    amountRow.append(this.bet, this.betButton, this.cancel);
+    const quick = document.createElement("div");
+    quick.className = "pok-quick-bets";
+    for (const amount of [10, 20, 50, 100]) {
+      quick.append(this.button(amount + " ชิป", () => { this.bet.value = String(amount); this.renderBetHelp(); }));
+    }
+    this.betHelp.id = "pokBetHelp";
+    this.betEntry.append(label, amountRow, quick, this.betHelp);
+    this.autoStatus.id = "pokAutoStatus";
+    this.bettingPanel.append(this.betTitle, this.betSummary, this.betEntry, this.start, this.takeDealer, this.autoStatus);
+    controls.append(this.draw, this.stay, this.stand, this.retry);
     this.notice.id = "pokNotice";
     this.notice.setAttribute("role", "status");
     const rules = document.createElement("p");
@@ -94,7 +127,7 @@ export class CasinoUI {
     rules.textContent = "ชิปเล่นฟรี ไม่มีเงินจริง • ขั้นต่ำ 10 • สำรองสูงสุด 5 เท่า • 2/3 เด้ง ×2/×3 · เซียน/เรียง ×3 · ตอง ×5 · ป๊อกชนะไพ่สามใบ · เสมอคืนชิป";
     const panel = document.createElement("div");
     panel.className = "pok-panel";
-    panel.append(header, status, this.seats, controls, this.notice, rules);
+    panel.append(header, this.walletPanel, status, this.bettingPanel, controls, this.notice, this.seats, rules);
     this.modal.append(panel);
     document.body.append(this.modal);
     this.town.onMessage<GuestReady>("auth:ready", guest => {
@@ -152,6 +185,12 @@ export class CasinoUI {
           // Drop an old private hand when a new round/reset arrives.
           if (this.hand?.roundId !== table.roundId) this.hand = undefined;
           this.table = table;
+          const me = table.seats.find(seat => seat?.playerId === this.playerId);
+          if (table.phase === "showdown" && table.roundId !== this.lastSettledRound && me?.cardCount) {
+            this.lastDelta = me.dealer ? -table.results.reduce((sum, item) => sum + item.delta, 0)
+              : table.results.find(item => item.playerId === this.playerId)?.delta;
+            this.lastSettledRound = table.roundId ?? undefined;
+          }
           this.clockOffset = table.serverTime - Date.now();
           this.render();
         },
@@ -163,7 +202,8 @@ export class CasinoUI {
       room.onLeave(() => {
         if (this.room !== room) return;
         this.room = undefined;
-        if (!this.leaving) this.message("หลุดจากโต๊ะ กดกลับเข้าโต๊ะภายใน 60 วินาที ไพ่และชิปที่เดิมพันยังอยู่");
+        if (this.leaving) this.finishLeaving();
+        else this.message("หลุดจากโต๊ะ กดกลับเข้าโต๊ะภายใน 60 วินาที ไพ่และชิปที่เดิมพันยังอยู่");
         this.render();
       });
     } catch (error) {
@@ -182,19 +222,21 @@ export class CasinoUI {
     if (this.table?.roundId) this.send(event, { roundId: this.table.roundId });
   }
   private leave() {
-    if (this.joining || (this.room && this.table?.phase !== "betting")) return;
+    if (this.joining || this.leaving) return;
     this.leaving = true;
-    if (this.room) this.send("table:leave", {});
-    const departed = this.room;
+    if (this.room) {
+      this.send("table:leave", {});
+      this.message("ขอออกแล้ว · รอคิดชิปตานี้และแสดงผลก่อนออก เดิมพันจะไม่ถูกยกเลิก และคนที่เหลือเล่นต่อได้");
+      this.render();
+    } else this.finishLeaving();
+  }
+  private finishLeaving() {
     this.modal.hidden = true;
     this.scene.casinoOpen = false;
     this.table = undefined;
     this.hand = undefined;
     // Step off the trigger, allowing the next doorway approach to emit a new entry.
-    const stepOut = () => this.town.send("move", { x: CASINO_DOOR.x, y: CASINO_DOOR.y + 72 });
-    // Town movement is frozen until the table acknowledges removal.
-    if (departed) departed.onLeave(stepOut);
-    else stepOut();
+    this.town.send("move", { x: CASINO_DOOR.x, y: CASINO_DOOR.y + 72 });
   }
   private updateWallet(wallet: WalletView) {
     this.wallet = wallet;
@@ -217,16 +259,31 @@ export class CasinoUI {
     const me = table?.seats.find(seat => seat?.playerId === this.playerId);
     const betting = !!this.room && table?.phase === "betting";
     const dealer = table?.seats[0];
-    this.phase.textContent = table ? PHASES[table.phase] + " · โต๊ะ " + table.roomId : "บ้านป๊อกเด้ง · 1–8 คน";
-    this.exit.disabled = this.joining || (!!this.room && !betting);
-    this.exit.title = betting ? "" : "รอคิดชิปและเริ่มช่วงเดิมพันก่อนออก";
-    this.bet.hidden = this.betButton.hidden = this.cancel.hidden = !me || me.dealer || !betting;
+    this.phase.textContent = table ? PHASES[table.phase] + " · ตาที่ " + (table.roundNumber || 1) + " · โต๊ะ " + table.roomId : "บ้านป๊อกเด้ง · 1–8 คน";
+    this.exit.disabled = this.joining || this.leaving;
+    this.exit.title = betting ? "ออกได้ทันที" : "ขอออกได้ตอนนี้ ระบบจะคิดชิปตานี้ก่อนพาออก";
+    this.walletPanel.textContent = this.wallet ? "กระเป๋าของคุณ: " + this.wallet.balance + " ชิป  •  ใช้ได้ " + this.wallet.available + "  •  สำรอง " + this.wallet.reserved +
+      (this.lastDelta !== undefined ? "  |  ตาล่าสุด " + (this.lastDelta > 0 ? "+" : "") + this.lastDelta + " ชิป" : "") : "กำลังโหลดกระเป๋าชิป…";
+    this.betEntry.hidden = !me || me.dealer;
+    this.bet.disabled = this.betButton.disabled = this.cancel.disabled = !betting || this.leaving;
     this.bet.min = String(table?.minBet ?? 10);
     this.bet.max = String(Math.floor(((this.wallet?.available ?? 0) + (me?.bet ?? 0) * (table?.maxMultiplier ?? 5)) / (table?.maxMultiplier ?? 5)));
-    this.betButton.disabled = !dealer?.connected;
-    this.cancel.disabled = !me?.bet;
-    this.start.hidden = !me?.dealer || !betting;
-    this.start.disabled = !table?.seats.some(seat => seat && seat.bet > 0 && seat.connected);
+    this.betButton.disabled ||= !dealer?.connected;
+    this.cancel.disabled ||= !me?.bet && !me?.repeatBet;
+    this.start.hidden = !me?.dealer || !betting || !!table?.autoPlay;
+    this.start.disabled = this.leaving || !table?.seats.some(seat => seat && seat.bet > 0 && seat.connected);
+    this.takeDealer.hidden = !betting || !!dealer;
+    this.takeDealer.disabled = this.leaving;
+    const totalBets = table?.seats.reduce((sum, seat) => sum + (seat?.bet ?? 0), 0) ?? 0;
+    this.betTitle.textContent = !me ? "เลือกที่นั่งเพื่อเล่น" : me.dealer ? "♛ คุณเป็นเจ้ามือ" : "ลงเดิมพันของคุณ";
+    this.betSummary.textContent = !me ? "เจ้ามือ 1 คน · ลูกมือสูงสุด 7 คน" : me.dealer
+      ? "เดิมพันรวม " + totalBets + " ชิป · รับได้สูงสุด " + Math.floor((this.wallet?.balance ?? 0) / (table?.maxMultiplier ?? 5)) + " ชิป · เจ้ามือไม่ต้องลงเดิมพันเอง ลูกมือเสีย = ชิปเข้าเจ้ามือ / ลูกมือชนะ = หักจากเจ้ามือ"
+      : "เดิมพันที่ยืนยัน: " + me.bet + " ชิป · ตาถัดไป: " + (me.repeatBet ? me.repeatBet + " ชิป" : "พักเดิมพัน") +
+        (me.betIssue === "player_chips" ? " · ชิปคุณไม่พอ: ลดเดิมพันหรือไปตกปลาเติมชิป" : me.betIssue === "dealer_chips" ? " · ชิปเจ้ามือไม่พอรับเดิมพันนี้" : "");
+    this.autoStatus.textContent = this.leaving ? "ขอออกแล้ว · ไม่ลงเดิมพันตาถัดไป" : !dealer ? "รอผู้สมัครเป็นเจ้ามือใหม่ · คนที่เหลืออยู่โต๊ะต่อได้"
+      : table?.autoPlay ? (betting ? table.deadline ? "เล่นต่ออัตโนมัติเมื่อหมดเวลา · เปลี่ยน/ยกเลิกเดิมพันได้ตอนนี้" : "รอลูกมือลงเดิมพันที่ชิปพอ แล้วโต๊ะจะเล่นต่อเอง" : "เล่นต่อเนื่อง · ใช้เดิมพันเดิมในตาถัดไปจนกว่าจะยกเลิก ออก หรือชิปไม่พอ")
+      : "กดเริ่มเกมครั้งเดียว เล่นต่อหลายตาอัตโนมัติ · ใช้เดิมพันเดิมจนกว่าจะยกเลิก ออก หรือชิปไม่พอ";
+    this.renderBetHelp();
     this.stand.hidden = !me || !betting;
     this.draw.hidden = this.stay.hidden = table?.phase !== "action" || !me?.cardCount;
     const ownedHand = this.hand?.roundId === table?.roundId ? this.hand : undefined;
@@ -249,7 +306,7 @@ export class CasinoUI {
         el.append(sit);
       } else {
         const name = document.createElement("p");
-        name.textContent = seat.name + (seat.playerId === this.playerId ? " (คุณ)" : "") + (seat.connected ? "" : " · หลุด");
+        name.textContent = seat.name + (seat.playerId === this.playerId ? " (คุณ)" : "") + (seat.leaving ? " · รอออกหลังจบตา" : seat.connected ? "" : " · หลุด");
         const info = document.createElement("p");
         info.textContent = seat.dealer ? "เจ้ามือรับทุกเดิมพัน" : "เดิมพัน " + seat.bet + " ชิป";
         const cards = document.createElement("div");
@@ -268,5 +325,11 @@ export class CasinoUI {
       }
       this.seats.append(el);
     }
+  }
+  private renderBetHelp() {
+    const amount = Number(this.bet.value);
+    this.betHelp.textContent = Number.isSafeInteger(amount) && amount >= (this.table?.minBet ?? 10)
+      ? "สำรอง " + amount * (this.table?.maxMultiplier ?? 5) + " ชิป เพื่อรองรับเด้ง · กดลงเดิมพันเพื่อยืนยันและใช้จำนวนนี้ตาถัดไป"
+      : "กรอกจำนวนเต็ม ขั้นต่ำ " + (this.table?.minBet ?? 10) + " ชิป";
   }
 }

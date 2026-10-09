@@ -21,6 +21,9 @@ export interface SeatView {
   bet: number;
   cardCount: number;
   acted: boolean;
+  repeatBet: number;
+  leaving: boolean;
+  betIssue: "player_chips" | "dealer_chips" | null;
   cards?: Card[]; // Only a Pok hand during check/action, or any hand after showdown.
   value?: HandValue;
 }
@@ -39,6 +42,8 @@ export interface TableState {
   dealerSeat: 0;
   minBet: number;
   maxMultiplier: number;
+  autoPlay: boolean;
+  roundNumber: number;
   seats: (SeatView | null)[]; // Exactly eight, seat 0 belongs to the dealer.
   results: RoundResult[];
 }
@@ -75,6 +80,7 @@ export interface PokClientEvents {
   "game:bet": { amount: number };
   "game:cancel_bet": Record<string, never>;
   "game:start": Record<string, never>;
+  "table:dealer": Record<string, never>;
   "game:draw": { roundId: string };
   "game:stay": { roundId: string };
 }
