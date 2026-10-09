@@ -84,6 +84,11 @@ export class TownRoom extends Room<TownState> {
     fishEvent("fish:reel", (client, p, message) => fishing.reel(p.playerId, this.fishingOwner(client), objectPayload(message).castId));
     fishEvent("fish:cancel", (client, p) => { fishing.cancel(p.playerId, this.fishingOwner(client)); });
     this.onMessage("nature:sync", client => client.send("nature:weather", this.environment.weather(Date.now())));
+    this.onMessage("fish:clock", (client, message: unknown) => {
+      if (!message || typeof message !== "object" || Array.isArray(message)) return;
+      const nonce = (message as { nonce?: unknown }).nonce;
+      if (typeof nonce === "number" && Number.isSafeInteger(nonce)) client.send("fish:clock", { nonce, serverTime: Date.now() });
+    });
     this.unsubscribeWallet = economy.subscribe((id, wallet) => {
       for (const client of this.clients) if ((client.auth as GuestIdentity)?.playerId === id) client.send("wallet:update", wallet);
     });
@@ -229,7 +234,8 @@ export class TownRoom extends Room<TownState> {
     const owner = this.fishingOwner(client);
     const state = fishing.state(p.playerId, owner);
     p.fishing = fishing.publicPhase(p.playerId, owner);
-    p.fishingSpot = state.spot ?? 0;
+    p.fishingBobberX = state.location?.bobberX ?? 0;
+    p.fishingBobberY = state.location?.bobberY ?? 0;
     client.send("fish:state", state);
   }
 }

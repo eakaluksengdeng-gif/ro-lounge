@@ -15,6 +15,16 @@
 #fishReaction[hidden] { display: none; }
 #fishReaction span { height: 100%; display: block; background: #ffcc72; }
 #fishingPanel[data-phase="bite"] { border-color: #ffe18c; box-shadow: 0 0 0 4px #ffe18c33; }
+#fishSkillGauge[hidden], #fishCountdown[hidden] { display: none; }
+#fishSkillGauge { position: relative; height: 34px; margin: 16px 0 12px; border: 3px solid #bdd4cb; background: repeating-linear-gradient(90deg, #355461 0, #355461 9%, #456776 9%, #456776 10%); box-shadow: 0 4px 0 #142c36; }
+#fishTarget { position: absolute; top: 0; bottom: 0; background: #ed6674; border-left: 2px solid #ffb3aa; border-right: 2px solid #ffb3aa; }
+#fishNeedle { position: absolute; top: -8px; bottom: -8px; width: 5px; transform: translateX(-50%); background: #fff6ca; border: 1px solid #283947; z-index: 1; box-shadow: 2px 0 0 #172c3b66; }
+#fishNeedle::before { content: ""; position: absolute; left: -5px; top: -5px; width: 13px; height: 6px; background: #ffe18c; }
+#fishSkillGauge[data-in-target="true"] { border-color: #ffe18c; }
+#fishCountdown { display: block; color: #cbded9; font: 12px "Noto Sans Thai", sans-serif; margin: 0 0 10px; }
+#fishRates { margin-top: 12px; color: #c9dcd1; font: 11px "Noto Sans Thai", sans-serif; }
+#fishRates summary { cursor: pointer; }
+#fishRates > div { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-top: 8px; max-height: 150px; overflow-y: auto; }
 @media (max-width: 680px) {
   #natureBar { left: 8px; right: 8px; top: 78px; justify-content: space-between; font-size: 11px; gap: 4px; padding: 6px; }
   #natureBar button { font-size: 11px; padding: 5px; }

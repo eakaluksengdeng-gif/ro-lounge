@@ -16,6 +16,12 @@ async function join(name) {
   return page;
 }
 const phase = (page, value) => page.waitForFunction(expected => document.querySelector("#fishingPanel")?.dataset.phase === expected, value, { timeout: 15000 });
+const aim = page => page.waitForFunction(() => {
+  const position = Number(document.querySelector("#fishSkillGauge")?.dataset.position);
+  return document.querySelector("#fishingPanel")?.dataset.phase === "bite" && position > .46 && position < .54;
+}, {}, { timeout: 8000 });
+const chips = async page => Number((await page.locator("#fishingPanel p").innerText()).match(/\+(\d+) ชิป/)?.[1]);
+const balance = (page, value) => page.waitForFunction(amount => document.querySelector("#casinoToolbar")?.textContent.includes("ชิป " + amount + " ·"), value);
 try {
   const page = await join("Fishing QA");
   await page.waitForFunction(() => document.querySelector("#casinoToolbar")?.textContent.includes("ชิป 100"));
@@ -37,16 +43,21 @@ try {
   await phase(page, "waiting"); // Typing a space must not reel or cancel the cast.
   await page.locator("#chatInput").blur();
   await phase(page, "bite");
+  await page.locator("#fishSkillGauge").waitFor({ state: "visible" });
+  assert.equal(await page.locator("#fishTarget").evaluate(el => getComputedStyle(el).backgroundColor), "rgb(237, 102, 116)");
+  assert.equal(await page.locator("#fishRates > div > span").count(), 20);
   await page.screenshot({ path: "/tmp/ro-lounge-fishing-bite.png" });
+  await aim(page);
   await page.keyboard.press("Space");
   await phase(page, "result");
   await page.waitForFunction(() => document.querySelector("#fishBag summary")?.textContent.includes("ปลา 1"));
   assert.match(await page.locator("#fishingPanel p").innerText(), /ได้.*ซม/);
-  assert.match(await page.locator("#fishingPanel p").innerText(), /\+10 ชิป/);
-  await page.waitForFunction(() => document.querySelector("#casinoToolbar")?.textContent.includes("ชิป 110"));
+  const reward = await chips(page);
+  assert.ok(reward >= 1 && reward <= 20);
+  await balance(page, 100 + reward);
   await page.keyboard.press("Space");
   assert.match(await page.locator("#fishBag summary").innerText(), /ปลา 1/); // No duplicate award.
-  assert.match(await page.locator("#casinoToolbar").innerText(), /ชิป 110/);
+  await balance(page, 100 + reward);
   await phase(page, "idle");
   await page.keyboard.press("Space");
   await phase(page, "waiting");
@@ -57,21 +68,38 @@ try {
   await phase(page, "idle");
   await page.keyboard.press("Space");
   await phase(page, "bite");
+  await page.waitForFunction(() => Number(document.querySelector("#fishSkillGauge")?.dataset.position) > .88);
+  await page.keyboard.press("Space");
+  await phase(page, "result");
+  assert.match(await page.locator("#fishingPanel p").innerText(), /ไม่ตรงแถบแดง/);
+  await balance(page, 100 + reward);
+  await phase(page, "idle");
+  await page.keyboard.press("Space");
+  await phase(page, "bite");
   await phase(page, "result"); // Let the reaction timer expire.
   assert.match(await page.locator("#fishingPanel p").innerText(), /ปลาหลุด/);
-  assert.match(await page.locator("#casinoToolbar").innerText(), /ชิป 110/);
+  await balance(page, 100 + reward);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(700); // Let Phaser resize and smoothly recenter its follow camera.
+  await phase(page, "idle");
+  await page.locator("#fishAction").click();
+  await phase(page, "bite");
   await page.screenshot({ path: "/tmp/ro-lounge-fishing-mobile.png" });
+  await aim(page);
+  await page.locator("#fishAction").click();
+  await phase(page, "result");
+  const mobileReward = await chips(page);
+  assert.ok(mobileReward >= 1 && mobileReward <= 20);
+  await balance(page, 100 + reward + mobileReward);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   // Catch inventory lives on the server, keyed by the guest UUID.
   await page.reload();
   await page.getByRole("button", { name: "เข้าเมือง", exact: true }).click();
-  await page.waitForFunction(() => document.querySelector("#fishBag summary")?.textContent.includes("ปลา 1"));
+  await page.waitForFunction(() => document.querySelector("#fishBag summary")?.textContent.includes("ปลา 2"));
   assert.equal(await page.locator("#fishingPanel").getAttribute("data-phase"), "idle");
-  await page.waitForFunction(() => document.querySelector("#casinoToolbar")?.textContent.includes("ชิป 110"));
+  await balance(page, 100 + reward + mobileReward);
   assert.deepEqual(errors, []);
-  console.log("PASS: shared 13 wildlife/weather, Space fishing +10 chips, chat-safe keyboard, early/late miss, no duplicate reward, mobile, wallet/inventory after refresh");
+  console.log("PASS: shared wildlife/weather, red-zone gauge Space/mobile hits, 1–20 rewards, early/gauge/late misses, no replay, chat-safe keyboard, rates, wallet/inventory after refresh");
 } finally {
   await browser.close();
 }

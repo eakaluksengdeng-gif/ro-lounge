@@ -14,7 +14,8 @@ export class Player extends Schema {
   @type("uint8") style = 0;
   @type("uint8") gender = 0;
   @type("string") fishing = "";
-  @type("uint8") fishingSpot = 0;
+  @type("number") fishingBobberX = 0;
+  @type("number") fishingBobberY = 0;
 }
 
 export class Wildlife extends Schema {

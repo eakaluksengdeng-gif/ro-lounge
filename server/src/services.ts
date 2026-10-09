@@ -7,4 +7,4 @@ import { FishingManager } from "./nature/FishingManager";
 export const economy = new EconomyManager();
 export const guests = new GuestManager(economy);
 export const casinoAccess = new CasinoAccess();
-export const fishing = new FishingManager(undefined, undefined, (id, castId) => economy.rewardFishingCatch(id, castId));
+export const fishing = new FishingManager(undefined, undefined, (id, castId, chips) => economy.rewardFishingCatch(id, castId, chips));
