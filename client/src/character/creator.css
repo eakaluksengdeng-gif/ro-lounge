@@ -7,7 +7,7 @@
 #customize { display: grid; grid-template-columns: minmax(240px, .9fr) minmax(0, 1.6fr); gap: 24px; }
 .creator-preview { border: 2px solid #b0c9ca; background: #e5eae1; padding: 12px; text-align: center; align-self: stretch; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
 .creator-caption { letter-spacing: 2px; color: #5c7a7c; font-size: 11px; margin-bottom: 12px; }
-.creator-scenery { position: relative; height: 300px; overflow: hidden; border: 2px solid #b3c9c4; background: #bdd8c7 url("/art/character-courtyard.jpg") center / cover no-repeat; image-rendering: pixelated; }
+.creator-scenery { position: relative; height: 300px; overflow: hidden; border: 2px solid #b3c9c4; background: #7fd06c url("/art/character-courtyard-pixel.png") center / cover no-repeat; image-rendering: pixelated; }
 .creator-scenery::after { content: ""; position: absolute; width: 82px; height: 16px; background: #20334640; border-radius: 50%; bottom: 11%; left: calc(50% - 41px); }
 #characterPreview { position: absolute; width: 126px; height: 168px; left: calc(50% - 63px); bottom: 12%; z-index: 1; image-rendering: pixelated; }
 #characterPreviewName { margin: 12px 0 8px; color: #294750; font-size: 23px; font-weight: 600; overflow-wrap: anywhere; }

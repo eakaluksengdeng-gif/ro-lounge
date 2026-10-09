@@ -44,11 +44,14 @@ try {
   await page.screenshot({ path: "/tmp/ro-lounge-creator-desktop.png", fullPage: true });
   const bg = await page.evaluate(async () => {
     const image = new Image();
-    image.src = new URL("/art/character-courtyard.jpg", location.href);
+    const style = getComputedStyle(document.querySelector(".creator-scenery"));
+    if (!style.backgroundImage.includes("character-courtyard-pixel.png")) throw new Error("Pixel background is not wired to the preview");
+    if (style.imageRendering !== "pixelated") throw new Error("Pixel background must use nearest-neighbor rendering");
+    image.src = new URL("/art/character-courtyard-pixel.png", location.href);
     await image.decode();
     return image.naturalWidth;
   });
-  assert.equal(bg, 768);
+  assert.equal(bg, 128);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: "/tmp/ro-lounge-creator-mobile.png", fullPage: true });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
