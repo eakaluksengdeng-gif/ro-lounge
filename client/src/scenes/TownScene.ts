@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { CASINO_BUILDING, CASINO_DOOR } from "../../../shared/casinoWorld";
+import { HAIR_COLORS as HAIR, SKIN_COLORS as SKIN, PANTS_COLORS as PANTS } from "../character/appearance";
 import type { Room } from "colyseus.js";
 import type { ChatMsg, EmoteMsg, PlayerState } from "../net";
 import {
@@ -18,9 +19,6 @@ const EMOTE_ICONS: Record<string, string> = {
   happy: "😄", sad: "😢", love: "❤️", wave: "👋", angry: "💢", sleepy: "💤",
 };
 
-const HAIR = ["#3b2a20", "#7a4a2a", "#d9a441", "#c94f4f", "#2d2d3a", "#8e6bd8"];
-const SKIN = ["#ffdcc0", "#f2c29b", "#c98b62"];
-const PANTS = ["#3d4a7a", "#4a4458", "#6b4f3a"];
 
 const HEAD_Y = -(CHAR_H + 2) * PX - 4; // ตำแหน่งเหนือหัวสำหรับ bubble / emote
 const WALK_STEP_PX = 22; // ระยะเดินต่อ 1 ท่า

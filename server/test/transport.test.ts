@@ -29,14 +29,21 @@ test("real WebSocket auth, doorway, seat errors, private cards, disconnect/rejoi
   const sdk = new Client(`ws://127.0.0.1:${(http.address() as AddressInfo).port}`);
   const watch = (room: Room) => { rooms.push(room); room.onMessage("*", () => {}); return room; };
   try {
-    const a = watch(await sdk.joinOrCreate("town", { name: "Dealer" }));
-    const b = watch(await sdk.joinOrCreate("town", { name: "Player" }));
+    const a = watch(await sdk.joinOrCreate("town", { name: "Dealer",
+      appearance: { color: 6, hair: 5, skin: 2, pants: 2, style: 2 } }));
+    const b = watch(await sdk.joinOrCreate("town", { name: "Player",
+      appearance: { hair: 999, skin: -1, pants: "invalid", style: 99 } }));
     const aAuth = message<GuestReady>(a, "auth:ready"); a.send("auth:sync", {});
     const bAuth = message<GuestReady>(b, "auth:ready"); b.send("auth:sync", {});
     const [ga, gb] = await Promise.all([aAuth, bAuth]);
     assert.notEqual(ga.playerId, gb.playerId);
     assert.equal(ga.wallet.balance, 100);
     assert.equal(gb.wallet.balance, 100);
+    const selected = a.state.players.get(a.sessionId);
+    assert.deepEqual([selected.color, selected.hair, selected.skin, selected.pants, selected.style],
+      [0xfdcfe8, 5, 2, 2, 2], "selected picture options must match the authoritative in-game appearance");
+    const invalid = b.state.players.get(b.sessionId);
+    assert.deepEqual([invalid.hair, invalid.skin, invalid.pants, invalid.style], [0, 0, 0, 0]);
     const rejectedDoor = message<ApiError>(a, "api:error"); a.send("casino:enter", {});
     assert.equal((await rejectedDoor).code, "NOT_AT_DOOR");
     await assert.rejects(sdk.joinOrCreate("pok_deng", { sessionId: ga.sessionId, ticket: "forged" }), /INVALID_ENTRY/);

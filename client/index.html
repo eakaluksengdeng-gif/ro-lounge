@@ -52,21 +52,6 @@
           radial-gradient(ellipse at 50% 40%, #35507a 0%, transparent 60%),
           repeating-conic-gradient(#1f2a40 0 25%, #1b2438 0 50%) 0 0 / 24px 24px;
       }
-      #login form { width: min(390px, calc(100vw - 28px)); padding: 24px 22px; display: flex; flex-direction: column; gap: 14px; }
-      #login h1 { margin: 0; font-size: 30px; color: var(--gold); text-shadow: 3px 3px 0 var(--edge); letter-spacing: 1px; }
-      #login p { margin: 0; font-size: 14px; opacity: .8; font-family: "Noto Sans Thai", sans-serif; }
-      #customize { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-      .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-      .field-wide { grid-column: 1 / -1; }
-      .field label { color: #d9e5f3; font: 13px "Noto Sans Thai", sans-serif; }
-      .field select { padding: 7px 8px; font-size: 14px; }
-      #shirtColors { display: flex; flex-wrap: wrap; gap: 7px; }
-      .color-option { cursor: pointer; }
-      .color-option input { position: absolute; opacity: 0; pointer-events: none; width: 1px; }
-      .color-chip { display: block; width: 29px; height: 29px; border: 3px solid var(--edge);
-        box-shadow: inset 0 0 0 2px rgba(255,255,255,.18); }
-      .color-option input:checked + .color-chip { border-color: #fff4d6; transform: translateY(-2px);
-        box-shadow: 0 3px 0 var(--edge), inset 0 0 0 2px rgba(255,255,255,.28); }
 
       #hud { position: fixed; left: 12px; bottom: 12px; width: min(440px, calc(100vw - 24px));
         display: none; flex-direction: column; gap: 8px; z-index: 5; }
@@ -87,51 +72,17 @@
 
     <div id="login">
       <form id="loginForm" class="panel">
-        <h1>RO Lounge</h1>
-        <p>เดินเล่น นั่งคุย ชิวๆ ในเมืองเล็กๆ ของเรา</p>
-        <input id="nameInput" maxlength="16" placeholder="ชื่อตัวละคร" autocomplete="off" />
-        <div id="customize">
-          <div class="field field-wide">
-            <label>สีเสื้อ</label>
-            <div id="shirtColors" role="radiogroup" aria-label="สีเสื้อ"></div>
-          </div>
-          <div class="field">
-            <label for="hairColor">สีผม</label>
-            <select id="hairColor">
-              <option value="0">น้ำตาลเข้ม</option>
-              <option value="1">น้ำตาล</option>
-              <option value="2">ทอง</option>
-              <option value="3">แดง</option>
-              <option value="4">ดำอมม่วง</option>
-              <option value="5">ม่วง</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="hairStyle">ทรงผม</label>
-            <select id="hairStyle">
-              <option value="0">ผมสั้น</option>
-              <option value="1">ผมยาว</option>
-              <option value="2">มวยผม</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="skinTone">สีผิว</label>
-            <select id="skinTone">
-              <option value="0">สว่าง</option>
-              <option value="1">กลาง</option>
-              <option value="2">เข้ม</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="pantsColor">สีกางเกง</label>
-            <select id="pantsColor">
-              <option value="0">กรมท่า</option>
-              <option value="1">เทาม่วง</option>
-              <option value="2">น้ำตาล</option>
-            </select>
-          </div>
-        </div>
-        <button type="submit">เข้าเมือง</button>
+        <header class="creator-header">
+          <div><span class="creator-kicker">RO LOUNGE / NEW ADVENTURE</span><h1>สร้างตัวละคร</h1></div>
+          <span class="creator-badge">NOVICE · LV. 1</span>
+        </header>
+        <div id="customize"></div>
+        <footer class="creator-footer">
+          <label for="nameInput">ชื่อตัวละคร
+            <input id="nameInput" maxlength="16" placeholder="ตั้งชื่อนักผจญภัยของคุณ" autocomplete="off" />
+          </label>
+          <button type="submit">เข้าเมือง <span aria-hidden="true">➜</span></button>
+        </footer>
       </form>
     </div>
 
