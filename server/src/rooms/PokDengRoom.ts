@@ -18,7 +18,11 @@ export class PokDengRoom extends Room {
     this.game = this.createGame({
       onRemove: id => {
         casinoAccess.release(id, this.roomId);
-        for (const client of [...this.clients]) if (this.identity(client).playerId === id) client.leave();
+        for (const client of [...this.clients]) if (this.identity(client).playerId === id) {
+          // Explicit acknowledgement is reliable even when an edge proxy delays a close frame.
+          client.send("table:left", { wallet: economy.view(id) });
+          client.leave(4000); // Colyseus CONSENTED close code, not an empty WebSocket close frame.
+        }
       },
     });
     this.unsubscribeWallet = economy.subscribe((id, wallet) => {

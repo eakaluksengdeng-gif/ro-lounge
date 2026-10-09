@@ -88,6 +88,7 @@ export interface PokServerEvents {
   "auth:ready": GuestReady;
   "wallet:update": WalletView;
   "table:state": TableState;
+  "table:left": { wallet: WalletView }; // Private acknowledgement, sent only after stakes settle and access is released.
   "game:hand": PrivateHand;
   "api:error": ApiError;
 }

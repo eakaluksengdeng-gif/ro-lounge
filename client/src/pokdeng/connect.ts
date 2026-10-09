@@ -18,7 +18,7 @@ export async function joinPokTable(serverUrl: string, entry: CasinoEntry, name: 
     const handler = handlers[event];
     if (handler) room.onMessage<PokServerEvents[K]>(event, payload => handler(payload));
   };
-  for (const event of ["auth:ready", "wallet:update", "table:state", "game:hand", "api:error"] as const) register(event);
+  for (const event of ["auth:ready", "wallet:update", "table:state", "table:left", "game:hand", "api:error"] as const) register(event);
   room.send("table:sync", {});
   return room;
 }

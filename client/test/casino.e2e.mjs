@@ -5,9 +5,22 @@ import assert from "node:assert/strict";
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 const url = process.env.E2E_URL ?? "http://127.0.0.1:5173";
 const errors = [];
+const pages = [];
 async function guest(name) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();
+  pages.push(page);
+  await page.addInitScript(() => {
+    // Keep real sockets/messages, so we can simulate a missing proxy close notification later.
+    window.__casinoQaSockets = [];
+    window.WebSocket = new Proxy(window.WebSocket, {
+      construct(Target, args) {
+        const socket = new Target(...args);
+        window.__casinoQaSockets.push(socket);
+        return socket;
+      },
+    });
+  });
   page.on("pageerror", error => errors.push(error.message));
   page.on("console", message => { if (message.type() === "error" || message.type() === "warning") console.log("browser:", message.text()); });
   await page.goto(url);
@@ -76,6 +89,10 @@ try {
     return phase.includes("กำลังแจก") && phase !== first;
   }, firstRound, { timeout: 15000 });
   assert.match(await dealer.page.locator("#pokPhase").innerText(), /ตาที่ 2/);
+  await player.page.evaluate(() => {
+    // Returning to town MUST depend on table:left, not on the transport's close event.
+    for (const socket of window.__casinoQaSockets) if (socket.readyState === WebSocket.OPEN) socket.onclose = () => {};
+  });
   await player.page.getByRole("button", { name: "ออกสู่เมือง", exact: true }).click();
   assert.match(await player.page.locator("#pokNotice").innerText(), /รอคิดชิป/);
   await player.page.waitForFunction(() => document.querySelector("#casino")?.hidden === true, null, { timeout: 30000 });
@@ -84,6 +101,12 @@ try {
   await dealer.page.waitForFunction(() => document.querySelector("#casino")?.hidden === true, null, { timeout: 30000 });
   assert.deepEqual(errors, []);
   console.log("PASS: prominent betting/wallet, private cards, refresh, payouts, mobile, automatic second round and queued exit");
+} catch (error) {
+  for (const [index, page] of pages.entries()) {
+    await page.screenshot({ path: "/tmp/ro-lounge-casino-failure-" + index + ".png", fullPage: true });
+    console.log("casino diagnostics:", index, await page.locator("#pokPhase").textContent(), await page.locator("#pokAutoStatus").textContent(), await page.locator("#pokNotice").textContent());
+  }
+  throw error;
 } finally {
   await browser.close();
 }

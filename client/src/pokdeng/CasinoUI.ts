@@ -181,6 +181,15 @@ export class CasinoUI {
       const room = await joinPokTable(SERVER_URL, entry, this.name, {
         "auth:ready": guest => { this.playerId = guest.playerId; this.updateWallet(guest.wallet); },
         "wallet:update": wallet => this.updateWallet(wallet),
+        "table:left": ({ wallet }) => {
+          const departed = this.room;
+          this.room = undefined;
+          this.leaving = true;
+          this.updateWallet(wallet);
+          this.finishLeaving();
+          // The server has released this seat/access; do not wait for a proxy to relay its close frame.
+          void departed?.leave(false);
+        },
         "table:state": table => {
           // Drop an old private hand when a new round/reset arrives.
           if (this.hand?.roundId !== table.roundId) this.hand = undefined;
