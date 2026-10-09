@@ -16,7 +16,8 @@ export interface PlayerState {
   style: number;
   gender: number;
   fishing: string;
-  fishingSpot: number;
+  fishingBobberX: number;
+  fishingBobberY: number;
 }
 
 export interface Appearance {

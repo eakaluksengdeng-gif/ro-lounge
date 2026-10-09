@@ -29,7 +29,7 @@ export class TownNature {
       g.fillStyle(0x754c37).fillRect(x - 3, spot.y - 45, 6, 45);
       g.fillStyle(0xe5c992).fillRect(x - 24, spot.y - 54, 48, 27);
       scene.add.text(x, spot.y - 42, "🐟", { fontSize: "20px" }).setOrigin(.5).setDepth(spot.y + 1);
-      scene.add.text(spot.x, spot.y + 38, "จุดตกปลา · SPACE", {
+      scene.add.text(spot.x, spot.y + 38, "ตกได้รอบบ่อ · SPACE", {
         fontFamily: '"Noto Sans Thai", sans-serif', fontSize: "12px", color: "#fff0c8",
         backgroundColor: "#233649b8", padding: { x: 5, y: 3 },
       }).setOrigin(.5).setDepth(spot.y + 42);
@@ -69,14 +69,17 @@ export class TownNature {
     this.rods.clear().setDepth(MAP_H + 50);
     this.room.state?.players?.forEach((p: PlayerState) => {
       if (!p.fishing) return;
-      const spot = FISHING_SPOTS[p.fishingSpot] ?? FISHING_SPOTS[0];
-      const x = p.x - 12, y = p.y - 25;
-      this.rods.lineStyle(3, 0x8c6042, 1).lineBetween(x, y, x - 20, y - 36);
-      const bobY = spot.bobberY + Math.sin(t / (p.fishing === "bite" ? 75 : 600)) * (p.fishing === "bite" ? 5 : 2);
-      this.rods.lineStyle(1, 0xf6f0d0, .85).lineBetween(x - 20, y - 36, spot.bobberX, bobY);
-      this.rods.lineStyle(2, 0xc5edff, .7).strokeEllipse(spot.bobberX, bobY + 4, p.fishing === "bite" ? 28 : 13, 7);
-      this.rods.fillStyle(0xffffff).fillRect(spot.bobberX - 3, bobY - 4, 6, 5);
-      this.rods.fillStyle(0xef7d80).fillRect(spot.bobberX - 3, bobY + 1, 6, 4);
+      const dx = p.fishingBobberX - p.x, dy = p.fishingBobberY - p.y;
+      const distance = Math.hypot(dx, dy) || 1;
+      const dirX = dx / distance, dirY = dy / distance;
+      const x = p.x + dirX * 12, y = p.y - 25;
+      const tipX = x + dirX * 30, tipY = y - 30 + dirY * 12;
+      this.rods.lineStyle(3, 0x8c6042, 1).lineBetween(x, y, tipX, tipY);
+      const bobY = p.fishingBobberY + Math.sin(t / (p.fishing === "bite" ? 75 : 600)) * (p.fishing === "bite" ? 5 : 2);
+      this.rods.lineStyle(1, 0xf6f0d0, .85).lineBetween(tipX, tipY, p.fishingBobberX, bobY);
+      this.rods.lineStyle(2, 0xc5edff, .7).strokeEllipse(p.fishingBobberX, bobY + 4, p.fishing === "bite" ? 28 : 13, 7);
+      this.rods.fillStyle(0xffffff).fillRect(p.fishingBobberX - 3, bobY - 4, 6, 5);
+      this.rods.fillStyle(0xef7d80).fillRect(p.fishingBobberX - 3, bobY + 1, 6, 4);
       if (p.fishing === "bite") {
         this.rods.fillStyle(0xffdf7e).fillRect(p.x - 3, p.y - 104, 6, 16).fillRect(p.x - 3, p.y - 83, 6, 6);
       }
