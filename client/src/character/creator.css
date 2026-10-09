@@ -1,0 +1,55 @@
+#login { overflow-y: auto; padding: 28px 16px; }
+#login #loginForm { width: min(960px, 100%); padding: 24px; margin: auto; display: flex; flex-direction: column; gap: 22px; background: #f5f0e3; color: #283847; border: 3px solid #192e40; box-shadow: inset 0 0 0 4px #c2d5d8, 0 10px 0 #101c2b; }
+.creator-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 2px solid #c7d5d5; padding-bottom: 16px; }
+.creator-kicker { font-size: 12px; letter-spacing: 2px; color: #527584; }
+#login h1 { margin: 5px 0 0; font: 600 27px "Noto Sans Thai", sans-serif; color: #263d4b; }
+.creator-badge { font-size: 13px; white-space: nowrap; padding: 7px 10px; border: 2px solid #b4c9cc; color: #496b74; background: #e7eeea; }
+#customize { display: grid; grid-template-columns: minmax(240px, .9fr) minmax(0, 1.6fr); gap: 24px; }
+.creator-preview { border: 2px solid #b0c9ca; background: #e5eae1; padding: 12px; text-align: center; align-self: stretch; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.creator-caption { letter-spacing: 2px; color: #5c7a7c; font-size: 11px; margin-bottom: 12px; }
+.creator-scenery { position: relative; height: 300px; overflow: hidden; border: 2px solid #b3c9c4; background: #bdd8c7 url("/art/character-courtyard.jpg") center / cover no-repeat; image-rendering: pixelated; }
+.creator-scenery::after { content: ""; position: absolute; width: 82px; height: 16px; background: #20334640; border-radius: 50%; bottom: 11%; left: calc(50% - 41px); }
+#characterPreview { position: absolute; width: 126px; height: 168px; left: calc(50% - 63px); bottom: 12%; z-index: 1; image-rendering: pixelated; }
+#characterPreviewName { margin: 12px 0 8px; color: #294750; font-size: 23px; font-weight: 600; overflow-wrap: anywhere; }
+.creator-turn { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.creator-turn span { font: 12px "Noto Sans Thai", sans-serif; color: #577375; }
+.creator-turn button { background: #d6e3df; border: 2px solid #9ab4b7; box-shadow: inset 0 -3px 0 #adc6c5; padding: 5px 10px; font-size: 14px; }
+.creator-note { font: 12px "Noto Sans Thai", sans-serif; color: #647d7d; margin: 14px 0 0; line-height: 1.7; }
+.creator-options { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-content: start; min-width: 0; }
+.creator-options fieldset { min-width: 0; margin: 0; padding: 0; border: 0; grid-column: 1 / -1; }
+.creator-options fieldset[data-part="skin"], .creator-options fieldset[data-part="pants"] { grid-column: auto; }
+.creator-options legend { font: 600 14px "Noto Sans Thai", sans-serif; color: #3c5b66; margin-bottom: 8px; padding: 0; }
+.creator-choices { display: flex; flex-wrap: wrap; gap: 7px; }
+.creator-tile { position: relative; cursor: pointer; display: block; }
+.creator-tile input { position: absolute; opacity: 0; width: 1px; height: 1px; padding: 0; border: 0; }
+.creator-card { width: 62px; height: 68px; position: relative; display: flex; justify-content: center; align-items: center; background: #e3e9e2; border: 2px solid #b6c9c8; box-shadow: inset 0 -3px 0 #d0dcd5; transition: border-color 100ms, background-color 100ms; }
+.creator-card canvas { image-rendering: pixelated; max-width: 56px; max-height: 52px; }
+.creator-tile:hover .creator-card { background: #f7f5e9; border-color: #68959d; }
+.creator-tile input:checked + .creator-card { border-color: #347e8b; background: #cce5df; box-shadow: inset 0 0 0 2px #f9f5d4, 0 2px 0 #609a9f; }
+.creator-tile input:focus-visible + .creator-card { outline: 3px solid #c67e32; outline-offset: 3px; }
+.creator-tick { display: none; position: absolute; right: -3px; bottom: -3px; background: #347e8b; border: 2px solid #f5f0e3; color: #fff; font: 700 10px system-ui; width: 18px; height: 18px; align-items: center; justify-content: center; }
+.creator-tile input:checked + .creator-card .creator-tick { display: flex; }
+.creator-footer { display: flex; gap: 20px; align-items: flex-end; border-top: 2px solid #c7d5d5; padding-top: 16px; }
+.creator-footer label { flex: 1; font: 600 13px "Noto Sans Thai", sans-serif; color: #496570; }
+#nameInput { margin-top: 7px; background: #fffdf5; color: #283d48; border: 2px solid #b0c5c7; padding: 10px 12px; }
+#nameInput:focus { border-color: #347e8b; }
+.creator-footer button { background: #477f8a; color: #fff9e6; border: 2px solid #2b5261; padding: 12px 28px; min-width: 164px; box-shadow: inset 0 -4px 0 #336370, 0 3px 0 #c1d1cb; }
+.creator-footer button span { margin-left: 18px; }
+@media (max-width: 720px) {
+  #login { padding: 12px; }
+  #login #loginForm { padding: 16px; gap: 16px; }
+  #customize { grid-template-columns: 1fr; gap: 18px; }
+  .creator-scenery { height: 190px; }
+  #characterPreview { width: 90px; height: 120px; left: calc(50% - 45px); }
+  .creator-caption { margin-bottom: 8px; }
+  .creator-preview { padding: 10px; }
+  .creator-preview .creator-note { display: none; }
+  .creator-card { width: 56px; height: 62px; }
+  .creator-card canvas { max-width: 48px; max-height: 48px; }
+  .creator-options { gap: 12px; }
+  .creator-choices { gap: 6px; }
+  #login h1 { font-size: 22px; }
+  .creator-badge { font-size: 10px; padding: 5px; }
+  .creator-kicker { font-size: 9px; letter-spacing: 1px; }
+  .creator-footer { flex-direction: column; align-items: stretch; gap: 12px; }
+}

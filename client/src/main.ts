@@ -1,19 +1,15 @@
 import Phaser from "phaser";
-import { joinTown, type Appearance, type ChatMsg } from "./net";
+import { joinTown, type ChatMsg } from "./net";
 import { TownScene } from "./scenes/TownScene";
 import { CasinoUI } from "./pokdeng/CasinoUI";
 import { forgetGuest } from "./pokdeng/guest";
+import { CharacterCreator } from "./character/CharacterCreator";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 const login = $("login");
 const loginForm = $<HTMLFormElement>("loginForm");
 const nameInput = $<HTMLInputElement>("nameInput");
-const shirtColors = $("shirtColors");
-const hairColor = $<HTMLSelectElement>("hairColor");
-const hairStyle = $<HTMLSelectElement>("hairStyle");
-const skinTone = $<HTMLSelectElement>("skinTone");
-const pantsColor = $<HTMLSelectElement>("pantsColor");
 const hud = $("hud");
 const logEl = $("log");
 const chatForm = $<HTMLFormElement>("chatForm");
@@ -25,64 +21,8 @@ const setStatus = (t: string) => {
   statusEl.style.display = t ? "block" : "none";
 };
 
-const SHIRT_COLORS = ["#f28b82", "#fbbc04", "#a7d676", "#78d9ec", "#aecbfa", "#d7aefb", "#fdcfe8"];
-const DEFAULT_LOOK: Appearance = { color: 3, hair: 0, skin: 0, pants: 0, style: 0 };
-
-function safeIndex(raw: unknown, count: number, fallback: number): number {
-  const n = Number(raw);
-  return Number.isInteger(n) && n >= 0 && n < count ? n : fallback;
-}
-
-function loadLook(): Appearance {
-  try {
-    const saved = JSON.parse(localStorage.getItem("ro-look") ?? "null") as Partial<Appearance> | null;
-    if (!saved) return DEFAULT_LOOK;
-    return {
-      color: safeIndex(saved.color, SHIRT_COLORS.length, DEFAULT_LOOK.color),
-      hair: safeIndex(saved.hair, 6, DEFAULT_LOOK.hair),
-      skin: safeIndex(saved.skin, 3, DEFAULT_LOOK.skin),
-      pants: safeIndex(saved.pants, 3, DEFAULT_LOOK.pants),
-      style: safeIndex(saved.style, 3, DEFAULT_LOOK.style),
-    };
-  } catch {
-    return DEFAULT_LOOK;
-  }
-}
-
-function selectedLook(): Appearance {
-  const checked = shirtColors.querySelector<HTMLInputElement>('input[name="shirtColor"]:checked');
-  return {
-    color: safeIndex(checked?.value, SHIRT_COLORS.length, DEFAULT_LOOK.color),
-    hair: safeIndex(hairColor.value, 6, DEFAULT_LOOK.hair),
-    skin: safeIndex(skinTone.value, 3, DEFAULT_LOOK.skin),
-    pants: safeIndex(pantsColor.value, 3, DEFAULT_LOOK.pants),
-    style: safeIndex(hairStyle.value, 3, DEFAULT_LOOK.style),
-  };
-}
-
-const savedLook = loadLook();
-for (const [index, color] of SHIRT_COLORS.entries()) {
-  const label = document.createElement("label");
-  label.className = "color-option";
-  label.title = `สีเสื้อ ${index + 1}`;
-  const input = document.createElement("input");
-  input.type = "radio";
-  input.name = "shirtColor";
-  input.value = String(index);
-  input.setAttribute("aria-label", `สีเสื้อ ${index + 1}`);
-  input.checked = index === savedLook.color;
-  const chip = document.createElement("span");
-  chip.className = "color-chip";
-  chip.style.backgroundColor = color;
-  label.append(input, chip);
-  shirtColors.append(label);
-}
-hairColor.value = String(savedLook.hair);
-hairStyle.value = String(savedLook.style);
-skinTone.value = String(savedLook.skin);
-pantsColor.value = String(savedLook.pants);
-
 try { nameInput.value = localStorage.getItem("ro-name") ?? ""; } catch { /* ignore */ }
+const creator = new CharacterCreator($("customize"), nameInput);
 
 function addLog(m: ChatMsg) {
   const line = document.createElement("div");
@@ -97,7 +37,7 @@ function addLog(m: ChatMsg) {
 loginForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const name = nameInput.value.trim() || "Guest";
-  const appearance = selectedLook();
+  const appearance = creator.selectedLook();
   try {
     localStorage.setItem("ro-name", name);
     localStorage.setItem("ro-look", JSON.stringify(appearance));

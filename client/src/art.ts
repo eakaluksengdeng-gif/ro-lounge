@@ -361,6 +361,20 @@ function drawChar(c: Ctx, look: Look, dir: Dir, frame: number) {
   bun();
 }
 
+/** DOM previews and game textures share exactly the same pixel renderer. */
+export function renderCharacterCanvas(look: Look, dir: Dir = "down", frame = 0): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = CHAR_W + 2;
+  canvas.height = CHAR_H + 2;
+  const context = canvas.getContext("2d")!;
+  context.imageSmoothingEnabled = false;
+  context.translate(1, 1);
+  drawChar(context, look, dir, frame);
+  context.setTransform(1, 0, 0, 1, 0, 0);
+  outline(context, canvas.width, canvas.height, INK);
+  return canvas;
+}
+
 export function ensureCharacter(scene: Phaser.Scene, look: Look) {
   const dirs: Dir[] = ["down", "up", "side"];
   for (const d of dirs) {
