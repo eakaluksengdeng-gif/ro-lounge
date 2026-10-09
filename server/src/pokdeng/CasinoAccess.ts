@@ -3,7 +3,8 @@ import type { CasinoEntry } from "../../../shared/pokdeng";
 import { requireGame } from "./errors";
 
 // Door position uses authoritative TownRoom feet coordinates. Client art/UI comes next.
-export const CASINO_DOOR = { x: 960, y: 432, radius: 36 };
+import { CASINO_DOOR } from "../../../shared/casinoWorld";
+export { CASINO_DOOR };
 interface Ticket { token: string; expiresAt: number }
 
 /** Single-process membership registry + short-lived, one-use doorway tickets. */

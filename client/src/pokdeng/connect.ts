@@ -4,7 +4,7 @@ import { bindGuest, guestSession } from "./guest";
 
 export type PokHandlers = { [K in keyof PokServerEvents]?: (payload: PokServerEvents[K]) => void };
 
-/** Call from the future Phaser/UI casino:entered listener. Keep the town connection open. */
+/** Called from the casino doorway UI. Keep the town connection open. */
 export async function joinPokTable(serverUrl: string, entry: CasinoEntry, name: string, handlers: PokHandlers): Promise<Room> {
   const sessionId = guestSession();
   if (!sessionId) throw new Error("Wait for auth:ready before joining a table");

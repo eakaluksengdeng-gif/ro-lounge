@@ -140,6 +140,10 @@ export class TownRoom extends Room<TownState> {
     p.pants = optionIndex(appearance?.pants, 3);
     p.style = optionIndex(appearance?.style, 3);
     const sp = spawnPoint();
+    if (casinoAccess.roomFor(identity.playerId)) {
+      sp.x = CASINO_DOOR.x;
+      sp.y = CASINO_DOOR.y;
+    }
     p.x = p.targetX = sp.x;
     p.y = p.targetY = sp.y;
     this.state.players.set(client.sessionId, p);

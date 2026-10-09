@@ -1,7 +1,7 @@
 # บ้านป๊อกเด้ง: Server และ Event API
 
 ใช้ Phaser/Vite client + Colyseus 0.15/TypeScript server ของโปรเจกต์เดิม
-รอบนี้มี server, shared wire types และ client connection helper; ยังไม่มีภาพบ้านหรือ UI โต๊ะไพ่
+มี server, shared wire types, บ้านพิกเซลบนแมพ และ UI โต๊ะไพ่ที่เชื่อมแล้ว
 ใช้ชิปเล่นในเกมเท่านั้น ไม่มีระบบเติมเงิน/ถอนเงิน
 
 ## โมดูล
@@ -16,7 +16,9 @@
 | `server/src/rooms/PokDengRoom.ts` | Colyseus transport และส่ง public/private snapshots |
 | `shared/pokdeng.ts` | TypeScript contract สำหรับทั้งสองฝั่ง |
 | `client/src/pokdeng/guest.ts` | เก็บ guest UUID ใน LocalStorage และ sync Wallet |
-| `client/src/pokdeng/connect.ts` | `joinPokTable()` และ `sendPok()` สำหรับ UI ที่จะทำต่อ |
+| `client/src/pokdeng/connect.ts` | `joinPokTable()` และ `sendPok()` สำหรับ UI |
+| `client/src/pokdeng/CasinoUI.ts` | โต๊ะ 8 ที่นั่ง ไพ่ส่วนตัว ปุ่มเล่น ชิป และ reconnect |
+| `shared/casinoWorld.ts` | พิกัดประตูและตัวบ้านที่ใช้ทั้ง Client/Server |
 
 Manager ไม่ผูกกับ Phaser หรือ Colyseus จึงทดสอบหรือเปลี่ยน transport ได้
 
@@ -55,7 +57,7 @@ Door เริ่มที่ `{ x: 960, y: 432, radius: 36 }` ใน `CASINO_DO
 TownRoom ตรวจตำแหน่งเท้าจาก simulation ของ server ทุก tick
 เมื่อเข้า radius จะหยุดเดินและส่ง `casino:entered` ให้ Client เปิด UI/เข้าห้อง
 Client ส่ง `casino:enter` ได้ด้วย แต่ server ตรวจระยะจริงเสมอ
-ภาพบ้านและป้ายทางเข้าต้องวาดใน Phaser ให้ตรงพิกัดนี้ในงาน UI ถัดไป
+ภาพบ้านและป้ายทางเข้าใน TownScene ใช้พิกัด shared เดียวกัน และ server บล็อกการเดินทะลุตัวบ้าน
 
 Ticket มีอายุ 30 วินาที ผูกกับ guest และใช้เข้าโต๊ะใหม่ได้ครั้งเดียว
 หากจะเปิด UI ล่าช้า ให้ส่ง `casino:enter` ใหม่ขณะที่ยังอยู่หน้าประตู

@@ -11,6 +11,11 @@ const httpServer = createServer((req, res) => {
     res.writeHead(200).end("ok");
     return;
   }
+  if (req.url === "/version") {
+    res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" })
+      .end(JSON.stringify({ version: "pok-deng-ui-v1", commit: process.env.RENDER_GIT_COMMIT ?? null }));
+    return;
+  }
   res.writeHead(404).end();
 });
 
