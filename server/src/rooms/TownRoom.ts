@@ -1,9 +1,8 @@
 import { Room, Client } from "colyseus";
 import { Player, TownState } from "../schema/TownState";
+import { clampToMap, isBlocked, spawnPoint } from "../world";
 
 // ค่าตั้งต้น ปรับได้ตามต้องการ
-export const MAP_W = 1280;
-export const MAP_H = 800;
 const TICK_MS = 50;
 const SPEED = 180; // พิกเซลต่อวินาที
 const CHAT_MAX_LEN = 120;
@@ -30,8 +29,9 @@ export class TownRoom extends Room<TownState> {
       const p = this.state.players.get(client.sessionId);
       if (!p || typeof msg?.x !== "number" || typeof msg?.y !== "number") return;
       if (!Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return;
-      p.targetX = clamp(msg.x, 0, MAP_W);
-      p.targetY = clamp(msg.y, 0, MAP_H);
+      const t = clampToMap(msg.x, msg.y);
+      p.targetX = t.x;
+      p.targetY = t.y;
     });
 
     this.onMessage("chat", (client, msg: { text?: string }) => {
@@ -61,8 +61,25 @@ export class TownRoom extends Room<TownState> {
         const dist = Math.hypot(dx, dy);
         if (dist < 1) return;
         const step = Math.min(dist, SPEED * dt);
-        p.x += (dx / dist) * step;
-        p.y += (dy / dist) * step;
+        const nx = p.x + (dx / dist) * step;
+        const ny = p.y + (dy / dist) * step;
+        // เดินชนสระน้ำ/น้ำพุ/ต้นไม้ไม่ได้ ลองไถลไปตามแกนใดแกนหนึ่งก่อน ถ้าไม่ได้ก็หยุด
+        if (!isBlocked(nx, ny)) {
+          p.x = nx;
+          p.y = ny;
+        } else if (!isBlocked(nx, p.y) && Math.abs(dx) > 1) {
+          p.x = nx;
+        } else if (!isBlocked(p.x, ny) && Math.abs(dy) > 1) {
+          p.y = ny;
+        } else {
+          p.targetX = p.x;
+          p.targetY = p.y;
+        }
+        if (Math.hypot(p.targetX - p.x, p.targetY - p.y) >= dist - 0.01) {
+          // ไม่คืบหน้าเข้าหาเป้าหมายแล้ว (ติดสิ่งกีดขวาง) ให้หยุด
+          p.targetX = p.x;
+          p.targetY = p.y;
+        }
       });
     }, TICK_MS);
   }
@@ -70,8 +87,9 @@ export class TownRoom extends Room<TownState> {
   onJoin(client: Client, options: { name?: string }) {
     const p = new Player();
     p.name = cleanName(options?.name);
-    p.x = p.targetX = MAP_W / 2 + (Math.random() - 0.5) * 120;
-    p.y = p.targetY = MAP_H / 2 + (Math.random() - 0.5) * 120;
+    const sp = spawnPoint();
+    p.x = p.targetX = sp.x;
+    p.y = p.targetY = sp.y;
     p.color = COLORS[Math.floor(Math.random() * COLORS.length)];
     this.state.players.set(client.sessionId, p);
   }

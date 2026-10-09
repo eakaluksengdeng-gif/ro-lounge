@@ -13,6 +13,10 @@ const chatForm = $<HTMLFormElement>("chatForm");
 const chatInput = $<HTMLInputElement>("chatInput");
 const emotesEl = $("emotes");
 const statusEl = $("status");
+const setStatus = (t: string) => {
+  statusEl.textContent = t;
+  statusEl.style.display = t ? "block" : "none";
+};
 
 try { nameInput.value = localStorage.getItem("ro-name") ?? ""; } catch { /* ignore */ }
 
@@ -30,27 +34,48 @@ loginForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const name = nameInput.value.trim() || "Guest";
   try { localStorage.setItem("ro-name", name); } catch { /* ignore */ }
-  statusEl.textContent = "กำลังเชื่อมต่อ...";
+  setStatus("กำลังเชื่อมต่อ...");
 
-  let room;
-  try {
-    room = await joinTown(name);
-  } catch (err) {
-    statusEl.textContent = "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ (รัน server แล้วหรือยัง?)";
-    console.error(err);
+  // เซิร์ฟเวอร์ฟรีอาจหลับอยู่ ต้องรอปลุก เลยลองซ้ำให้อัตโนมัติสูงสุด 6 ครั้ง
+  let room: Awaited<ReturnType<typeof joinTown>> | undefined;
+  for (let attempt = 1; attempt <= 6 && !room; attempt++) {
+    try {
+      room = await joinTown(name);
+    } catch (err) {
+      console.error(err);
+      if (attempt === 6) break;
+      setStatus(`กำลังปลุกเซิร์ฟเวอร์... (ครั้งที่ ${attempt}/6 อาจรอได้ถึง 1 นาที)`);
+      await new Promise((r) => setTimeout(r, 8000));
+    }
+  }
+  if (!room) {
+    setStatus("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ลองรีเฟรชหน้าแล้วกดเข้าเมืองใหม่");
     return;
   }
 
   login.style.display = "none";
   hud.style.display = "flex";
-  statusEl.textContent = "";
+  setStatus("");
 
-  room.onLeave(() => { statusEl.textContent = "หลุดจากเซิร์ฟเวอร์ ลองรีเฟรชหน้า"; });
+  room.onLeave(() => { setStatus("หลุดจากเซิร์ฟเวอร์ ลองรีเฟรชหน้า"); });
+
+  // รอฟอนต์พิกเซลโหลดสักครู่ (ไม่เกิน 1.5 วินาที) เพื่อให้ตัวหนังสือในเกมใช้ฟอนต์ถูกตัว
+  try {
+    await Promise.race([
+      Promise.all([
+        document.fonts.load('16px "Pixelify Sans"'),
+        document.fonts.load('16px "Noto Sans Thai"'),
+      ]),
+      new Promise((r) => setTimeout(r, 1500)),
+    ]);
+  } catch { /* ใช้ฟอนต์สำรอง */ }
 
   new Phaser.Game({
     type: Phaser.AUTO,
     parent: "game",
-    backgroundColor: "#1e2a38",
+    backgroundColor: "#1b2230",
+    pixelArt: true,
+    roundPixels: true,
     scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
     scene: [new TownScene(room, addLog)],
   });

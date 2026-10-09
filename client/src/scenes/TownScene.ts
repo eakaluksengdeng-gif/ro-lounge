@@ -1,38 +1,83 @@
 import Phaser from "phaser";
 import type { Room } from "colyseus.js";
 import type { ChatMsg, EmoteMsg, PlayerState } from "../net";
+import {
+  BENCHES, FOUNTAIN, LAMPS, MAP_H, MAP_W, PATH_COLS, PATH_ROWS, PLAZA, POND, PX, TILE, TILES_X, TILES_Y,
+  TILE_PX, TREES, treeFeet,
+} from "../world";
+import {
+  CHAR_H, CHAR_ORIGIN_Y, buildWorldTextures, ensureCharacter, hashString, mulberry32,
+  type Dir, type Look,
+} from "../art";
 
-export const MAP_W = 1280;
-export const MAP_H = 800;
-const TILE = 40;
+const FONT = '"Pixelify Sans", "Noto Sans Thai", system-ui, sans-serif';
 const BUBBLE_MS = 5000;
 const EMOTE_MS = 1800;
 const EMOTE_ICONS: Record<string, string> = {
   happy: "😄", sad: "😢", love: "❤️", wave: "👋", angry: "💢", sleepy: "💤",
 };
 
+const HAIR = ["#3b2a20", "#7a4a2a", "#d9a441", "#c94f4f", "#2d2d3a", "#8e6bd8"];
+const SKIN = ["#ffdcc0", "#f2c29b", "#c98b62"];
+const PANTS = ["#3d4a7a", "#4a4458", "#6b4f3a"];
+
+const HEAD_Y = -(CHAR_H + 2) * PX - 4; // ตำแหน่งเหนือหัวสำหรับ bubble / emote
+const WALK_STEP_PX = 22; // ระยะเดินต่อ 1 ท่า
+const WALK_SEQ = [1, 0, 2, 0];
+
 interface Avatar {
   container: Phaser.GameObjects.Container;
-  bubble: Phaser.GameObjects.Text;
+  sprite: Phaser.GameObjects.Sprite;
+  look: Look;
+  bubble: Phaser.GameObjects.Container;
+  bubbleGfx: Phaser.GameObjects.Graphics;
+  bubbleText: Phaser.GameObjects.Text;
   emote: Phaser.GameObjects.Text;
   bubbleTimer?: Phaser.Time.TimerEvent;
   emoteTimer?: Phaser.Time.TimerEvent;
+  dir: Dir;
+  flip: boolean;
+  walk: number;
+  texKey: string;
 }
 
 export class TownScene extends Phaser.Scene {
   private avatars = new Map<string, Avatar>();
+  private waterTiles: Phaser.GameObjects.Image[] = [];
+  private fountain?: Phaser.GameObjects.Image;
 
   constructor(private room: Room<any>, private onChat: (m: ChatMsg) => void) {
     super("town");
   }
 
   create() {
-    this.drawMap();
+    buildWorldTextures(this);
+    this.cameras.main.setBackgroundColor("#1b2230");
     this.cameras.main.setBounds(0, 0, MAP_W, MAP_H);
+    this.cameras.main.setRoundPixels(true);
+    this.buildMap();
 
-    // คลิกพื้นเพื่อเดิน (แปลงพิกัดหน้าจอเป็นพิกัดโลก)
+    // ภาพเคลื่อนไหวของน้ำและน้ำพุ
+    let tick = 0;
+    this.time.addEvent({
+      delay: 450,
+      loop: true,
+      callback: () => {
+        tick++;
+        for (const w of this.waterTiles) w.setTexture(`water${tick % 2}`);
+        this.fountain?.setTexture(`fountain${tick % 2}`);
+      },
+    });
+
+    // คลิกพื้นเพื่อเดิน
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
-      this.room.send("move", { x: Math.round(p.worldX), y: Math.round(p.worldY) });
+      const x = Math.round(p.worldX);
+      const y = Math.round(p.worldY);
+      this.room.send("move", { x, y });
+      const ring = this.add.circle(x, y, 7, 0xffffff, 0).setStrokeStyle(2, 0xffffff, 0.9).setDepth(MAP_H + 10);
+      this.tweens.add({
+        targets: ring, scale: 2.2, alpha: 0, duration: 380, onComplete: () => ring.destroy(),
+      });
     });
 
     this.room.onMessage("chat", (m: ChatMsg) => {
@@ -42,29 +87,107 @@ export class TownScene extends Phaser.Scene {
     this.room.onMessage("emote", (m: EmoteMsg) => this.showEmote(m.id, m.name));
   }
 
+  /* ---------------- แมพ ---------------- */
+
+  private buildMap() {
+    const rnd = mulberry32(7);
+    const rt = this.add.renderTexture(0, 0, TILES_X * TILE, TILES_Y * TILE)
+      .setOrigin(0).setScale(PX).setDepth(-1000);
+
+    const pondDist = (tx: number, ty: number) =>
+      ((tx + 0.5 - POND.cx) / POND.rx) ** 2 + ((ty + 0.5 - POND.cy) / POND.ry) ** 2;
+    const inPlaza = (tx: number, ty: number) =>
+      tx >= PLAZA.x0 && tx <= PLAZA.x1 && ty >= PLAZA.y0 && ty <= PLAZA.y1;
+    const isPath = (tx: number, ty: number) => PATH_ROWS.includes(ty) || PATH_COLS.includes(tx);
+
+    const grassTiles: [number, number][] = [];
+    for (let ty = 0; ty < TILES_Y; ty++) {
+      for (let tx = 0; tx < TILES_X; tx++) {
+        let key: string;
+        if (inPlaza(tx, ty)) key = `stone${(tx + ty) % 2}`;
+        else if (isPath(tx, ty)) key = `path${Math.floor(rnd() * 3)}`;
+        else if (pondDist(tx, ty) <= 1.45) key = "sand0";
+        else {
+          const r = rnd();
+          key = r < 0.1 ? `flower${Math.floor(rnd() * 4)}` : `grass${Math.floor(rnd() * 4)}`;
+          grassTiles.push([tx, ty]);
+        }
+        rt.draw(key, tx * TILE, ty * TILE);
+        if (pondDist(tx, ty) <= 1) {
+          const w = this.add.image(tx * TILE_PX, ty * TILE_PX, "water0")
+            .setOrigin(0).setScale(PX).setDepth(-999);
+          this.waterTiles.push(w);
+        }
+      }
+    }
+
+    const shadowAt = (x: number, y: number, sx: number, sy: number) =>
+      this.add.image(x, y, "shadow").setScale(PX * sx, PX * sy).setDepth(y - 1);
+
+    // ต้นไม้
+    for (const t of TREES) {
+      const f = treeFeet(t);
+      shadowAt(f.x, f.y - 2, 2.4, 1.6);
+      this.add.image(f.x, f.y, "tree").setOrigin(0.5, 34 / 37).setScale(PX).setDepth(f.y);
+    }
+
+    // พุ่มไม้ (ตำแหน่งสุ่มแต่คงที่ทุกเครื่อง)
+    const bushRnd = mulberry32(21);
+    let placed = 0;
+    while (placed < 16 && grassTiles.length) {
+      const [tx, ty] = grassTiles[Math.floor(bushRnd() * grassTiles.length)];
+      const x = (tx + 0.5) * TILE_PX;
+      const y = (ty + 0.9) * TILE_PX;
+      if (TREES.some((t) => Math.hypot(treeFeet(t).x - x, treeFeet(t).y - y) < 60)) continue;
+      shadowAt(x, y - 1, 1.1, 1);
+      this.add.image(x, y, "bush").setOrigin(0.5, 12 / 14).setScale(PX).setDepth(y);
+      placed++;
+    }
+
+    // น้ำพุ
+    this.fountain = this.add.image(FOUNTAIN.x, FOUNTAIN.y, "fountain0").setScale(PX).setDepth(FOUNTAIN.y + 40);
+
+    // ม้านั่งและโคมไฟ
+    for (const [bx, by] of BENCHES) {
+      const x = bx * TILE_PX;
+      const y = by * TILE_PX;
+      shadowAt(x, y - 1, 1.7, 1);
+      this.add.image(x, y, "bench").setOrigin(0.5, 11 / 14).setScale(PX).setDepth(y);
+    }
+    for (const [lx, ly] of LAMPS) {
+      const x = lx * TILE_PX;
+      const y = ly * TILE_PX;
+      this.add.image(x, y, "lamp").setOrigin(0.5, 23 / 26).setScale(PX).setDepth(y);
+      this.add.circle(x, y - 58, 40, 0xffe27a, 0.07).setBlendMode(Phaser.BlendModes.ADD).setDepth(y + 1);
+    }
+
+    // ป้ายชื่อเมือง
+    const bx = FOUNTAIN.x;
+    const by = (PLAZA.y0 - 0.4) * TILE_PX;
+    this.add.image(bx, by, "board").setScale(PX).setDepth(by);
+    this.add.text(bx, by, "Town Square", { fontFamily: FONT, fontSize: "16px", color: "#fff4d6", fontStyle: "bold" })
+      .setOrigin(0.5).setDepth(by + 1);
+  }
+
+  /* ---------------- ตัวละคร ---------------- */
+
   update(_t: number, dtMs: number) {
     const players = this.room.state?.players;
     if (!players) return;
 
-    // สร้างตัวละครที่เพิ่งเข้ามา
     const seen = new Set<string>();
     players.forEach((p: PlayerState, id: string) => {
       seen.add(id);
       let av = this.avatars.get(id);
       if (!av) {
-        av = this.createAvatar(p, id === this.room.sessionId);
+        av = this.createAvatar(p, id);
         this.avatars.set(id, av);
         av.container.setPosition(p.x, p.y);
-        if (id === this.room.sessionId) this.cameras.main.startFollow(av.container, true, 0.1, 0.1);
+        if (id === this.room.sessionId) this.cameras.main.startFollow(av.container, true, 0.12, 0.12);
       }
-      // เลื่อนเข้าหาตำแหน่งจากเซิร์ฟเวอร์ให้ดูนุ่ม
-      const k = 1 - Math.pow(0.001, dtMs / 1000);
-      av.container.x += (p.x - av.container.x) * k;
-      av.container.y += (p.y - av.container.y) * k;
-      av.container.setDepth(av.container.y);
+      this.moveAvatar(av, p, dtMs);
     });
 
-    // ลบตัวละครที่ออกไปแล้ว
     for (const [id, av] of this.avatars) {
       if (!seen.has(id)) {
         av.container.destroy();
@@ -73,77 +196,102 @@ export class TownScene extends Phaser.Scene {
     }
   }
 
-  private drawMap() {
-    const g = this.add.graphics().setDepth(-1000);
-    for (let ty = 0; ty < MAP_H / TILE; ty++) {
-      for (let tx = 0; tx < MAP_W / TILE; tx++) {
-        const alt = (tx + ty) % 2 === 0;
-        g.fillStyle(alt ? 0x6fb36a : 0x66a862, 1);
-        g.fillRect(tx * TILE, ty * TILE, TILE, TILE);
+  private moveAvatar(av: Avatar, p: PlayerState, dtMs: number) {
+    const c = av.container;
+    const k = 1 - Math.pow(0.001, dtMs / 1000);
+    const nx = c.x + (p.x - c.x) * k;
+    const ny = c.y + (p.y - c.y) * k;
+    const dx = nx - c.x;
+    const dy = ny - c.y;
+    const dist = Math.hypot(dx, dy);
+    c.setPosition(Math.round(nx), Math.round(ny));
+    c.setDepth(c.y);
+
+    let frame = 0;
+    if (dist > 0.12) {
+      if (Math.abs(dx) > Math.abs(dy)) {
+        av.dir = "side";
+        av.flip = dx < 0;
+      } else {
+        av.dir = dy < 0 ? "up" : "down";
       }
+      av.walk += dist;
+      frame = WALK_SEQ[Math.floor(av.walk / WALK_STEP_PX) % WALK_SEQ.length];
     }
-    // ลานหินตรงกลาง
-    g.fillStyle(0xd8c9a3, 1);
-    g.fillRoundedRect(MAP_W / 2 - 200, MAP_H / 2 - 120, 400, 240, 24);
-    g.lineStyle(3, 0xb9a77c, 1);
-    g.strokeRoundedRect(MAP_W / 2 - 200, MAP_H / 2 - 120, 400, 240, 24);
-    // น้ำพุ
-    g.fillStyle(0x7fc4e8, 1);
-    g.fillCircle(MAP_W / 2, MAP_H / 2, 46);
-    g.lineStyle(6, 0xeeeeee, 1);
-    g.strokeCircle(MAP_W / 2, MAP_H / 2, 46);
-    // ต้นไม้ตกแต่งรอบขอบ
-    const trees: [number, number][] = [[120, 120], [300, 90], [980, 110], [1160, 160], [160, 660], [420, 700], [900, 680], [1120, 620]];
-    for (const [x, y] of trees) {
-      g.fillStyle(0x7a5a3a, 1);
-      g.fillRect(x - 6, y, 12, 28);
-      g.fillStyle(0x3f8f4a, 1);
-      g.fillCircle(x, y - 6, 30);
+    const key = `ch-${av.look.id}-${av.dir}-${frame}`;
+    if (key !== av.texKey) {
+      av.sprite.setTexture(key);
+      av.texKey = key;
     }
-    this.add.text(MAP_W / 2, 40, "Town Square", { fontSize: "20px", color: "#ffffff" })
-      .setOrigin(0.5).setAlpha(0.7).setDepth(-999);
+    av.sprite.setFlipX(av.dir === "side" && av.flip);
   }
 
-  private createAvatar(p: PlayerState, isMe: boolean): Avatar {
-    const body = this.add.graphics();
-    // เงา
-    body.fillStyle(0x000000, 0.2);
-    body.fillEllipse(0, 2, 30, 10);
-    // ตัว
-    body.fillStyle(p.color, 1);
-    body.fillRoundedRect(-11, -26, 22, 26, 6);
-    // หัว (chibi หัวโต)
-    body.fillStyle(0xffe2c4, 1);
-    body.fillCircle(0, -38, 15);
-    body.fillStyle(0x2b2b2b, 1);
-    body.fillCircle(-5, -38, 2);
-    body.fillCircle(5, -38, 2);
-    if (isMe) {
-      body.lineStyle(2, 0xffffff, 0.9);
-      body.strokeEllipse(0, 2, 34, 12);
-    }
+  private lookFor(p: PlayerState, id: string): Look {
+    const h = hashString(id + p.name);
+    const hair = h % 6;
+    const skin = (h >> 3) % 3;
+    const pants = (h >> 5) % 3;
+    const style = (h >> 7) % 3;
+    return {
+      id: `${p.color}-${hair}${skin}${pants}${style}`,
+      shirt: "#" + p.color.toString(16).padStart(6, "0"),
+      hair: HAIR[hair],
+      skin: SKIN[skin],
+      pants: PANTS[pants],
+      style,
+    };
+  }
 
-    const name = this.add.text(0, 12, p.name, {
-      fontSize: "13px", color: "#ffffff", stroke: "#000000", strokeThickness: 3,
+  private createAvatar(p: PlayerState, id: string): Avatar {
+    const look = this.lookFor(p, id);
+    ensureCharacter(this, look);
+    const isMe = id === this.room.sessionId;
+
+    const shadow = this.add.image(0, -1, "shadow").setScale(PX * 1.1, PX);
+    const texKey = `ch-${look.id}-down-0`;
+    const sprite = this.add.sprite(0, 0, texKey).setOrigin(0.5, CHAR_ORIGIN_Y).setScale(PX);
+
+    const name = this.add.text(0, 6, p.name, {
+      fontFamily: FONT, fontSize: "14px", color: isMe ? "#ffe27a" : "#ffffff",
+      backgroundColor: "rgba(20,24,36,0.62)", padding: { x: 5, y: 1 },
     }).setOrigin(0.5, 0);
 
-    const bubble = this.add.text(0, -66, "", {
-      fontSize: "14px", color: "#222222", backgroundColor: "#ffffff",
-      padding: { x: 8, y: 5 }, wordWrap: { width: 190 }, align: "center",
-    }).setOrigin(0.5, 1).setVisible(false);
+    const bubbleGfx = this.add.graphics();
+    const bubbleText = this.add.text(0, 0, "", {
+      fontFamily: FONT, fontSize: "15px", color: "#2b2233", align: "center", wordWrap: { width: 170 },
+    }).setOrigin(0.5, 0);
+    const bubble = this.add.container(0, HEAD_Y, [bubbleGfx, bubbleText]).setVisible(false);
 
-    const emote = this.add.text(0, -62, "", { fontSize: "30px" })
-      .setOrigin(0.5, 1).setVisible(false);
+    const emote = this.add.text(0, HEAD_Y, "", { fontSize: "30px" }).setOrigin(0.5, 1).setVisible(false);
 
-    const container = this.add.container(0, 0, [body, name, bubble, emote]);
-    return { container, bubble, emote };
+    const container = this.add.container(0, 0, [shadow, sprite, name, bubble, emote]);
+    return {
+      container, sprite, look, bubble, bubbleGfx, bubbleText, emote,
+      dir: "down", flip: false, walk: 0, texKey,
+    };
   }
 
   private showBubble(id: string, text: string) {
     const av = this.avatars.get(id);
     if (!av) return;
     av.emote.setVisible(false);
-    av.bubble.setText(text).setVisible(true);
+    const t = av.bubbleText.setText(text);
+    const w = Math.max(24, t.width) + 14;
+    const h = t.height + 10;
+    const tail = 6;
+    const top = -tail - h;
+    t.setPosition(0, top + 5);
+
+    const g = av.bubbleGfx;
+    g.clear();
+    g.fillStyle(0x2b2233, 1);
+    g.fillRect(-w / 2 - 2, top - 2, w + 4, h + 4);
+    g.fillTriangle(-6, -tail + 1, 6, -tail + 1, 0, 1);
+    g.fillStyle(0xffffff, 1);
+    g.fillRect(-w / 2, top, w, h);
+    g.fillTriangle(-4, -tail, 4, -tail, 0, -1);
+
+    av.bubble.setVisible(true);
     av.bubbleTimer?.remove();
     av.bubbleTimer = this.time.delayedCall(BUBBLE_MS, () => av.bubble.setVisible(false));
   }
