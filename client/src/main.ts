@@ -23,7 +23,7 @@ const soundTools = document.createElement("div");
 soundTools.className = "creator-sound-tools";
 const badge = loginForm.querySelector(".creator-badge");
 if (badge) soundTools.append(badge);
-soundTools.append(gameSounds.createToggle());
+soundTools.append(gameSounds.createMusicControl(), gameSounds.createToggle());
 loginForm.querySelector("header")?.append(soundTools);
 const setStatus = (t: string) => {
   statusEl.textContent = t;
@@ -133,4 +133,5 @@ loginForm.addEventListener("submit", async (e) => {
     b.addEventListener("click", () => room.send("emote", { name }));
     emotesEl.append(b);
   }
+  emotesEl.append(gameSounds.createMusicControl());
 });
