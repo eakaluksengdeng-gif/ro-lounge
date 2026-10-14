@@ -64,8 +64,9 @@ try {
     const balance = document.createElement("span");
     const meta = document.createElement("span"); meta.className = "wallet-hud-details"; meta.textContent = " · ใช้ได้ 113 · สำรอง 0";
     balance.append(coinAmount(113, "prefix"), meta);
-    const travel = document.createElement("button"); travel.textContent = "♠ ไปบ้านป๊อกเด้ง";
-    toolbar.append(balance, travel);
+    const { gameSounds } = await import("/src/audio/GameSounds.ts");
+    const travel = document.createElement("button"); travel.textContent = "♠ ไป Boardgame";
+    toolbar.append(balance, travel, gameSounds.createToggle());
     const nature = document.createElement("div"); nature.id = "natureBar"; nature.textContent = "☀ แดดออก · 🐟 ปลา 0";
     document.body.append(toolbar, nature);
     const modal = document.createElement("section"); modal.id = "casino";
@@ -114,7 +115,7 @@ try {
       }));
       assert.ok(money.every(balance => balance.left >= 0 && balance.right <= width && balance.unitVisible), "exact amount and visible chip unit must fit " + width + "px, amount " + amount);
       const hud = await page.locator("#casinoToolbar").boundingBox();
-      const travel = await page.locator("#casinoToolbar button").boundingBox();
+      const travel = await page.getByRole("button", { name: "♠ ไป Boardgame", exact: true }).boundingBox();
       const coin = await page.locator("#casinoToolbar .gold-balance").boundingBox();
       assert.ok(coin.x + coin.width <= travel.x, "wallet must not overlap travel button");
       if (width <= 680) {

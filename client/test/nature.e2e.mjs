@@ -9,6 +9,12 @@ async function join(name) {
   const page = await context.newPage();
   page.on("pageerror", e => errors.push(e.message));
   await page.goto(url);
+  if (!process.env.E2E_URL) await page.evaluate(async () => {
+    const { gameSounds } = await import("/src/audio/GameSounds.ts");
+    const original = gameSounds.play.bind(gameSounds); window.natureQaHeard = [];
+    // Record requested state-edge cues; foreground audio output is measured separately in test:sound.
+    gameSounds.play = (cue, delay) => { window.natureQaHeard.push(cue); return original(cue, delay); };
+  });
   await page.locator("#nameInput").fill(name);
   await page.getByRole("button", { name: "เข้าเมือง", exact: true }).click();
   await page.locator("#natureBar").waitFor();
@@ -26,6 +32,7 @@ try {
   const page = await join("Fishing QA");
   await page.waitForFunction(() => document.querySelector("#casinoToolbar")?.textContent.includes("ชิป 100"));
   const spectator = await join("Nature QA");
+  await page.bringToFront();
   if (!process.env.E2E_URL) {
     // Local server: RO_WEATHER_PHASE_MS=5000. Observe real server-synchronized weather, not a UI override.
     for (const kind of ["sunny", "rain", "snow"]) {
@@ -92,6 +99,7 @@ try {
   assert.ok(mobileReward >= 1 && mobileReward <= 20);
   await balance(page, 100 + reward + mobileReward);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  const sounds = !process.env.E2E_URL ? await page.evaluate(() => window.natureQaHeard) : [];
   // Catch inventory lives on the server, keyed by the guest UUID.
   await page.reload();
   await page.getByRole("button", { name: "เข้าเมือง", exact: true }).click();
@@ -99,6 +107,9 @@ try {
   assert.equal(await page.locator("#fishingPanel").getAttribute("data-phase"), "idle");
   await balance(page, 100 + reward + mobileReward);
   assert.deepEqual(errors, []);
+  if (!process.env.E2E_URL) {
+    for (const cue of ["cast", "bite", "reel", "catch", "miss"]) assert.ok(sounds.includes(cue), "real fishing state must produce " + cue + " sound");
+  }
   console.log("PASS: shared wildlife/weather, red-zone gauge Space/mobile hits, 1–20 rewards, early/gauge/late misses, no replay, chat-safe keyboard, rates, wallet/inventory after refresh");
 } finally {
   await browser.close();
