@@ -1,9 +1,11 @@
-import type { PrivateHand, TableState } from "../../../shared/pokdeng";
+import type { PrivateHand, SeatView, TableState } from "../../../shared/pokdeng";
 import { gameSounds, type SoundCue } from "./GameSounds";
 
 /** State-edge cues only. Never inspects another guest's private hand or replays snapshots on resume. */
 export class CasinoSounds {
-  private previous?: TableState;
+  private previous?: Pick<TableState, "roomId" | "roundId" | "phase"> & {
+    seats: (Pick<SeatView, "playerId" | "bet" | "cardCount" | "acted"> | null)[];
+  };
   private pokRound?: string | null;
   private tickRound?: string | null;
   private ticks = new Set<number>();
@@ -11,7 +13,9 @@ export class CasinoSounds {
   reset() { this.previous = undefined; this.pokRound = undefined; this.tickRound = undefined; this.ticks.clear(); }
   update(table: TableState, playerId: string) {
     const old = this.previous;
-    this.previous = structuredClone(table);
+    // Cache only public primitive counters/flags; no card faces, deep-clone API or private hand data.
+    this.previous = { roomId: table.roomId, roundId: table.roundId, phase: table.phase,
+      seats: table.seats.map(seat => seat ? { playerId: seat.playerId, bet: seat.bet, cardCount: seat.cardCount, acted: seat.acted } : null) };
     if (!old || old.roomId !== table.roomId) {
       // A resumed snapshot is not a fresh deal/Pok/win, even if the whole hand is visible.
       if (table.seats.some(seat => seat?.value?.kind === "pok8" || seat?.value?.kind === "pok9")) this.pokRound = table.roundId;
