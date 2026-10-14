@@ -4,6 +4,7 @@ import type { FishingState, WeatherView, WeatherKind } from "../../../shared/nat
 import { FISH_SPECIES, FISHING_SPOTS, fishingLocationAt, fishingGaugePosition,
   FISHING_TARGET_START, FISHING_TARGET_END, FISHING_BITE_MS, FISHING_REWARD_RATES, FISHING_REWARD_WEIGHT } from "../../../shared/nature";
 import type { TownScene } from "../scenes/TownScene";
+import { gameSounds } from "../audio/GameSounds";
 import "./nature.css";
 
 const WEATHER = { sunny: "☀️ แดดออก", rain: "🌧️ ฝนตก", snow: "❄️ หิมะตก" };
@@ -30,6 +31,7 @@ export class NatureUI {
   private clockNonce = 0;
   private clockRequests = new Map<number, number>();
   private minRtt = Infinity;
+  private soundState = "";
 
   constructor(private room: Room, private scene: TownScene) {
     const toolbar = document.createElement("div");
@@ -62,6 +64,7 @@ export class NatureUI {
     this.action.addEventListener("click", () => this.interact());
     this.cancel.textContent = "เก็บเบ็ด";
     this.cancel.addEventListener("click", () => {
+      gameSounds.play("cancel");
       this.message.textContent = "เก็บเบ็ดแล้ว กดเริ่มตกปลาเพื่อลองใหม่";
       this.room.send("fish:cancel", {});
     });
@@ -92,6 +95,13 @@ export class NatureUI {
     this.panel.append(this.title, this.message, this.gauge, this.bar, this.countdown, this.action, this.cancel, rates);
     document.body.append(this.panel);
     room.onMessage<FishingState>("fish:state", state => {
+      const soundState = `${state.castId}:${state.phase}:${state.result?.reason ?? ""}`;
+      if (this.soundState && soundState !== this.soundState) {
+        if (state.phase === "waiting") gameSounds.play("cast");
+        if (state.phase === "bite") gameSounds.play("bite");
+        if (state.phase === "result") gameSounds.play(state.result?.reason === "caught" ? "catch" : "miss");
+      }
+      this.soundState = soundState;
       this.state = state;
       if (!this.clockReady) this.offset = state.serverTime - Date.now();
       if (state.phase !== "idle") this.scene.stopNavigation();
@@ -119,6 +129,7 @@ export class NatureUI {
     });
     room.onMessage<ApiError>("api:error", error => {
       if (!error.event.startsWith("fish:")) return;
+      gameSounds.play("error");
       this.message.textContent = ({
         NOT_AT_POND: "เดินใกล้ริมบ่อ ตกได้ทุกด้านของบ่อ", ALREADY_FISHING: "กำลังตกปลาอยู่ รอหรือเก็บเบ็ดก่อน",
         IN_CASINO: "ออกจากโต๊ะไพ่ก่อนตกปลา", WRONG_CAST: "เบ็ดนี้จบแล้ว ลองเริ่มใหม่",
@@ -177,6 +188,7 @@ export class NatureUI {
   private interact() {
     if (this.closed || this.scene.casinoOpen) return;
     if (this.state?.phase === "waiting" || this.state?.phase === "bite") {
+      gameSounds.play("reel");
       this.room.send("fish:reel", { castId: this.state.castId });
     } else if (this.state?.phase !== "result" && this.near) {
       this.scene.stopNavigation();
@@ -193,6 +205,7 @@ export class NatureUI {
     this.panel.dataset.near = String(this.near);
     document.getElementById("hud")?.classList.toggle("fishing-active", !this.panel.hidden);
     const weather = (this.room.state?.weather ?? "sunny") as WeatherKind;
+    gameSounds.setWeather(weather);
     const remaining = Math.max(0, Math.ceil(((this.room.state?.weatherNextChangeAt ?? Date.now()) - Date.now() - this.offset) / 1000));
     this.weather.textContent = WEATHER[weather] + " · " + Math.floor(remaining / 60) + ":" + String(remaining % 60).padStart(2, "0");
     this.weather.dataset.kind = weather;

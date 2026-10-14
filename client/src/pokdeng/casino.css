@@ -150,7 +150,7 @@ button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
   .pok-arena { height: 500px; }
 }
 @media (max-width: 680px) {
-  #casinoToolbar { left: 8px; right: 8px; top: 8px; justify-content: space-between; font-size: 11px; gap: 4px; }
+  #casinoToolbar { left: 8px; right: 8px; top: 8px; justify-content: space-between; font-size: 11px; gap: 4px; padding: 6px; }
   #casinoToolbar button { padding: 6px; font-size: 12px; }
   #casino { padding: 8px; place-items: start center; }
   .pok-panel { padding: 10px; }
@@ -197,10 +197,10 @@ button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
   #casinoToolbar .gold-balance.wide, #casinoToolbar .gold-balance.very-wide { gap: 3px; }
   #casinoToolbar .gold-balance.wide .gold-amount { font-size: 16px; }
   #casinoToolbar .gold-balance.wide .pixel-coin { width: 20px; height: 20px; flex-basis: 20px; }
-  #casinoToolbar .gold-balance.very-wide .gold-amount { font-size: 12px; }
-  #casinoToolbar .gold-balance.very-wide .pixel-coin { width: 16px; height: 16px; flex-basis: 16px; }
-  #casinoToolbar .gold-balance.very-wide .gold-unit { font-size: 10px; }
-  #casinoToolbar .wallet-hud-details { flex-basis: 100%; font-size: 10px; line-height: 1.2; }
+  #casinoToolbar .gold-balance.very-wide .gold-amount { font-size: 10px; }
+  #casinoToolbar .gold-balance.very-wide .pixel-coin { width: 14px; height: 14px; flex-basis: 14px; }
+  #casinoToolbar .gold-balance.very-wide .gold-unit { font-size: 9px; }
+  #casinoToolbar .wallet-hud-details { flex-basis: 100%; font-size: 9px; line-height: 1.1; }
   #pokWallet .gold-amount { font-size: 30px; }
   #pokWallet .pixel-coin { width: 32px; height: 32px; flex-basis: 32px; }
   .pok-wallet-details { flex-basis: 100%; font-size: 12px; }

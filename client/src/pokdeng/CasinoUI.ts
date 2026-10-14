@@ -7,6 +7,8 @@ import { joinPokTable, sendPok } from "./connect";
 import { coinAmount } from "./PixelCards";
 import { AnimatedCards, PokTableView } from "./TableView";
 import { formatNumber, formatDelta } from "./numbers";
+import { gameSounds } from "../audio/GameSounds";
+import { CasinoSounds } from "../audio/CasinoSounds";
 import "./casino.css";
 
 const ERRORS: Record<string, string> = {
@@ -33,6 +35,7 @@ export class CasinoUI {
   private leaving = false;
   private entry?: CasinoEntry;
   private clockOffset = 0;
+  private sounds = new CasinoSounds();
   private modal = document.createElement("section");
   private heading = document.createElement("h2");
   private phase = document.createElement("p");
@@ -71,7 +74,7 @@ export class CasinoUI {
     const toolbar = document.createElement("div");
     toolbar.id = "casinoToolbar";
     this.balance.textContent = "ชิป: กำลังโหลด…";
-    toolbar.append(this.balance, this.button("♠ ไปบ้านป๊อกเด้ง", () => {
+    toolbar.append(this.balance, this.button("♠ ไป Boardgame", () => {
       const p = this.town.state?.players?.get(this.town.sessionId);
       if (p && Math.hypot(p.x - CASINO_DOOR.x, p.y - CASINO_DOOR.y) <= CASINO_DOOR.radius) {
         this.town.send("casino:enter", {});
@@ -81,16 +84,19 @@ export class CasinoUI {
           this.scene.navigateTo([{ x: p.x, y: 576 }, { x: CASINO_DOOR.x, y: 576 }, { x: CASINO_DOOR.x, y: CASINO_DOOR.y }]);
         }
       }
-    }));
+    }), gameSounds.createToggle());
     document.body.append(toolbar);
     this.modal.id = "casino";
     this.modal.hidden = true;
     this.modal.setAttribute("role", "dialog");
     this.modal.setAttribute("aria-modal", "true");
-    this.modal.setAttribute("aria-label", "บ้านป๊อกเด้ง");
-    this.heading.textContent = "♠ บ้านป๊อกเด้ง";
+    this.modal.setAttribute("aria-label", "Boardgame — ป๊อกเด้ง");
+    this.heading.textContent = "♠ Boardgame";
     const header = document.createElement("header");
-    header.append(this.heading, this.exit);
+    const headerActions = document.createElement("div");
+    headerActions.className = "pok-header-actions";
+    headerActions.append(gameSounds.createToggle(), this.exit);
+    header.append(this.heading, headerActions);
     this.phase.id = "pokPhase";
     const status = document.createElement("div");
     status.className = "pok-status";
@@ -186,7 +192,9 @@ export class CasinoUI {
     this.town.send("auth:sync", {});
     window.setInterval(() => {
       const deadline = this.table?.deadline;
-      this.timer.textContent = deadline ? Math.max(0, Math.ceil((deadline - Date.now() - this.clockOffset) / 1000)) + " วินาที" : "";
+      const remaining = deadline ? Math.max(0, Math.ceil((deadline - Date.now() - this.clockOffset) / 1000)) : 0;
+      this.timer.textContent = deadline ? remaining + " วินาที" : "";
+      if (!this.modal.hidden && this.room && !this.leaving) this.sounds.tick(this.table, this.hand, remaining);
     }, 200);
   }
 
@@ -214,6 +222,8 @@ export class CasinoUI {
     this.entry = entry;
     this.modal.hidden = false;
     this.scene.casinoOpen = true;
+    this.sounds.reset();
+    gameSounds.setWorld("boardgame");
     this.message("กำลังเข้าโต๊ะ…");
     this.render();
     try {
@@ -230,6 +240,7 @@ export class CasinoUI {
           void departed?.leave(false);
         },
         "table:state": table => {
+          this.sounds.update(table, this.playerId);
           // Drop an old private hand when a new round/reset arrives.
           if (this.hand?.roundId !== table.roundId) this.hand = undefined;
           this.table = table;
@@ -243,18 +254,20 @@ export class CasinoUI {
           this.render();
         },
         "game:hand": hand => { this.hand = hand; this.render(); },
-        "api:error": error => this.message(ERRORS[error.code] ?? error.message),
+        "api:error": error => { gameSounds.play("error"); this.message(ERRORS[error.code] ?? error.message); },
       });
       this.room = room;
+      gameSounds.play("enter");
       this.message("เลือกที่นั่ง 0 เป็นเจ้ามือ หรือเลือกเก้าอี้ลูกมือ 1–7 แล้วลงเดิมพัน");
       room.onLeave(() => {
         if (this.room !== room) return;
         this.room = undefined;
         if (this.leaving) this.finishLeaving();
-        else this.message("หลุดจากโต๊ะ กดกลับเข้าโต๊ะภายใน 60 วินาที ไพ่และชิปที่เดิมพันยังอยู่");
+        else { gameSounds.play("error"); this.message("หลุดจากโต๊ะ กดกลับเข้าโต๊ะภายใน 60 วินาที ไพ่และชิปที่เดิมพันยังอยู่"); }
         this.render();
       });
     } catch (error) {
+      gameSounds.play("error");
       const code = error instanceof Error ? error.message : String(error);
       this.message(ERRORS[code] ?? "เข้าโต๊ะไม่ได้ เซิร์ฟเวอร์อาจกำลังอัปเดต ลองออกแล้วเดินเข้าประตูใหม่");
     } finally {
@@ -279,6 +292,9 @@ export class CasinoUI {
     } else this.finishLeaving();
   }
   private finishLeaving() {
+    gameSounds.setWorld("town");
+    gameSounds.play("exit");
+    this.sounds.reset();
     this.modal.hidden = true;
     this.scene.casinoOpen = false;
     this.table = undefined;
@@ -301,7 +317,7 @@ export class CasinoUI {
     const me = table?.seats.find(seat => seat?.playerId === this.playerId);
     const betting = !!this.room && table?.phase === "betting";
     const dealer = table?.seats[0];
-    this.phase.textContent = table ? PHASES[table.phase] + " · ตาที่ " + (table.roundNumber || 1) + " · โต๊ะ " + table.roomId : "บ้านป๊อกเด้ง · 1–8 คน";
+    this.phase.textContent = table ? PHASES[table.phase] + " · ตาที่ " + (table.roundNumber || 1) + " · โต๊ะ " + table.roomId : "Boardgame · ป๊อกเด้ง · 1–8 คน";
     this.exit.disabled = this.joining || this.leaving;
     this.exit.title = betting ? "ออกได้ทันที" : "ขอออกได้ตอนนี้ ระบบจะคิดชิปตานี้ก่อนพาออก";
     if (this.wallet) {

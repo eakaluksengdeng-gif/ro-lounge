@@ -5,6 +5,7 @@ import type { WildlifeView, WeatherKind } from "../../../shared/nature";
 import { FISHING_SPOTS } from "../../../shared/nature";
 import { MAP_H, POND, TILE_PX } from "../world";
 import { buildNatureTextures } from "./art";
+import { gameSounds } from "../audio/GameSounds";
 
 interface AnimalSprite { body: Phaser.GameObjects.Container; sprite: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Ellipse }
 interface Particle { x: number; y: number; speed: number; drift: number }
@@ -37,6 +38,7 @@ export class TownNature {
   }
   update(t: number, dtMs: number) {
     const seen = new Set<string>();
+    const me = this.room.state?.players?.get(this.room.sessionId);
     this.room.state?.wildlife?.forEach((animal: WildlifeView, id: string) => {
       seen.add(id);
       let view = this.animals.get(id);
@@ -59,6 +61,11 @@ export class TownNature {
       view.sprite.y = flying ? -16 + Math.sin(t / 260 + animal.variant) * 4
         : animal.kind === "rabbit" && animal.moving ? -Math.abs(Math.sin(t / 160)) * 7 : 0;
       view.shadow.setAlpha(flying ? .09 : .2);
+      if (me && Math.hypot(animal.x - me.x, animal.y - me.y) < 100) {
+        if (animal.kind === "cat" && !animal.moving) gameSounds.play("cat");
+        if (animal.kind === "bee") gameSounds.play("bee");
+        if (animal.kind === "rabbit" && animal.moving) gameSounds.play("hop");
+      }
     });
     for (const [id, view] of this.animals) if (!seen.has(id)) { view.body.destroy(); this.animals.delete(id); }
     this.drawFishing(t);

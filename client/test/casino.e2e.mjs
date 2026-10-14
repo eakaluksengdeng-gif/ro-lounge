@@ -24,6 +24,12 @@ async function guest(name) {
   page.on("pageerror", error => errors.push(error.message));
   page.on("console", message => { if (message.type() === "error" || message.type() === "warning") console.log("browser:", message.text()); });
   await page.goto(url);
+  if (!process.env.E2E_URL) await page.evaluate(async () => {
+    const { gameSounds } = await import("/src/audio/GameSounds.ts");
+    const original = gameSounds.play.bind(gameSounds); window.casinoQaHeard = [];
+    // Record requested state-edge cues; foreground audio output is measured separately in test:sound.
+    gameSounds.play = (cue, delay) => { window.casinoQaHeard.push(cue); return original(cue, delay); };
+  });
   await page.locator("#nameInput").fill(name);
   await page.getByRole("button", { name: "เข้าเมือง", exact: true }).click();
   await page.locator("#casinoToolbar").waitFor();
@@ -31,7 +37,7 @@ async function guest(name) {
   return { page, context };
 }
 async function enter(page, seat = 0) {
-  await page.getByRole("button", { name: "♠ ไปบ้านป๊อกเด้ง", exact: true }).click();
+  await page.getByRole("button", { name: "♠ ไป Boardgame", exact: true }).click();
   try { await page.locator('[data-seat="' + seat + '"]').waitFor({ timeout: 20000 }); }
   catch (error) {
     await page.screenshot({ path: "/tmp/ro-lounge-failure.png" });
@@ -113,6 +119,10 @@ try {
   await dealer.page.getByRole("button", { name: "ออกสู่เมือง", exact: true }).click();
   await dealer.page.waitForFunction(() => document.querySelector("#casino")?.hidden === true, null, { timeout: 30000 });
   assert.deepEqual(errors, []);
+  if (!process.env.E2E_URL) {
+    const sounds = (await Promise.all(pages.map(page => page.evaluate(() => window.casinoQaHeard ?? [])))).flat();
+    assert.ok(sounds.includes("deal") && sounds.includes("reveal") && sounds.some(cue => ["win", "lose", "tie"].includes(cue)), "real room state must produce deal/reveal/payout effects");
+  }
   console.log("PASS: prominent betting/wallet, private cards, refresh, payouts, mobile, automatic second round and queued exit");
 } catch (error) {
   for (const [index, page] of pages.entries()) {

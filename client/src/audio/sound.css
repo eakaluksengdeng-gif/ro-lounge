@@ -1,0 +1,9 @@
+.game-sound-toggle { flex: 0 0 auto; min-width: 34px; min-height: 34px; padding: 5px 7px; font: 18px/1 system-ui, sans-serif; }
+.game-sound-toggle[aria-pressed="false"] { filter: saturate(.35); }
+.game-sound-toggle:focus-visible { outline: 3px solid #fff1a6; outline-offset: 2px; }
+.creator-header .creator-sound-tools, .pok-header-actions { display: flex; align-items: center; gap: 8px; }
+.creator-header .game-sound-toggle { background: #d6e3df; border: 2px solid #9ab4b7; }
+@media (max-width: 680px) {
+  #casinoToolbar .game-sound-toggle { min-width: 30px; min-height: 32px; padding: 4px; font-size: 16px; }
+  .creator-header .creator-badge { display: none; }
+}

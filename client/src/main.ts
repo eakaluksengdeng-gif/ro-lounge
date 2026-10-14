@@ -5,6 +5,7 @@ import { CasinoUI } from "./pokdeng/CasinoUI";
 import { forgetGuest } from "./pokdeng/guest";
 import { CharacterCreator } from "./character/CharacterCreator";
 import { NatureUI } from "./nature/NatureUI";
+import { gameSounds } from "./audio/GameSounds";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -17,6 +18,13 @@ const chatForm = $<HTMLFormElement>("chatForm");
 const chatInput = $<HTMLInputElement>("chatInput");
 const emotesEl = $("emotes");
 const statusEl = $("status");
+gameSounds.bindGestures();
+const soundTools = document.createElement("div");
+soundTools.className = "creator-sound-tools";
+const badge = loginForm.querySelector(".creator-badge");
+if (badge) soundTools.append(badge);
+soundTools.append(gameSounds.createToggle());
+loginForm.querySelector("header")?.append(soundTools);
 const setStatus = (t: string) => {
   statusEl.textContent = t;
   statusEl.style.display = t ? "block" : "none";
@@ -55,6 +63,7 @@ loginForm.addEventListener("submit", async (e) => {
     } catch (err) {
       console.error(err);
       if (err instanceof Error && err.message.includes("INVALID_SESSION")) {
+        gameSounds.play("error");
         setStatus("เซิร์ฟเวอร์รีสตาร์ตแล้ว ข้อมูล Guest/ชิปเดิมในหน่วยความจำหมดอายุ");
         const reset = document.createElement("button");
         reset.type = "button";
@@ -69,6 +78,7 @@ loginForm.addEventListener("submit", async (e) => {
     }
   }
   if (!room) {
+    gameSounds.play("error");
     submit.disabled = false;
     setStatus("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ลองรีเฟรชหน้าแล้วกดเข้าเมืองใหม่");
     return;
@@ -77,8 +87,10 @@ loginForm.addEventListener("submit", async (e) => {
   login.style.display = "none";
   hud.style.display = "flex";
   setStatus("");
+  gameSounds.setWorld("town");
+  gameSounds.play("join");
 
-  room.onLeave(() => { setStatus("หลุดจากเซิร์ฟเวอร์ ลองรีเฟรชหน้า"); });
+  room.onLeave(() => { gameSounds.setWorld("disconnected"); gameSounds.play("error"); setStatus("หลุดจากเซิร์ฟเวอร์ ลองรีเฟรชหน้า"); });
 
   const townScene = new TownScene(room, addLog);
   new CasinoUI(room, townScene, name);
@@ -95,6 +107,7 @@ loginForm.addEventListener("submit", async (e) => {
   } catch { /* ใช้ฟอนต์สำรอง */ }
 
   new Phaser.Game({
+    audio: { noAudio: true }, // One shared Web Audio mixer handles the DOM UI and Phaser world.
     type: Phaser.AUTO,
     parent: "game",
     backgroundColor: "#1b2230",

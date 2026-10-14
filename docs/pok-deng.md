@@ -1,4 +1,4 @@
-# บ้านป๊อกเด้ง: Server และ Event API
+# Boardgame — ป๊อกเด้ง: Server และ Event API
 
 ใช้ Phaser/Vite client + Colyseus 0.15/TypeScript server ของโปรเจกต์เดิม
 มี server, shared wire types, บ้านพิกเซลบนแมพ และ UI โต๊ะไพ่ที่เชื่อมแล้ว

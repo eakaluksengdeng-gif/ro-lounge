@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { TownNature } from "../nature/TownNature";
 import { avatarMotion } from "../../../shared/avatarMotion";
+import { gameSounds } from "../audio/GameSounds";
 import { CASINO_BUILDING, CASINO_DOOR } from "../../../shared/casinoWorld";
 import { HAIR_COLORS as HAIR, SKIN_COLORS as SKIN, PANTS_COLORS as PANTS } from "../character/appearance";
 import type { Room } from "colyseus.js";
@@ -90,6 +91,7 @@ export class TownScene extends Phaser.Scene {
       const x = Math.round(p.worldX);
       const y = Math.round(p.worldY);
       this.room.send("move", { x, y });
+      gameSounds.play("move");
       const ring = this.add.circle(x, y, 7, 0xffffff, 0).setStrokeStyle(2, 0xffffff, 0.9).setDepth(MAP_H + 10);
       this.tweens.add({
         targets: ring, scale: 2.2, alpha: 0, duration: 380, onComplete: () => ring.destroy(),
@@ -97,10 +99,11 @@ export class TownScene extends Phaser.Scene {
     });
 
     this.room.onMessage("chat", (m: ChatMsg) => {
+      gameSounds.play("chat");
       this.showBubble(m.id, m.text);
       this.onChat(m);
     });
-    this.room.onMessage("emote", (m: EmoteMsg) => this.showEmote(m.id, m.name));
+    this.room.onMessage("emote", (m: EmoteMsg) => { gameSounds.play("emote"); this.showEmote(m.id, m.name); });
   }
 
   /* ---------------- แมพ ---------------- */
@@ -213,7 +216,7 @@ export class TownScene extends Phaser.Scene {
     g.fillStyle(0xe3ae66).fillRect(x + w / 2 - 21, y + h - 48, 42, 3);
     g.fillStyle(0x171a29).fillRect(x + w / 2 - 18, y + h - 45, 36, 45);
     g.fillStyle(0xd7aa7b).fillRect(x + w / 2 - 30, y + h, 60, 9);
-    this.add.text(x + w / 2, y + 61, "บ้านป๊อกเด้ง", {
+    this.add.text(x + w / 2, y + 61, "Boardgame", {
       fontFamily: FONT, fontSize: "17px", color: "#ffe27a", backgroundColor: "#352436", padding: { x: 7, y: 2 },
     }).setOrigin(.5).setDepth(y + h + 1);
     const ring = this.add.circle(CASINO_DOOR.x, CASINO_DOOR.y, 22, 0xffe27a, .12)
@@ -227,6 +230,8 @@ export class TownScene extends Phaser.Scene {
   update(_t: number, dtMs: number) {
     this.nature?.update(_t, dtMs);
     const me = this.room.state?.players?.get(this.room.sessionId);
+    if (me) gameSounds.setNearWater(Math.hypot(me.x - FOUNTAIN.x, me.y - FOUNTAIN.y) < 130 ||
+      Math.hypot(me.x - POND.cx * TILE_PX, me.y - POND.cy * TILE_PX) < 180);
     if (me && this.route[0] && Math.hypot(me.x - this.route[0].x, me.y - this.route[0].y) < 12) {
       this.route.shift();
       if (this.route[0]) this.room.send("move", this.route[0]);
@@ -244,7 +249,7 @@ export class TownScene extends Phaser.Scene {
         av.container.setPosition(p.x, p.y);
         if (id === this.room.sessionId) this.cameras.main.startFollow(av.container, true, 0.12, 0.12);
       }
-      this.moveAvatar(av, p, dtMs);
+      this.moveAvatar(av, p, dtMs, id === this.room.sessionId);
     });
 
     for (const [id, av] of this.avatars) {
@@ -255,7 +260,7 @@ export class TownScene extends Phaser.Scene {
     }
   }
 
-  private moveAvatar(av: Avatar, p: PlayerState, dtMs: number) {
+  private moveAvatar(av: Avatar, p: PlayerState, dtMs: number, own: boolean) {
     const c = av.container;
     const motion = avatarMotion(c, p, dtMs);
     const { x: nx, y: ny, dx, dy, distance: dist } = motion;
@@ -272,7 +277,9 @@ export class TownScene extends Phaser.Scene {
       } else {
         av.dir = dy < 0 ? "up" : "down";
       }
+      const previousStep = Math.floor(av.walk / WALK_STEP_PX);
       av.walk += dist;
+      if (own && !this.casinoOpen && Math.floor(av.walk / WALK_STEP_PX) !== previousStep) gameSounds.play("footstep");
       frame = WALK_SEQ[Math.floor(av.walk / WALK_STEP_PX) % WALK_SEQ.length];
     }
     const key = `ch-${av.look.id}-${av.dir}-${frame}`;
