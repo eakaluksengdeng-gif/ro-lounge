@@ -95,7 +95,7 @@ export class CasinoUI {
     const header = document.createElement("header");
     const headerActions = document.createElement("div");
     headerActions.className = "pok-header-actions";
-    headerActions.append(gameSounds.createToggle(), this.exit);
+    headerActions.append(gameSounds.createMusicControl(), gameSounds.createToggle(), this.exit);
     header.append(this.heading, headerActions);
     this.phase.id = "pokPhase";
     const status = document.createElement("div");

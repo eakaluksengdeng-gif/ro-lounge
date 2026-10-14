@@ -1,4 +1,5 @@
 import type { WeatherKind } from "../../../shared/nature";
+import { CozyMusic } from "./CozyMusic";
 import "./sound.css";
 
 export type SoundCue = "ui" | "select" | "move" | "footstep" | "chat" | "emote" | "join" | "enter" | "exit"
@@ -7,6 +8,7 @@ export type SoundCue = "ui" | "select" | "move" | "footstep" | "chat" | "emote" 
 type World = "login" | "town" | "boardgame" | "disconnected";
 type ContextWindow = Window & { webkitAudioContext?: typeof AudioContext };
 const MUTED_KEY = "ro-sound-muted";
+const MUSIC_MUTED_KEY = "ro-music-muted", MUSIC_VOLUME_KEY = "ro-music-volume";
 const COOLDOWN: Partial<Record<SoundCue, number>> = { ui: 60, select: 70, footstep: 180, chat: 160, emote: 250,
   cat: 12000, bee: 5000, hop: 1100, tick: 700, error: 800 };
 const OUTDOOR: SoundCue[] = ["footstep", "move", "cat", "bee", "hop", "bird"];
@@ -21,6 +23,15 @@ export class GameSounds {
   private birdTimer?: number;
   private last = new Map<SoundCue, number>();
   private buttons = new Set<HTMLButtonElement>();
+  private musicButtons = new Set<HTMLButtonElement>();
+  private music?: CozyMusic;
+  private musicMuted = false;
+  private musicVolume = .2;
+  private musicPanel?: HTMLElement;
+  private musicRange?: HTMLInputElement;
+  private musicCheck?: HTMLInputElement;
+  private musicOutput?: HTMLOutputElement;
+  private musicOpener?: HTMLButtonElement;
   private muted = false;
   private world: World = "login";
   private weather: WeatherKind = "sunny";
@@ -32,12 +43,18 @@ export class GameSounds {
 
   constructor() {
     try { this.muted = localStorage.getItem(MUTED_KEY) === "true"; } catch { /* Private mode/blocked storage. */ }
+    try {
+      this.musicMuted = localStorage.getItem(MUSIC_MUTED_KEY) === "true";
+      const saved = localStorage.getItem(MUSIC_VOLUME_KEY);
+      if (saved !== null && saved.trim() && Number.isFinite(Number(saved))) this.musicVolume = Math.max(0, Math.min(1, Number(saved)));
+    } catch { /* Music settings also work without storage. */ }
   }
 
   get supported() { return !!(window.AudioContext ?? (window as ContextWindow).webkitAudioContext); }
   get isMuted() { return this.muted; }
   diagnostics() { return { muted: this.muted, context: this.context?.state ?? "locked", world: this.world,
-    weather: this.weather, voices: this.voices.size, ambience: !!this.ambience }; }
+    weather: this.weather, voices: this.voices.size, ambience: !!this.ambience,
+    musicMuted: this.musicMuted, musicVolume: this.musicVolume, music: this.music?.diagnostics() ?? { running: false, voices: 0, step: 0 } }; }
 
   bindGestures() {
     if (this.bound) return;
@@ -61,6 +78,13 @@ export class GameSounds {
         void this.context?.suspend().catch(() => {});
       } else if (this.context && !this.muted) void this.unlock();
     }, { signal: this.controller.signal });
+    document.addEventListener("pointerdown", event => {
+      if (this.musicPanel?.hidden === false && event.target instanceof Node && !this.musicPanel.contains(event.target)
+        && ![...this.musicButtons].some(button => button.contains(event.target as Node))) this.closeMusicPanel(false);
+    }, { signal: this.controller.signal });
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && this.musicPanel?.hidden === false) { event.preventDefault(); this.closeMusicPanel(true); }
+    }, { signal: this.controller.signal });
   }
 
   createToggle(): HTMLButtonElement {
@@ -74,6 +98,64 @@ export class GameSounds {
     this.buttons.add(button);
     this.updateButtons();
     return button;
+  }
+
+  createMusicControl(): HTMLButtonElement {
+    const button = document.createElement("button"); button.type = "button";
+    button.className = "game-music-control"; button.textContent = "🎵";
+    button.setAttribute("aria-label", "ปรับเพลง cozy"); button.setAttribute("aria-haspopup", "dialog");
+    button.addEventListener("click", () => {
+      if (!this.musicPanel) this.buildMusicPanel();
+      if (!this.musicPanel!.hidden && this.musicOpener === button) { this.closeMusicPanel(true); return; }
+      this.musicOpener = button; this.musicPanel!.hidden = false; this.updateMusicControls();
+      this.musicCheck!.focus();
+    });
+    this.musicButtons.add(button); this.updateMusicControls(); return button;
+  }
+  private buildMusicPanel() {
+    const panel = document.createElement("section"); panel.id = "gameMusicSettings"; panel.hidden = true;
+    panel.setAttribute("role", "dialog"); panel.setAttribute("aria-label", "เพลง cozy");
+    const heading = document.createElement("strong"); heading.textContent = "🎵 เพลง cozy";
+    const close = document.createElement("button"); close.type = "button"; close.textContent = "×";
+    close.setAttribute("aria-label", "ปิดการตั้งค่าเพลง"); close.addEventListener("click", () => this.closeMusicPanel(true));
+    const header = document.createElement("div"); header.className = "music-settings-header"; header.append(heading, close);
+    const check = document.createElement("input"); check.type = "checkbox";
+    check.addEventListener("change", () => { this.setMusicMuted(!check.checked); void this.unlock(); });
+    const enabled = document.createElement("label"); enabled.className = "music-enabled"; enabled.append(check, "เล่นเพลง cozy");
+    const range = document.createElement("input"); range.type = "range"; range.min = "0"; range.max = "100"; range.step = "1";
+    range.id = "gameMusicVolume"; range.addEventListener("input", () => { this.setMusicVolume(Number(range.value) / 100); void this.unlock(); });
+    const label = document.createElement("label"); label.htmlFor = range.id; label.textContent = "ความดังเพลง";
+    const output = document.createElement("output"); output.htmlFor = range.id;
+    const row = document.createElement("div"); row.className = "music-volume-label"; row.append(label, output);
+    const hint = document.createElement("p"); hint.textContent = "เริ่มเบา ๆ 20% · ปิดเฉพาะเพลงได้ เสียงไพ่และตกปลายังอยู่ · 🔇 ปิดเสียงทั้งหมด";
+    panel.append(header, enabled, row, range, hint); document.body.append(panel);
+    this.musicPanel = panel; this.musicRange = range; this.musicCheck = check; this.musicOutput = output;
+  }
+  private closeMusicPanel(restoreFocus: boolean) {
+    if (this.musicPanel) this.musicPanel.hidden = true;
+    this.updateMusicControls(); if (restoreFocus) this.musicOpener?.focus();
+  }
+  setMusicMuted(muted: boolean) {
+    this.musicMuted = muted;
+    try { localStorage.setItem(MUSIC_MUTED_KEY, String(muted)); } catch { /* Optional persistence. */ }
+    this.refreshMusic(); this.updateMusicControls();
+  }
+  setMusicVolume(volume: number) {
+    if (!Number.isFinite(volume)) return;
+    this.musicVolume = Math.max(0, Math.min(1, volume));
+    try { localStorage.setItem(MUSIC_VOLUME_KEY, String(this.musicVolume)); } catch { /* Optional persistence. */ }
+    this.refreshMusic(); this.updateMusicControls();
+  }
+  private updateMusicControls() {
+    for (const button of this.musicButtons) {
+      button.disabled = !this.supported;
+      button.setAttribute("aria-expanded", String(this.musicPanel?.hidden === false && this.musicOpener === button));
+      button.title = "เพลง cozy · " + (this.musicMuted || this.musicVolume === 0 ? "ปิด" : Math.round(this.musicVolume * 100) + "%") + (this.muted ? " · ปิดเสียงทั้งหมดอยู่" : "");
+      button.classList.toggle("music-off", this.musicMuted || this.musicVolume === 0);
+    }
+    if (this.musicRange) this.musicRange.value = String(Math.round(this.musicVolume * 100));
+    if (this.musicCheck) this.musicCheck.checked = !this.musicMuted;
+    if (this.musicOutput) this.musicOutput.value = Math.round(this.musicVolume * 100) + "%";
   }
 
   setMuted(muted: boolean) {
@@ -102,6 +184,7 @@ export class GameSounds {
       if (!this.muted && !document.hidden && !this.destroyed) {
         this.master!.gain.setTargetAtTime(.55, this.context.currentTime, .01);
         this.refreshAmbience();
+        this.refreshMusic();
       }
     } catch { /* Audio is optional; autoplay/unsupported devices never block joining or actions. */ }
   }
@@ -109,8 +192,10 @@ export class GameSounds {
   setWorld(world: World) {
     if (world === this.world) return;
     this.world = world;
-    this.stopAll();
+    this.stopEffects();
     this.refreshAmbience();
+    this.refreshMusic();
+    this.closeMusicPanel(false);
   }
   setWeather(weather: WeatherKind) {
     if (weather === this.weather) return;
@@ -231,12 +316,22 @@ export class GameSounds {
       this.ambience = undefined;
     }
   }
-  private stopAll() {
+  private refreshMusic() {
+    if (this.destroyed || this.muted || this.musicMuted || this.musicVolume === 0 || document.hidden
+      || (this.world !== "town" && this.world !== "boardgame") || this.context?.state !== "running") {
+      this.music?.stop(); return;
+    }
+    this.music ??= new CozyMusic(this.context, this.master!);
+    this.music.setVolume(this.musicVolume); this.music.start();
+  }
+  private stopEffects() {
     this.stopAmbience();
     for (const voice of this.voices) { try { voice.stop(); } catch { /* Already ended. */ } }
     this.voices.clear();
   }
+  private stopAll() { this.stopEffects(); this.music?.stop(); }
   private updateButtons() {
+    this.updateMusicControls();
     for (const button of this.buttons) {
       const enabled = this.supported && !this.muted;
       button.textContent = enabled ? "🔊" : "🔇";
@@ -248,6 +343,7 @@ export class GameSounds {
   }
   destroy() {
     this.destroyed = true; this.controller.abort(); this.stopAll();
+    this.music?.destroy(); this.musicPanel?.remove(); this.musicButtons.clear();
     void this.context?.close().catch(() => {}); this.buttons.clear();
   }
 }
