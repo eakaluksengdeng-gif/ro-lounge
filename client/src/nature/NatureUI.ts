@@ -5,6 +5,7 @@ import { FISH_SPECIES, FISHING_SPOTS, fishingLocationAt, fishingGaugePosition,
   FISHING_TARGET_START, FISHING_TARGET_END, FISHING_BITE_MS, FISHING_REWARD_RATES, FISHING_REWARD_WEIGHT } from "../../../shared/nature";
 import type { TownScene } from "../scenes/TownScene";
 import { gameSounds } from "../audio/GameSounds";
+import { beachFishingLocation } from "../../../shared/regions";
 import "./nature.css";
 
 const WEATHER = { sunny: "☀️ แดดออก", rain: "🌧️ ฝนตก", snow: "❄️ หิมะตก" };
@@ -12,6 +13,7 @@ export class NatureUI {
   private state?: FishingState;
   private offset = 0;
   private weather = document.createElement("span");
+  private go = document.createElement("button");
   private fishCount = document.createElement("summary");
   private inventory = document.createElement("div");
   private panel = document.createElement("section");
@@ -37,15 +39,20 @@ export class NatureUI {
     const toolbar = document.createElement("div");
     toolbar.id = "natureBar";
     this.weather.id = "townWeather";
-    const go = document.createElement("button");
+    const go = this.go;
     go.type = "button";
     go.textContent = "🐟 ไปบ่อตกปลา";
     go.addEventListener("click", () => {
       if (this.scene.casinoOpen) return;
       const p = this.room.state?.players?.get(this.room.sessionId);
       if (!p) return;
+      if(p.mapId&&p.mapId!=="town") {
+        if(p.mapId==="beach")this.scene.navigateTo([{x:720,y:p.y},{x:720,y:602}]);
+        else this.message.textContent="กลับเมืองหรือเดินไปชายหาดเพื่อตกปลา";
+        return;
+      }
       if (fishingLocationAt(p.x, p.y)) return;
-      this.scene.navigateTo([{ x: p.x, y: 576 }, { x: 500, y: 576 }, { x: 500, y: 648 }, { x: FISHING_SPOTS[0].x, y: FISHING_SPOTS[0].y }]);
+      this.scene.navigateSafeTownTo([{ x: 500, y: 576 }, { x: 500, y: 648 }, { x: FISHING_SPOTS[0].x, y: FISHING_SPOTS[0].y }]);
     });
     const bag = document.createElement("details");
     bag.id = "fishBag";
@@ -137,7 +144,7 @@ export class NatureUI {
       } as Record<string, string>)[error.code] ?? error.message;
     });
     const onKey = (event: KeyboardEvent) => {
-      if (event.code !== "Space" || event.repeat || this.scene.casinoOpen) return;
+      if (event.code !== "Space" || event.repeat || this.scene.casinoOpen || this.scene.worldOpen) return;
       const target = event.target as HTMLElement | null;
       if (target?.closest("input,textarea,select,summary,[contenteditable]")) return;
       if (target?.closest("button") && !target.closest("#fishAction,#natureBar")) return;
@@ -186,7 +193,7 @@ export class NatureUI {
   }
 
   private interact() {
-    if (this.closed || this.scene.casinoOpen) return;
+    if (this.closed || this.scene.casinoOpen || this.scene.worldOpen) return;
     if (this.state?.phase === "waiting" || this.state?.phase === "bite") {
       gameSounds.play("reel");
       this.room.send("fish:reel", { castId: this.state.castId });
@@ -198,7 +205,8 @@ export class NatureUI {
   private render() {
     if (this.closed) return;
     const p = this.room.state?.players?.get(this.room.sessionId);
-    this.near = !!p && !!fishingLocationAt(p.x, p.y);
+    this.go.disabled=!!p?.mapId&&p.mapId!=="town"&&p.mapId!=="beach";
+    this.near = !!p && !!((p.mapId??"town")==="town"?fishingLocationAt(p.x,p.y):p.mapId==="beach"?beachFishingLocation(p.x,p.y):null);
     const phase = this.state?.phase ?? "idle";
     this.panel.hidden = this.scene.casinoOpen || (!this.near && phase === "idle");
     this.panel.dataset.phase = phase;
@@ -207,10 +215,11 @@ export class NatureUI {
     const weather = (this.room.state?.weather ?? "sunny") as WeatherKind;
     gameSounds.setWeather(weather);
     const remaining = Math.max(0, Math.ceil(((this.room.state?.weatherNextChangeAt ?? Date.now()) - Date.now() - this.offset) / 1000));
-    this.weather.textContent = WEATHER[weather] + " · " + Math.floor(remaining / 60) + ":" + String(remaining % 60).padStart(2, "0");
+    const night=p?.mapId==="market"||Math.floor(Date.now()/300000)%4>=2;
+    this.weather.textContent = (weather==="sunny"&&night?"🌙 ฟ้าโปร่ง":WEATHER[weather]) + " · " + Math.floor(remaining / 60) + ":" + String(remaining % 60).padStart(2, "0");
     this.weather.dataset.kind = weather;
     this.weather.dataset.wildlife = String(this.room.state?.wildlife?.size ?? 0);
-    this.title.textContent = phase === "bite" ? "❗ ปลาติดเบ็ด! เล็งแถบแดง" : "🎣 ตกปลาได้รอบริมบ่อ";
+    this.title.textContent = phase === "bite" ? "❗ ปลาติดเบ็ด! เล็งแถบแดง" : p?.mapId==="beach"?"🎣 ตกปลาทะเล · SPACE / แตะ":"🎣 ตกปลาได้รอบริมบ่อ";
     if (phase === "waiting") this.message.textContent = "รอทุ่นกระตุก… อย่าเพิ่งดึงเบ็ด";
     if (phase === "bite") this.message.textContent = "ตัวชี้วิ่งซ้าย–ขวา กด Space หรือดึงเบ็ดเมื่อตัวชี้ตรงแถบแดง!";
     this.action.textContent = phase === "bite" ? "SPACE — ดึงเบ็ด!" : phase === "waiting" ? "กำลังรอปลา…" : phase === "result" ? "รอสักครู่…" : "เริ่มตกปลา (Space)";

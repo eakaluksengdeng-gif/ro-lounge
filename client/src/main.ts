@@ -6,6 +6,7 @@ import { forgetGuest } from "./pokdeng/guest";
 import { CharacterCreator } from "./character/CharacterCreator";
 import { NatureUI } from "./nature/NatureUI";
 import { gameSounds } from "./audio/GameSounds";
+import { WorldUI } from "./world/WorldUI";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -64,7 +65,7 @@ loginForm.addEventListener("submit", async (e) => {
       console.error(err);
       if (err instanceof Error && err.message.includes("INVALID_SESSION")) {
         gameSounds.play("error");
-        setStatus("เซิร์ฟเวอร์รีสตาร์ตแล้ว ข้อมูล Guest/ชิปเดิมในหน่วยความจำหมดอายุ");
+        setStatus("ไม่พบ Guest เดิมในข้อมูลเซิร์ฟเวอร์ (อาจเป็น Guest ก่อนเปลี่ยนระบบเซฟ) กรุณายืนยันเริ่มใหม่");
         const reset = document.createElement("button");
         reset.type = "button";
         reset.textContent = "เริ่ม Guest ใหม่ (100 ชิป)";
@@ -95,6 +96,7 @@ loginForm.addEventListener("submit", async (e) => {
   const townScene = new TownScene(room, addLog);
   new CasinoUI(room, townScene, name);
   new NatureUI(room, townScene);
+  new WorldUI(room, townScene);
   // รอฟอนต์พิกเซลโหลดสักครู่ (ไม่เกิน 1.5 วินาที) เพื่อให้ตัวหนังสือในเกมใช้ฟอนต์ถูกตัว
   try {
     await Promise.race([
@@ -116,6 +118,8 @@ loginForm.addEventListener("submit", async (e) => {
     scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
     scene: [townScene],
   });
+  // Local browser QA only. Vite removes this branch entirely from the production bundle.
+  if ((import.meta as any).env.DEV) window.dispatchEvent(new CustomEvent("ro:dev-scene", { detail: townScene }));
 
   chatForm.addEventListener("submit", (ev) => {
     ev.preventDefault();

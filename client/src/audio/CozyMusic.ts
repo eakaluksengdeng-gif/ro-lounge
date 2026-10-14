@@ -16,6 +16,12 @@ export class CozyMusic {
   private next = 0;
   private step = 0;
   private volume = 0;
+  private biome = "town";
+  setBiome(biome:string) {
+    this.biome=biome;
+    // Ease the timbre of the same quiet theme instead of starting another overlapping loop.
+    this.filter.frequency.setTargetAtTime(biome==="forest"?1050:biome==="beach"?1150:biome==="farm"?1650:biome==="market"?1500:1400,this.context.currentTime,.5);
+  }
 
   constructor(private context: AudioContext, destination: AudioNode) {
     this.gain = context.createGain(); this.gain.gain.value = 0;
@@ -49,6 +55,7 @@ export class CozyMusic {
     }
   }
   private note(midi: number, at: number, duration: number, volume: number, type: OscillatorType) {
+    midi += this.biome === "beach" ? -5 : this.biome === "market" ? 2 : this.biome === "farm" ? 5 : this.biome === "forest" ? -2 : 0;
     const oscillator = this.context.createOscillator(), envelope = this.context.createGain();
     oscillator.type = type; oscillator.frequency.value = 440 * 2 ** ((midi - 69) / 12);
     envelope.gain.setValueAtTime(0, at);

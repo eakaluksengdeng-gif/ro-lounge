@@ -40,6 +40,9 @@ export const FISH_SPECIES = [
   { id: "goldfish", name: "ปลาทอง", color: "#ffbd58" },
   { id: "koi", name: "ปลาคราฟ", color: "#ff9c8d" },
   { id: "bluegill", name: "ปลาบลูกิลล์", color: "#88b9ee" },
+  { id: "mackerel", name: "ปลาทูทะเล", color: "#8db7c0" },
+  { id: "clownfish", name: "ปลาการ์ตูน", color: "#ef986b" },
+  { id: "seahorse", name: "ม้าน้ำ", color: "#e3c77d" },
 ] as const;
 export type FishId = typeof FISH_SPECIES[number]["id"];
 export interface FishCatch { species: FishId; name: string; lengthCm: number }

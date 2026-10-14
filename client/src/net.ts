@@ -16,6 +16,9 @@ export interface PlayerState {
   style: number;
   gender: number;
   fishing: string;
+  mapId: "town" | "forest" | "farm" | "beach" | "market";
+  cosmetic: string;
+  activity: string;
   fishingBobberX: number;
   fishingBobberY: number;
 }

@@ -4,6 +4,7 @@ import type { IncomingMessage } from "node:http";
 import type { GuestReady } from "../../../shared/pokdeng";
 import { EconomyManager } from "../economy/EconomyManager";
 import { requireGame } from "../pokdeng/errors";
+import type { SnapshotStore } from "../storage/SnapshotStore";
 
 interface Guest { playerId: string; sessionId: string; firstIp: string; lastIp: string }
 export interface GuestIdentity { playerId: string; sessionId: string; resumed: boolean }
@@ -12,7 +13,9 @@ export interface GuestIdentity { playerId: string; sessionId: string; resumed: b
 export class GuestManager {
   private sessions = new Map<string, Guest>();
 
-  constructor(private readonly economy: EconomyManager) {}
+  constructor(private readonly economy: EconomyManager, private store?: SnapshotStore) {
+    for (const guest of store?.get<Guest[]>("guests", []) ?? []) this.sessions.set(guest.sessionId, guest);
+  }
 
   connect(sessionId: unknown, ip: string): GuestIdentity {
     if (sessionId !== undefined && sessionId !== null && sessionId !== "") {
@@ -22,13 +25,14 @@ export class GuestManager {
     const guest: Guest = { playerId: randomUUID(), sessionId: randomUUID(), firstIp: ip, lastIp: ip };
     this.sessions.set(guest.sessionId, guest);
     this.economy.create(guest.playerId);
+    try { this.store?.set("guests", [...this.sessions.values()]); } catch (error) { this.sessions.delete(guest.sessionId); throw error; }
     return { playerId: guest.playerId, sessionId: guest.sessionId, resumed: false };
   }
 
   resume(sessionId: unknown, ip?: string): GuestIdentity {
     requireGame(typeof sessionId === "string", "INVALID_SESSION", "Guest session is required");
     const guest = this.sessions.get(sessionId);
-    requireGame(guest, "INVALID_SESSION", "Guest session no longer exists; server memory may have restarted");
+    requireGame(guest, "INVALID_SESSION", "Guest session does not exist in this server's saved data");
     if (ip !== undefined) guest.lastIp = ip;
     return { playerId: guest.playerId, sessionId: guest.sessionId, resumed: true };
   }
