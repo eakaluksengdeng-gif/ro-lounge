@@ -3,6 +3,7 @@ import { WebSocketTransport } from "@colyseus/ws-transport";
 import { createServer } from "node:http";
 import { TownRoom } from "./rooms/TownRoom";
 import { PokDengRoom } from "./rooms/PokDengRoom";
+import { initializeServices, storage } from "./services";
 
 const port = Number(process.env.PORT ?? 2567);
 
@@ -13,7 +14,7 @@ const httpServer = createServer((req, res) => {
   }
   if (req.url === "/version") {
     res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" })
-      .end(JSON.stringify({ version: "pok-continuous-v3", commit: process.env.RENDER_GIT_COMMIT ?? null }));
+      .end(JSON.stringify({ version: "cozy-world-v1", durableStorage: storage.durable, commit: process.env.RENDER_GIT_COMMIT ?? null }));
     return;
   }
   res.writeHead(404).end();
@@ -26,6 +27,6 @@ const gameServer = new Server({
 gameServer.define("town", TownRoom);
 gameServer.define("pok_deng", PokDengRoom);
 
-gameServer.listen(port).then(() => {
+initializeServices().then(() => gameServer.listen(port)).then(() => {
   console.log(`[ro-lounge] server listening on ws://localhost:${port}`);
-});
+}).catch(() => { console.error("[ro-lounge] startup refused: check server storage configuration/migration"); process.exitCode = 1; });

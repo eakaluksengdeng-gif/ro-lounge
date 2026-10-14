@@ -4,7 +4,7 @@ import type { PokClientEvents } from "../../../shared/pokdeng";
 import { requestIp, type GuestIdentity } from "../auth/GuestManager";
 import { GameManager, type GameOptions } from "../pokdeng/GameManager";
 import { GameError, objectPayload } from "../pokdeng/errors";
-import { casinoAccess, economy, guests } from "../services";
+import { casinoAccess, economy, guests, storage } from "../services";
 
 interface JoinOptions { sessionId?: unknown; ticket?: unknown; name?: unknown }
 
@@ -20,20 +20,22 @@ export class PokDengRoom extends Room {
         casinoAccess.release(id, this.roomId);
         for (const client of [...this.clients]) if (this.identity(client).playerId === id) {
           // Explicit acknowledgement is reliable even when an edge proxy delays a close frame.
-          client.send("table:left", { wallet: economy.view(id) });
-          client.leave(4000); // Colyseus CONSENTED close code, not an empty WebSocket close frame.
+          const wallet=economy.view(id);
+          storage.deliver(()=>{client.send("table:left", { wallet });client.leave(4000);});
         }
       },
     });
     this.unsubscribeWallet = economy.subscribe((id, wallet) => {
-      for (const client of this.clients) if (this.identity(client).playerId === id) client.send("wallet:update", wallet);
+      for (const client of this.clients) if (this.identity(client).playerId === id) storage.deliver(()=>client.send("wallet:update", wallet));
     });
 
     const handle = (event: keyof PokClientEvents, action: (id: string, message: unknown, client: Client) => void) => {
-      this.onMessage(event, (client, message: unknown) => {
+      this.onMessage(event, async (client, message: unknown) => {
         try {
-          this.game.tick(); // Reject late actions even if a timer tick was delayed.
-          action(this.identity(client).playerId, message, client);
+          await storage.run(()=>{
+            this.game.tick(); // Reject late actions even if a timer tick was delayed.
+            action(this.identity(client).playerId, message, client);
+          });
         } catch (error) {
           if (!(error instanceof GameError)) { console.error(`[pok_deng] ${event} failed`, error); }
           client.send("api:error", { event, code: error instanceof GameError ? error.code : "INTERNAL_ERROR",
@@ -42,8 +44,8 @@ export class PokDengRoom extends Room {
         this.flush();
       });
     };
-    handle("auth:sync", (_id, _message, client) => client.send("auth:ready", guests.ready(this.identity(client))));
-    handle("wallet:sync", (id, _message, client) => client.send("wallet:update", economy.view(id)));
+    handle("auth:sync", (_id, _message, client) => {const ready=guests.ready(this.identity(client));storage.deliver(()=>client.send("auth:ready",ready));});
+    handle("wallet:sync", (id, _message, client) => {const wallet=economy.view(id);storage.deliver(()=>client.send("wallet:update",wallet));});
     handle("table:sync", (id, _message, client) => this.sendState(client, id));
     handle("table:sit", (id, msg) => this.game.sit(id, objectPayload(msg).seat));
     handle("table:stand", id => this.game.stand(id));
@@ -56,9 +58,10 @@ export class PokDengRoom extends Room {
     handle("game:draw", (id, msg) => this.game.draw(id, objectPayload(msg).roundId));
     handle("game:stay", (id, msg) => this.game.stay(id, objectPayload(msg).roundId));
     this.setSimulationInterval(() => {
-      this.game.tick();
-      this.flush();
-      if (this.game.size === 0 && this.clients.length === 0) this.autoDispose = true;
+      if(storage.busy)return;
+      void storage.run(()=>this.game.tick()).then(()=>{
+        this.flush();if(this.game.size===0&&this.clients.length===0)this.autoDispose=true;
+      }).catch(()=>{});
     }, 100);
   }
 
@@ -72,7 +75,10 @@ export class PokDengRoom extends Room {
     }
   }
 
-  onJoin(client: Client, options: JoinOptions) {
+  async onJoin(client: Client, options: JoinOptions) {
+    await storage.run(()=>this.joinClient(client,options));
+  }
+  private joinClient(client:Client,options:JoinOptions) {
     const identity = client.auth as GuestIdentity;
     // Consume entry only after successful admission; no await between seat/member checks.
     this.game.tick();
@@ -90,11 +96,10 @@ export class PokDengRoom extends Room {
     this.flush();
   }
 
-  onLeave(client: Client, consented: boolean) {
+  async onLeave(client: Client, consented: boolean) {
     const identity = client.userData as GuestIdentity | undefined;
     if (!identity) return;
-    this.game.disconnect(identity.playerId);
-    if (consented) this.game.leave(identity.playerId);
+    await storage.run(()=>{this.game.disconnect(identity.playerId);if(consented)this.game.leave(identity.playerId);});
     this.flush();
     if (this.game.size === 0) this.autoDispose = true;
   }
@@ -106,17 +111,16 @@ export class PokDengRoom extends Room {
   private identity(client: Client): GuestIdentity { return (client.userData ?? client.auth) as GuestIdentity; }
 
   private sendState(client: Client, id: string) {
-    client.send("table:state", this.game.snapshot());
-    client.send("game:hand", this.game.privateHand(id));
-    client.send("wallet:update", economy.view(id));
+    const table=this.game.snapshot(), hand=this.game.privateHand(id),wallet=economy.view(id);
+    storage.deliver(()=>{client.send("table:state",table);client.send("game:hand",hand);client.send("wallet:update",wallet);});
   }
 
   private flush() {
     if (!this.game.takeDirty()) return;
     const publicState = this.game.snapshot();
     for (const client of this.clients) {
-      client.send("table:state", publicState);
-      client.send("game:hand", this.game.privateHand(this.identity(client).playerId));
+      const hand=this.game.privateHand(this.identity(client).playerId);
+      storage.deliver(()=>{client.send("table:state", publicState);client.send("game:hand",hand);});
     }
   }
 }

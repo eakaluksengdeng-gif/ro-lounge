@@ -6,20 +6,24 @@ import { FISHING_SPOTS } from "../../../shared/nature";
 import { MAP_H, POND, TILE_PX } from "../world";
 import { buildNatureTextures } from "./art";
 import { gameSounds } from "../audio/GameSounds";
+import { worldBlocked, type MapId } from "../../../shared/regions";
 
 interface AnimalSprite { body: Phaser.GameObjects.Container; sprite: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Ellipse }
 interface Particle { x: number; y: number; speed: number; drift: number }
 export class TownNature {
+  private motion=window.matchMedia("(prefers-reduced-motion: reduce)");
   private animals = new Map<string, AnimalSprite>();
   private rods: Phaser.GameObjects.Graphics;
   private effects: Phaser.GameObjects.Graphics;
   private particles: Particle[] = [];
   private weather: WeatherKind = "sunny";
   private spawnWidth = 0;
+  private pondObjects: Phaser.GameObjects.GameObject[] = [];
   constructor(private scene: Phaser.Scene, private room: Room<any>) {
     buildNatureTextures(scene);
     this.rods = scene.add.graphics();
     this.effects = scene.add.graphics().setScrollFactor(0).setDepth(MAP_H + 2000);
+    const before=new Set(scene.children.list);
     for (const [index, spot] of FISHING_SPOTS.entries()) {
       const g = scene.add.graphics().setDepth(spot.y - 5);
       if (index === 0) {
@@ -35,11 +39,15 @@ export class TownNature {
         backgroundColor: "#233649b8", padding: { x: 5, y: 3 },
       }).setOrigin(.5).setDepth(spot.y + 42);
     }
+    this.pondObjects=scene.children.list.filter(object=>!before.has(object));
   }
   update(t: number, dtMs: number) {
     const seen = new Set<string>();
     const me = this.room.state?.players?.get(this.room.sessionId);
+    const map=(me?.mapId??"town") as MapId;
+    for(const object of this.pondObjects)(object as Phaser.GameObjects.Graphics).setVisible(map==="town");
     this.room.state?.wildlife?.forEach((animal: WildlifeView, id: string) => {
+      if(map!=="town"&&worldBlocked(map,animal.x,animal.y))return;
       seen.add(id);
       let view = this.animals.get(id);
       if (!view) {
@@ -55,10 +63,10 @@ export class TownNature {
       view.body.y += (animal.y - view.body.y) * k;
       view.body.setDepth(view.body.y);
       const flying = animal.kind === "bee" || animal.kind === "butterfly";
-      const frame = Math.floor(t / (flying ? 160 : 240)) % 2;
+      const frame = this.motion.matches?0:Math.floor(t / (flying ? 160 : 240)) % 2;
       view.sprite.setTexture(`nature-${animal.kind}-${animal.variant}-${animal.moving || flying ? frame : 0}`);
       view.sprite.setFlipX(animal.facing < 0);
-      view.sprite.y = flying ? -16 + Math.sin(t / 260 + animal.variant) * 4
+      view.sprite.y = this.motion.matches?(flying?-16:0):flying ? -16 + Math.sin(t / 260 + animal.variant) * 4
         : animal.kind === "rabbit" && animal.moving ? -Math.abs(Math.sin(t / 160)) * 7 : 0;
       view.shadow.setAlpha(flying ? .09 : .2);
       if (me && Math.hypot(animal.x - me.x, animal.y - me.y) < 100) {
@@ -68,13 +76,15 @@ export class TownNature {
       }
     });
     for (const [id, view] of this.animals) if (!seen.has(id)) { view.body.destroy(); this.animals.delete(id); }
-    this.drawFishing(t);
+    this.drawFishing(this.motion.matches?0:t);
     this.weather = this.room.state?.weather ?? "sunny";
-    this.drawWeather(t, dtMs);
+    this.drawWeather(this.motion.matches?0:t, this.motion.matches?0:dtMs);
   }
   private drawFishing(t: number) {
     this.rods.clear().setDepth(MAP_H + 50);
     this.room.state?.players?.forEach((p: PlayerState) => {
+      const me=this.room.state?.players?.get(this.room.sessionId);
+      if((p.mapId??"town")!==(me?.mapId??"town"))return;
       if (!p.fishing) return;
       const dx = p.fishingBobberX - p.x, dy = p.fishingBobberY - p.y;
       const distance = Math.hypot(dx, dy) || 1;
@@ -104,6 +114,7 @@ export class TownNature {
     if (this.weather === "sunny") {
       this.effects.fillStyle(0xffdc8c, .045).fillRect(0, 0, width, height);
       this.effects.fillStyle(0xfff1b2, .07).fillTriangle(width * .15, 0, width * .38, 0, width * .65, height);
+      this.drawNight(t,width,height);
       return;
     }
     const rain = this.weather === "rain";
@@ -119,11 +130,18 @@ export class TownNature {
       else this.effects.fillStyle(0xffffff, .75).fillRect(Math.round(particle.x), Math.round(particle.y), 3, 3);
     }
     // Rain also makes little ripples on the pond, in world coordinates converted to screen.
-    if (rain) for (let i = 0; i < 5; i++) {
+    const me=this.room.state?.players?.get(this.room.sessionId);
+    if (rain && (me?.mapId??"town")==="town") for (let i = 0; i < 5; i++) {
       const cycle = (t / 800 + i * .2) % 1;
       const x = POND.cx * TILE_PX + Math.cos(i * 2.4) * 110 - this.scene.cameras.main.scrollX;
       const y = POND.cy * TILE_PX + Math.sin(i * 2.4) * 60 - this.scene.cameras.main.scrollY;
       this.effects.lineStyle(1, 0xd2edff, (1 - cycle) * .5).strokeEllipse(x, y, 6 + cycle * 24, 3 + cycle * 8);
     }
+    this.drawNight(t,width,height);
+  }
+  private drawNight(t:number,width:number,height:number) {
+    const me=this.room.state?.players?.get(this.room.sessionId);
+    const night=me?.mapId==="market"||Math.floor(Date.now()/300000)%4>=2;
+    if(night)this.effects.fillStyle(0x292d52,.12).fillRect(0,0,width,height);
   }
 }

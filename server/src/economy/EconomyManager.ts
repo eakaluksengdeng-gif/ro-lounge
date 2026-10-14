@@ -1,5 +1,6 @@
 import type { WalletView } from "../../../shared/pokdeng";
 import { requireGame } from "../pokdeng/errors";
+import type { SnapshotStore } from "../storage/SnapshotStore";
 
 interface Wallet { balance: number; holds: Map<string, number> }
 export interface Reservation { playerId: string; key: string; amount: number }
@@ -12,8 +13,27 @@ export class EconomyManager {
   private fishingRewards = new Set<string>();
   private listeners = new Set<(playerId: string, wallet: WalletView) => void>();
 
+  constructor(private store?: SnapshotStore) {
+    const saved = store?.get<{ balances: Record<string, number>; settled: string[]; fishingRewards: string[] }>("wallets", { balances: {}, settled: [], fishingRewards: [] });
+    if (saved) {
+      for (const [id, balance] of Object.entries(saved.balances)) {
+        requireGame(Number.isSafeInteger(balance) && balance >= 0, "BAD_SNAPSHOT", "Invalid saved wallet");
+        // Unsettled hands are cancelled on a process restart; their undeducted balances remain intact.
+        this.wallets.set(id, { balance, holds: new Map() });
+      }
+      this.settled = new Set(saved.settled); this.fishingRewards = new Set(saved.fishingRewards);
+    }
+  }
+  private persist() {
+    this.store?.set("wallets", { balances: Object.fromEntries([...this.wallets].map(([id, wallet]) => [id, wallet.balance])),
+      settled: [...this.settled].slice(-50000), fishingRewards: [...this.fishingRewards].slice(-50000) });
+  }
+
   create(playerId: string): void {
-    if (!this.wallets.has(playerId)) this.wallets.set(playerId, { balance: 100, holds: new Map() });
+    if (!this.wallets.has(playerId)) {
+      this.wallets.set(playerId, { balance: 100, holds: new Map() });
+      try { this.persist(); } catch (error) { this.wallets.delete(playerId); throw error; }
+    }
   }
 
   view(playerId: string): WalletView {
@@ -31,6 +51,7 @@ export class EconomyManager {
     requireGame(Number.isSafeInteger(wallet.balance + chips), "BAD_REWARD", "Chip balance limit reached");
     wallet.balance += chips;
     this.fishingRewards.add(castId);
+    try { this.persist(); } catch (error) { wallet.balance -= chips; this.fishingRewards.delete(castId); throw error; }
     this.notify([playerId]);
     return true;
   }
@@ -63,12 +84,17 @@ export class EconomyManager {
       requireGame(hold !== undefined && Number.isSafeInteger(entry.delta) && Math.abs(entry.delta) <= hold, "BAD_SETTLEMENT", "Payout exceeds reserved chips");
       requireGame(Number.isSafeInteger(wallet.balance + entry.delta) && wallet.balance + entry.delta >= 0, "BAD_SETTLEMENT", "Invalid resulting balance");
     }
+    const previous = entries.map(entry => ({ id: entry.playerId, balance: this.get(entry.playerId).balance, holds: new Map(this.get(entry.playerId).holds) }));
     for (const entry of entries) {
       const wallet = this.get(entry.playerId);
       wallet.balance += entry.delta;
       wallet.holds.delete(entry.key);
     }
     this.settled.add(roundId);
+    try { this.persist(); } catch (error) {
+      for (const saved of previous) { const wallet = this.get(saved.id); wallet.balance = saved.balance; wallet.holds = saved.holds; }
+      this.settled.delete(roundId); throw error;
+    }
     this.notify(entries.map(e => e.playerId));
     return true;
   }

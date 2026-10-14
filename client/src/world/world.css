@@ -1,0 +1,57 @@
+:root { --ink:#192e24;--panel:#263e31;--panel-2:#38543c;--edge:#152c22;--gold:#f7d881;--blue:#c5d5af; }
+#casinoToolbar { background:#21372feb; }
+#natureBar { background:#29483deb; }
+#hud #log { background:#193127df; }
+#hud input { background:#182d25; }
+#casino { background:#0d1f19f5; }
+#casino .pok-panel { background:#21372f;box-shadow:0 8px 0 #0b1c16,inset 0 0 0 3px #2e493a; }
+#casino .pok-seat { background:#18312bea; }
+#casino .pok-arena { background:radial-gradient(ellipse at 50% 55%,#d8ba6b14,transparent 72%); }
+#casino #pokBetting { background:#314232;box-shadow:inset 0 0 0 3px #41533b; }
+#worldToolbar[hidden], #worldPanel[hidden], #worldInteract[hidden] { display:none; }
+#worldToolbar { position:fixed;right:12px;top:86px;z-index:7;display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:8px;background:#21372feb;border:3px solid #a5b995;width:230px;font:13px "Noto Sans Thai",Arial,sans-serif; }
+#worldToolbar strong { color:#ffe6ac;align-self:center; }
+#worldToolbar canvas { width:120px;height:72px;image-rendering:pixelated;grid-row:span 2; }
+#worldToolbar button { padding:6px;font-size:12px;min-height:36px;background:#c5d5af; }
+#worldInteract { position:fixed;bottom:110px;left:50%;transform:translateX(-50%);z-index:7;max-width:calc(100vw - 24px);background:#f7d881;border-color:#4e614e;font:600 14px "Noto Sans Thai",Arial,sans-serif;min-height:44px; }
+#worldPanel { position:fixed;inset:0;z-index:13;background:#10231ded;overflow:auto;padding:20px;display:grid;place-items:start center; }
+.world-frame { width:min(900px,100%);background:#21372f;border:3px solid #a5b995;padding:18px;box-shadow:inset 0 0 0 4px #2e493a,0 5px 0 #0c1c19;color:#f6e9ca;font:14px/1.6 "Noto Sans Thai",Arial,sans-serif; }
+.world-frame header { display:flex;justify-content:space-between;align-items:center;gap:12px; }
+.world-frame h2 { margin:0;font-size:22px;color:#f7d881; }
+.world-frame button { background:#e4c878;min-height:44px;font:600 13px "Noto Sans Thai",Arial,sans-serif;padding:8px 12px; }
+.world-frame p { margin:6px 0; }
+#worldNotice { min-height:24px;color:#f7d881; }
+.world-map-grid,.world-collection { display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:14px 0; }
+.world-map-grid article,.world-collection article { background:#f3e4c4;color:#425447;border:3px solid #b79b70;padding:12px;min-width:0; }
+.world-collection article { display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center; }
+.world-collection canvas { width:54px;height:auto;image-rendering:pixelated; }
+.world-collection article button { width:100%; }
+.world-card-title { font-weight:600;font-size:15px; }
+.world-item-hint { font-size:12px; }
+.world-cafe-order { display:flex;align-items:center;gap:16px;padding:12px;background:#38543c;border:2px solid #a5b995; }
+.world-cafe-order canvas { width:72px;height:72px;image-rendering:pixelated; }
+.world-cafe-stations { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0; }
+.world-cafe-stations article { display:flex;flex-direction:column;align-items:center;gap:6px;background:#314c3b;border:3px solid #70826a;padding:12px;min-width:0;text-align:center; }
+.world-cafe-stations article[data-active="true"] { border-color:#f7d881;background:#4a5b3d;box-shadow:inset 0 0 0 2px #8e9568; }
+.world-cafe-stations article[data-done="true"] { border-color:#a5b995; }
+.world-cafe-stations canvas { width:54px;height:54px;image-rendering:pixelated; }
+.world-cafe-stations button { width:100%;white-space:normal; }
+.world-locked canvas { filter:grayscale(1) brightness(.35); }
+.world-actions { display:flex;flex-wrap:wrap;gap:8px;margin:12px 0; }
+.world-ui-open #hud,.world-ui-open #fishingPanel,.world-ui-open #worldToolbar { visibility:hidden; }
+.world-frame select { background:#29483b;color:#f6e9ca;border-color:#8eaa85;margin:8px 0; }
+@media(max-width:680px) {
+  #worldToolbar { top:135px;right:8px;width:156px;padding:5px;gap:4px; }
+  #worldToolbar canvas { display:none; }
+  #worldToolbar strong { grid-column:1/-1;font-size:11px; }
+  #worldToolbar button { font-size:10px;min-height:44px;padding:4px; }
+  #worldInteract { bottom:84px;font-size:12px; }
+  #worldPanel { padding:8px; }
+  .world-frame { padding:12px; }
+  .world-frame h2 { font-size:18px; }
+  .world-map-grid,.world-collection { grid-template-columns:repeat(2,minmax(0,1fr));gap:8px; }
+  .world-collection article { padding:8px;font-size:12px; }
+  .world-cafe-stations { grid-template-columns:repeat(2,minmax(0,1fr));gap:8px; }
+  .world-cafe-stations article { padding:8px; }
+}
+@media(prefers-reduced-motion:reduce) { #worldPanel * { animation:none!important;transition:none!important; } }

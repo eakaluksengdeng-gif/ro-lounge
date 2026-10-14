@@ -14,6 +14,9 @@ export class Player extends Schema {
   @type("uint8") style = 0;
   @type("uint8") gender = 0;
   @type("string") fishing = "";
+  @type("string") mapId = "town";
+  @type("string") cosmetic = "none";
+  @type("string") activity = "";
   @type("number") fishingBobberX = 0;
   @type("number") fishingBobberY = 0;
 }

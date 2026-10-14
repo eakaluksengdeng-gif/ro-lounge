@@ -3,25 +3,29 @@ import type { FishingState, FishId, FishingLocation } from "../../../shared/natu
 import { fishingLocationAt, FISH_SPECIES, FISHING_BITE_MS, fishingGaugeHit, fishingRewardForRoll, FISHING_REWARD_WEIGHT } from "../../../shared/nature";
 import { requireGame } from "../pokdeng/errors";
 import { isBlocked } from "../world";
+import { beachFishingLocation, worldBlocked, type MapId } from "../../../shared/regions";
+import type { SnapshotStore } from "../storage/SnapshotStore";
 
 interface Cast {
   owner: string; id: string; location: FishingLocation; phase: "waiting" | "bite" | "result";
-  biteAt: number; biteStartedAt: number | null; deadline: number | null; result?: FishingState["result"];
+  biteAt: number; biteStartedAt: number | null; deadline: number | null; result?: FishingState["result"]; map: MapId;
 }
 export class FishingManager {
   private casts = new Map<string, Cast>();
   private inventories = new Map<string, Partial<Record<FishId, number>>>();
   constructor(private now: () => number = Date.now, private random: (max: number) => number = randomInt,
-    private reward: (id: string, castId: string, chips: number) => boolean = () => true) {}
+    private reward: (id: string, castId: string, chips: number) => boolean = () => true, private store?: SnapshotStore) {
+      this.inventories = new Map(Object.entries(store?.get<Record<string, Partial<Record<FishId, number>>>>("fish", {}) ?? {}));
+    }
 
-  cast(id: string, owner: string, x: number, y: number, inCasino = false): void {
+  cast(id: string, owner: string, x: number, y: number, inCasino = false, map: MapId = "town"): void {
     requireGame(!inCasino, "IN_CASINO", "Leave the card table before fishing");
-    const location = fishingLocationAt(x, y);
-    requireGame(location && !isBlocked(x, y), "NOT_AT_POND", "Walk to the pond shore");
+    const location = map === "town" ? fishingLocationAt(x, y) : map === "beach" ? beachFishingLocation(x, y) : null;
+    requireGame(location && !(map === "town" ? isBlocked(x, y) : worldBlocked(map, x, y)), "NOT_AT_POND", "Walk to the pond shore or beach shore");
     const current = this.casts.get(id);
     requireGame(!current, "ALREADY_FISHING", "Finish or cancel the current cast first");
     this.casts.set(id, { owner, id: randomUUID(), location, phase: "waiting",
-      biteAt: this.now() + 4000 + this.random(4001), biteStartedAt: null, deadline: null });
+      biteAt: this.now() + 4000 + this.random(4001), biteStartedAt: null, deadline: null, map });
   }
 
   /** True only when the owning connection needs a new private state message. */
@@ -47,12 +51,13 @@ export class FishingManager {
     requireGame(cast.phase === "bite" && this.now() < cast.deadline!, "BITE_ENDED", "The fish got away");
     if (!fishingGaugeHit(cast.biteStartedAt!, this.now())) { this.finish(cast, "miss"); return; }
     const roll = this.random(100);
-    const species = FISH_SPECIES[roll < 50 ? 0 : roll < 78 ? 1 : roll < 94 ? 3 : 2];
+    const species = FISH_SPECIES[cast.map === "beach" ? (roll < 65 ? 4 : roll < 93 ? 5 : 6) : roll < 50 ? 0 : roll < 78 ? 1 : roll < 94 ? 3 : 2];
     const inventory = this.inventories.get(id) ?? {};
     const chips = fishingRewardForRoll(this.random(FISHING_REWARD_WEIGHT));
     requireGame(this.reward(id, cast.id, chips), "ALREADY_REWARDED", "Fishing cast was already rewarded");
     inventory[species.id] = (inventory[species.id] ?? 0) + 1;
     this.inventories.set(id, inventory);
+    this.store?.set("fish", Object.fromEntries(this.inventories));
     this.finish(cast, "caught", { species: species.id, name: species.name, lengthCm: 12 + this.random(29) }, chips);
   }
 

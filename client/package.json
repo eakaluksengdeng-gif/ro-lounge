@@ -12,7 +12,9 @@
     "test:cards": "node test/pixel-cards.e2e.mjs",
     "test:table": "node test/table.e2e.mjs",
     "test:sound": "node test/sound.e2e.mjs",
-    "test:music-live": "node test/music-live.e2e.mjs"
+    "test:music-live": "node test/music-live.e2e.mjs",
+    "test:world": "node test/world.e2e.mjs",
+    "test:world-live": "node test/world.live.e2e.mjs"
   },
   "dependencies": {
     "colyseus.js": "^0.15.28",

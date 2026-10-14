@@ -2,6 +2,10 @@ import Phaser from "phaser";
 import { TownNature } from "../nature/TownNature";
 import { avatarMotion } from "../../../shared/avatarMotion";
 import { gameSounds } from "../audio/GameSounds";
+import { WorldRenderer } from "../world/WorldRenderer";
+import { planRoute } from "../world/PathPlanner";
+import { ensureCosmetics } from "../world/Cosmetics";
+import type { MapId, WorldView } from "../../../shared/regions";
 import { CASINO_BUILDING, CASINO_DOOR } from "../../../shared/casinoWorld";
 import { HAIR_COLORS as HAIR, SKIN_COLORS as SKIN, PANTS_COLORS as PANTS } from "../character/appearance";
 import type { Room } from "colyseus.js";
@@ -30,6 +34,7 @@ const WALK_SEQ = [1, 0, 2, 0];
 interface Avatar {
   container: Phaser.GameObjects.Container;
   sprite: Phaser.GameObjects.Sprite;
+  gear: Phaser.GameObjects.Image;
   look: Look;
   bubble: Phaser.GameObjects.Container;
   bubbleGfx: Phaser.GameObjects.Graphics;
@@ -41,19 +46,31 @@ interface Avatar {
   flip: boolean;
   walk: number;
   texKey: string;
+  lastActivity: string;
 }
 
 export class TownScene extends Phaser.Scene {
   casinoOpen = false;
+  worldOpen = false;
   onManualMove?: () => void;
   private avatars = new Map<string, Avatar>();
   private waterTiles: Phaser.GameObjects.Image[] = [];
   private fountain?: Phaser.GameObjects.Image;
   private nature?: TownNature;
   private route: { x: number; y: number }[] = [];
+  private map: MapId = "town";
+  private mapObjects: Phaser.GameObjects.GameObject[] = [];
+  private worldRenderer?: WorldRenderer;
+  private worldView?: WorldView;
+  setWorldView(view:WorldView) {this.worldView=view;}
   navigateTo(points: { x: number; y: number }[]) {
-    this.route = points.map(point => ({ ...point }));
+    const p=this.room.state?.players?.get(this.room.sessionId);if(!p)return;
+    let cursor={x:p.x,y:p.y};this.route=[];
+    for(const target of points){const leg=planRoute((p.mapId??"town") as MapId,cursor,target);if(!leg.length)break;this.route.push(...leg);cursor=leg[leg.length-1];}
     if (this.route[0]) this.room.send("move", this.route[0]);
+  }
+  navigateSafeTownTo(points:{x:number;y:number}[]) {
+    this.navigateTo(points);
   }
   stopNavigation() { this.route = []; }
 
@@ -63,10 +80,11 @@ export class TownScene extends Phaser.Scene {
 
   create() {
     buildWorldTextures(this);
+    ensureCosmetics(this);
     this.cameras.main.setBackgroundColor("#1b2230");
     this.cameras.main.setBounds(0, 0, MAP_W, MAP_H);
     this.cameras.main.setRoundPixels(true);
-    this.buildMap();
+    this.rebuildMap((this.room.state?.players?.get(this.room.sessionId)?.mapId??"town") as MapId);
     this.nature = new TownNature(this, this.room);
 
     // ภาพเคลื่อนไหวของน้ำและน้ำพุ
@@ -75,6 +93,7 @@ export class TownScene extends Phaser.Scene {
       delay: 450,
       loop: true,
       callback: () => {
+        if(window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;
         tick++;
         for (const w of this.waterTiles) w.setTexture(`water${tick % 2}`);
         this.fountain?.setTexture(`fountain${tick % 2}`);
@@ -85,12 +104,12 @@ export class TownScene extends Phaser.Scene {
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
       // Phaser can receive document-level pointer events over HTML overlays.
       if (!(p.event?.target instanceof HTMLCanvasElement)) return;
-      if (this.casinoOpen) return;
+      if (this.casinoOpen || this.worldOpen) return;
       this.onManualMove?.();
       this.stopNavigation();
       const x = Math.round(p.worldX);
       const y = Math.round(p.worldY);
-      this.room.send("move", { x, y });
+      this.navigateTo([{x,y}]);
       gameSounds.play("move");
       const ring = this.add.circle(x, y, 7, 0xffffff, 0).setStrokeStyle(2, 0xffffff, 0.9).setDepth(MAP_H + 10);
       this.tweens.add({
@@ -107,6 +126,19 @@ export class TownScene extends Phaser.Scene {
   }
 
   /* ---------------- แมพ ---------------- */
+
+  private rebuildMap(map:MapId) {
+    this.stopNavigation();this.map=map;
+    for(const object of this.mapObjects)object.destroy();this.mapObjects=[];
+    this.waterTiles=[];this.fountain=undefined;
+    const before=new Set(this.children.list);
+    if(map==="town") {this.buildMap();WorldRenderer.exits(this,map);this.worldRenderer=undefined;}
+    else {this.worldRenderer=new WorldRenderer(this,map);this.worldRenderer.draw();}
+    this.mapObjects=this.children.list.filter(object=>!before.has(object));
+    for(const avatar of this.avatars.values())avatar.container.destroy();this.avatars.clear();
+    if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches)this.cameras.main.fadeIn(300,20,35,28);
+    gameSounds.setBiome(map);
+  }
 
   private buildMap() {
     const rnd = mulberry32(7);
@@ -230,9 +262,11 @@ export class TownScene extends Phaser.Scene {
   update(_t: number, dtMs: number) {
     this.nature?.update(_t, dtMs);
     const me = this.room.state?.players?.get(this.room.sessionId);
-    if (me) gameSounds.setNearWater(Math.hypot(me.x - FOUNTAIN.x, me.y - FOUNTAIN.y) < 130 ||
-      Math.hypot(me.x - POND.cx * TILE_PX, me.y - POND.cy * TILE_PX) < 180);
-    if (me && this.route[0] && Math.hypot(me.x - this.route[0].x, me.y - this.route[0].y) < 12) {
+    if(me&&(me.mapId??"town")!==this.map)this.rebuildMap(me.mapId);
+    this.worldRenderer?.update(this.worldView,this.room.state?.weather??"sunny");
+    if (me) gameSounds.setNearWater(this.map==="beach"&&me.y>530 || this.map==="forest"&&Math.hypot(me.x-780,me.y-210)<260 || this.map==="town"&&(Math.hypot(me.x - FOUNTAIN.x, me.y - FOUNTAIN.y) < 130 ||
+      Math.hypot(me.x - POND.cx * TILE_PX, me.y - POND.cy * TILE_PX) < 180));
+    if (me && this.route[0] && Math.hypot(me.x - this.route[0].x, me.y - this.route[0].y) < 2) {
       this.route.shift();
       if (this.route[0]) this.room.send("move", this.route[0]);
     }
@@ -241,6 +275,7 @@ export class TownScene extends Phaser.Scene {
 
     const seen = new Set<string>();
     players.forEach((p: PlayerState, id: string) => {
+      if((p.mapId??"town")!==this.map)return;
       seen.add(id);
       let av = this.avatars.get(id);
       if (!av) {
@@ -268,6 +303,14 @@ export class TownScene extends Phaser.Scene {
     // which repeatedly triggered walking/facing changes on an otherwise idle avatar.
     c.setPosition(nx, ny);
     c.setDepth(c.y);
+    av.gear.setTexture("gear-"+(p.cosmetic||"none"));
+    av.gear.setFlipX(av.dir==="side"&&av.flip);
+    av.sprite.setAlpha(p.activity==="camp"?.9:1);
+    av.sprite.y = av.gear.y = p.activity === "camp" ? 6 : 0;
+    if(p.activity!==av.lastActivity){
+      if(p.activity==="feed") {av.emote.setText("♥").setColor("#f3a6a5").setVisible(true);av.emoteTimer?.remove();av.emoteTimer=this.time.delayedCall(1700,()=>av.emote.setVisible(false));}
+      av.lastActivity=p.activity;
+    }
 
     let frame = 0;
     if (motion.walking) {
@@ -319,6 +362,7 @@ export class TownScene extends Phaser.Scene {
     const shadow = this.add.image(0, -1, "shadow").setScale(PX * 1.1, PX);
     const texKey = `ch-${look.id}-down-0`;
     const sprite = this.add.sprite(0, 0, texKey).setOrigin(0.5, CHAR_ORIGIN_Y).setScale(PX);
+    const gear = this.add.image(0,0,"gear-"+(p.cosmetic||"none")).setOrigin(.5,CHAR_ORIGIN_Y).setScale(PX);
 
     const name = this.add.text(0, 6, p.name, {
       fontFamily: FONT, fontSize: "14px", color: isMe ? "#ffe27a" : "#ffffff",
@@ -333,10 +377,10 @@ export class TownScene extends Phaser.Scene {
 
     const emote = this.add.text(0, HEAD_Y, "", { fontSize: "30px" }).setOrigin(0.5, 1).setVisible(false);
 
-    const container = this.add.container(0, 0, [shadow, sprite, name, bubble, emote]);
+    const container = this.add.container(0, 0, [shadow, sprite, gear, name, bubble, emote]);
     return {
-      container, sprite, look, bubble, bubbleGfx, bubbleText, emote,
-      dir: "down", flip: false, walk: 0, texKey,
+      container, sprite, gear, look, bubble, bubbleGfx, bubbleText, emote,
+      dir: "down", flip: false, walk: 0, texKey, lastActivity:"",
     };
   }
 

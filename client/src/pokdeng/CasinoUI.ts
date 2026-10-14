@@ -66,6 +66,7 @@ export class CasinoUI {
   private stay = this.button("อยู่ / ผ่าน", () => this.action("game:stay"));
   private stand = this.button("ลุกจากที่นั่ง", () => this.send("table:stand", {}));
   private exit = this.button("ออกสู่เมือง", () => this.leave());
+  private travel?: HTMLButtonElement;
   private retry = this.button("กลับเข้าโต๊ะ", () => {
     if (this.entry) void this.enter({ ...this.entry, resumeRoomId: this.table?.roomId ?? this.entry.resumeRoomId });
   });
@@ -74,18 +75,22 @@ export class CasinoUI {
     const toolbar = document.createElement("div");
     toolbar.id = "casinoToolbar";
     this.balance.textContent = "ชิป: กำลังโหลด…";
-    toolbar.append(this.balance, this.button("♠ ไป Boardgame", () => {
+    toolbar.append(this.balance, this.travel=this.button("♠ ไป Boardgame", () => {
       const p = this.town.state?.players?.get(this.town.sessionId);
+      if(p?.mapId&&p.mapId!=="town") {this.notice.textContent="กลับเมืองกลางก่อนเข้า Boardgame";return;}
       if (p && Math.hypot(p.x - CASINO_DOOR.x, p.y - CASINO_DOOR.y) <= CASINO_DOOR.radius) {
         this.town.send("casino:enter", {});
       } else {
         // Approach from below the fountain instead of walking through it.
         if (p) {
-          this.scene.navigateTo([{ x: p.x, y: 576 }, { x: CASINO_DOOR.x, y: 576 }, { x: CASINO_DOOR.x, y: CASINO_DOOR.y }]);
+          // A fake scene in isolated UI tests does not implement the navigation helper.
+          const route=[{x:CASINO_DOOR.x,y:576},{x:CASINO_DOOR.x,y:CASINO_DOOR.y}];
+          if(this.scene.navigateSafeTownTo)this.scene.navigateSafeTownTo(route);else this.scene.navigateTo([{x:p.x,y:576},...route]);
         }
       }
     }), gameSounds.createToggle());
     document.body.append(toolbar);
+    this.town.onMessage("world:state",(view:{map:string})=>{if(this.travel){this.travel.disabled=view.map!=="town";this.travel.title=view.map==="town"?"เดินไป Boardgame":"กลับเมืองกลางก่อนเข้า Boardgame";}});
     this.modal.id = "casino";
     this.modal.hidden = true;
     this.modal.setAttribute("role", "dialog");

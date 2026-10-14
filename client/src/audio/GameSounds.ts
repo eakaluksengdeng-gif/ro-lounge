@@ -1,5 +1,6 @@
 import type { WeatherKind } from "../../../shared/nature";
 import { CozyMusic } from "./CozyMusic";
+import type { MapId } from "../../../shared/regions";
 import "./sound.css";
 
 export type SoundCue = "ui" | "select" | "move" | "footstep" | "chat" | "emote" | "join" | "enter" | "exit"
@@ -34,6 +35,7 @@ export class GameSounds {
   private musicOpener?: HTMLButtonElement;
   private muted = false;
   private world: World = "login";
+  private biome: MapId = "town";
   private weather: WeatherKind = "sunny";
   private nearWater = false;
   private ambienceKey = "";
@@ -53,7 +55,7 @@ export class GameSounds {
   get supported() { return !!(window.AudioContext ?? (window as ContextWindow).webkitAudioContext); }
   get isMuted() { return this.muted; }
   diagnostics() { return { muted: this.muted, context: this.context?.state ?? "locked", world: this.world,
-    weather: this.weather, voices: this.voices.size, ambience: !!this.ambience,
+    weather: this.weather, biome:this.biome, voices: this.voices.size, ambience: !!this.ambience,
     musicMuted: this.musicMuted, musicVolume: this.musicVolume, music: this.music?.diagnostics() ?? { running: false, voices: 0, step: 0 } }; }
 
   bindGestures() {
@@ -203,6 +205,15 @@ export class GameSounds {
     this.stopAmbience();
     this.refreshAmbience();
   }
+  setBiome(biome:MapId) {
+    if(this.biome===biome)return;this.biome=biome;this.music?.setBiome(biome);
+    this.stopAmbience();this.refreshAmbience();
+  }
+  playNote(note:number) {
+    if(this.muted||document.hidden||this.context?.state!=="running"||!Number.isInteger(note)||note<0||note>7)return;
+    const midi=[60,62,64,65,67,69,71,72][note];
+    this.tone(this.context.currentTime+.01,440*2**((midi-69)/12),440*2**((midi-69)/12),.4,.045,"triangle");
+  }
   setNearWater(near: boolean) {
     if (near === this.nearWater) return;
     this.nearWater = near;
@@ -291,18 +302,18 @@ export class GameSounds {
   }
   private refreshAmbience() {
     if (this.destroyed || this.muted || document.hidden || this.world !== "town" || this.context?.state !== "running") return;
-    const key = this.weather + ":" + this.nearWater;
+    const key = this.weather + ":" + this.nearWater + ":" + this.biome;
     if (key === this.ambienceKey) return;
     this.stopAmbience(); this.ambienceKey = key;
     const ctx = this.context;
     const source = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), gain = ctx.createGain();
     source.buffer = this.buffer(); source.loop = true;
     filter.type = "lowpass"; filter.frequency.value = this.weather === "rain" ? 1600 : this.nearWater ? 750 : 320;
-    gain.gain.value = this.weather === "rain" ? .05 : this.weather === "snow" ? .024 : this.nearWater ? .027 : .009;
+    gain.gain.value = this.weather === "rain" ? .05 : this.weather === "snow" ? .024 : this.biome === "beach" ? .033 : this.nearWater ? .027 : .009;
     source.connect(filter).connect(gain).connect(this.master!); source.start();
     this.ambience = { source, filter, gain };
     const birds = () => {
-      if (this.world === "town" && this.weather === "sunny" && !this.muted && !document.hidden) this.play("bird");
+      if (this.world === "town" && this.biome!=="market" && this.weather === "sunny" && !this.muted && !document.hidden) this.play("bird");
       this.birdTimer = window.setTimeout(birds, 8000 + Math.random() * 7000);
     };
     this.birdTimer = window.setTimeout(birds, 5000);
@@ -322,6 +333,7 @@ export class GameSounds {
       this.music?.stop(); return;
     }
     this.music ??= new CozyMusic(this.context, this.master!);
+    this.music.setBiome(this.biome);
     this.music.setVolume(this.musicVolume); this.music.start();
   }
   private stopEffects() {
