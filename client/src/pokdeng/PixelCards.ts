@@ -1,4 +1,5 @@
 import type { Card, Suit } from "../../../shared/pokdeng";
+import { formatNumber } from "./numbers";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -108,14 +109,16 @@ export function playingCard(card?: Card, large = false): HTMLSpanElement {
 
 export function coinAmount(amount: number, unit: "prefix" | "suffix"): HTMLSpanElement {
   const badge = document.createElement("span");
-  badge.className = "gold-balance";
+  const formatted = formatNumber(amount);
+  badge.className = "gold-balance" + (formatted.length >= 16 ? " very-wide" : formatted.length >= 9 ? " wide" : "");
   badge.dataset.balance = String(amount);
+  badge.title = formatted + " ชิป";
   const label = document.createElement("span");
-  label.className = "pok-sr-only";
+  label.className = "gold-unit pok-sr-only";
   label.textContent = unit === "prefix" ? "ชิป " : " ชิป";
   const value = document.createElement("strong");
   value.className = "gold-amount";
-  value.textContent = String(amount);
+  value.textContent = formatted;
   badge.append(goldCoin(), ...(unit === "prefix" ? [label, value] : [value, label]));
   return badge;
 }

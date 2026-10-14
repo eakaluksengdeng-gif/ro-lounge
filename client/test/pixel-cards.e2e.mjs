@@ -35,8 +35,27 @@ try {
   }
   assert.deepEqual(result.back, { label: "ไพ่คว่ำ", rank: undefined, suit: undefined });
   assert.equal(result.coin, "0 0 16 16");
-  assert.equal(result.largeBalance, "123456789");
+  assert.equal(result.largeBalance, "123,456,789");
   await page.screenshot({ path: "/tmp/ro-lounge-pixel-deck.png", fullPage: true });
+  const numeric = await page.evaluate(async () => {
+    const { coinAmount } = await import("/src/pokdeng/PixelCards.ts");
+    const { formatNumber, formatDelta } = await import("/src/pokdeng/numbers.ts");
+    return { amounts: [0, 1, 2, 3, 8, 10, 123, 1234, 123456789, Number.MAX_SAFE_INTEGER].map(amount => {
+      const badge = coinAmount(amount, "suffix");
+      return { raw: badge.dataset.balance, displayed: badge.querySelector(".gold-amount").textContent, title: badge.title };
+    }), plus: formatDelta(1234), minus: formatDelta(-1234), zero: formatDelta(0), negativeZero: formatDelta(-0), ordinary: formatNumber(123),
+      moneyFont: getComputedStyle(document.querySelector(".gold-amount")).fontFamily,
+      cardFont: getComputedStyle(document.querySelector(".pok-rank")).fontFamily };
+  });
+  for (const amount of numeric.amounts) {
+    assert.equal(amount.displayed, Number(amount.raw).toLocaleString("en-US"));
+    assert.equal(amount.title, amount.displayed + " ชิป");
+    assert.match(amount.displayed, /^[0-9,]+$/);
+  }
+  assert.deepEqual([numeric.plus, numeric.minus, numeric.zero, numeric.ordinary], ["+1,234", "-1,234", "0", "123"]);
+  assert.equal(numeric.negativeZero, "0");
+  assert.ok(numeric.moneyFont.includes("Arial") && !numeric.moneyFont.includes("Pixelify"));
+  assert.ok(numeric.cardFont.includes("Arial") && !numeric.cardFont.includes("Pixelify"));
   await page.evaluate(async () => {
     const { playingCard, coinAmount } = await import("/src/pokdeng/PixelCards.ts");
     document.body.replaceChildren();
@@ -74,9 +93,45 @@ try {
     if (width <= 680) {
       const hud = await page.locator("#casinoToolbar").boundingBox();
       const nature = await page.locator("#natureBar").boundingBox();
+      if (hud.y + hud.height > nature.y) {
+        console.log("HUD layout:", width, hud, nature, await page.locator("#casinoToolbar").evaluate(el => [...el.querySelectorAll("span, strong, button")].map(child => ({ class: child.className, text: child.textContent, width: child.getBoundingClientRect().width, height: child.getBoundingClientRect().height, font: getComputedStyle(child).font }))));
+        await page.screenshot({ path: "/tmp/ro-lounge-numbers-layout-failure.png" });
+      }
       assert.ok(hud.y + hud.height <= nature.y, "coin HUD must not overlap weather/fishing controls");
     }
     await page.screenshot({ path: "/tmp/ro-lounge-pixel-hand-" + width + ".png" });
+    for (const amount of [123, 1234, 123456789, Number.MAX_SAFE_INTEGER]) {
+      await page.evaluate(async value => {
+        const { coinAmount } = await import("/src/pokdeng/PixelCards.ts");
+        const { formatNumber } = await import("/src/pokdeng/numbers.ts");
+        document.querySelector("#casinoToolbar .gold-balance").replaceWith(coinAmount(value, "prefix"));
+        document.querySelector(".wallet-hud-details").textContent = " · ใช้ได้ " + formatNumber(value) + " · สำรอง 0";
+        document.querySelector("#pokWallet .gold-balance").replaceWith(coinAmount(value, "suffix"));
+      }, amount);
+      const money = await page.locator("#pokWallet .gold-balance, #casinoToolbar .gold-balance").evaluateAll(elements => elements.map(el => {
+        const r = el.getBoundingClientRect(); const unit = el.querySelector(".gold-unit");
+        return { left: r.left, right: r.right, unitVisible: getComputedStyle(unit).position === "static" };
+      }));
+      assert.ok(money.every(balance => balance.left >= 0 && balance.right <= width && balance.unitVisible), "exact amount and visible chip unit must fit " + width + "px, amount " + amount);
+      const hud = await page.locator("#casinoToolbar").boundingBox();
+      const travel = await page.locator("#casinoToolbar button").boundingBox();
+      const coin = await page.locator("#casinoToolbar .gold-balance").boundingBox();
+      assert.ok(coin.x + coin.width <= travel.x, "wallet must not overlap travel button");
+      if (width <= 680) {
+        const nature = await page.locator("#natureBar").boundingBox();
+        assert.ok(hud.y + hud.height <= nature.y, "large wallet must not overlap weather controls");
+      }
+    }
   }
-  console.log("PASS: all 52 pixel faces, exact pips, double-sided J/Q/K, private back, gold wallet; three cards and HUD fit 1280/390/360/320px");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(async () => {
+    const { coinAmount } = await import("/src/pokdeng/PixelCards.ts");
+    document.querySelector("#casinoToolbar .gold-balance").replaceWith(coinAmount(123, "prefix"));
+    document.querySelector(".wallet-hud-details").textContent = " · ใช้ได้ 123 · สำรอง 0";
+    document.querySelector("#pokWallet .gold-balance").replaceWith(coinAmount(1234, "suffix"));
+  });
+  await page.screenshot({ path: "/tmp/ro-lounge-readable-numbers.png" });
+  await page.locator("#casino").evaluate(el => { el.hidden = true; });
+  await page.locator("#casinoToolbar").screenshot({ path: "/tmp/ro-lounge-chip-hud-preview.png" });
+  console.log("PASS: 52 faces; clear Arabic digits, grouping/signed deltas without changing raw values, visible chip units; wallets and three cards fit 1280/390/360/320px");
 } finally { await browser.close(); }

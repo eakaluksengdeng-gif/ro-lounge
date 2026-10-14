@@ -1,5 +1,6 @@
 import type { Card, PrivateHand, SeatView, TableState } from "../../../shared/pokdeng";
 import { coinAmount, goldCoin, playingCard } from "./PixelCards";
+import { formatNumber, formatDelta } from "./numbers";
 
 const KINDS = { points: "แต้ม", pok8: "ป๊อก 8", pok9: "ป๊อก 9", sian: "เซียน", straight: "เรียง", tong: "ตอง" };
 const PHASES = { betting: "รอเดิมพัน", dealing: "กำลังแจกไพ่", check_pok: "ตรวจป๊อก", action: "จั่ว หรือ อยู่", showdown: "เปิดไพ่ · คิดชิปแล้ว" };
@@ -176,7 +177,7 @@ export class PokTableView {
         view.avatar.style.setProperty("--avatar-color", `hsl(${hue} 46% 58%)`);
       }
       if (seat) {
-        view.info.title = seat.dealer ? "เจ้ามือรับทุกเดิมพัน" : "เดิมพัน " + seat.bet + " ชิป";
+        view.info.title = seat.dealer ? "เจ้ามือรับทุกเดิมพัน" : "เดิมพัน " + formatNumber(seat.bet) + " ชิป";
         if (seat.dealer) view.info.textContent = "รับทุกเดิมพัน";
         else view.info.replaceChildren(coinAmount(seat.bet, "suffix"));
       } else view.info.replaceChildren();
@@ -196,7 +197,7 @@ export class PokTableView {
       : seat.leaving ? "รอออกหลังจบตา" : !seat.connected ? "หลุด · รอกลับมา" : seat.acted && table?.phase === "action" ? "เลือกแล้ว" : "";
     if (table?.phase === "showdown") {
       const delta = seat.dealer ? -table.results.reduce((sum, item) => sum + item.delta, 0) : table.results.find(item => item.playerId === seat.playerId)?.delta;
-      if (delta !== undefined) text += " · " + (delta > 0 ? "+" : "") + delta + " ชิป";
+      if (delta !== undefined) text += " · " + formatDelta(delta) + " ชิป";
     }
     return text;
   }

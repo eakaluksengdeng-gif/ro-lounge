@@ -1,4 +1,4 @@
-#natureBar { position: fixed; top: 12px; left: 12px; display: flex; gap: 10px; align-items: center; padding: 8px 10px; z-index: 6; border: 3px solid #0f1420; background: #1e3442ed; color: #e3f3da; font-size: 13px; }
+#natureBar { position: fixed; top: 12px; left: 12px; display: flex; gap: 10px; align-items: center; padding: 8px 10px; z-index: 6; border: 3px solid #0f1420; background: #1e3442ed; color: #e3f3da; font: 13px "Noto Sans Thai", Arial, sans-serif; font-variant-numeric: lining-nums tabular-nums; }
 #natureBar button { font-size: 13px; background: #b0d4aa; padding: 6px 9px; }
 #fishBag { position: relative; }
 #fishBag summary { cursor: pointer; white-space: nowrap; }

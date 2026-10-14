@@ -6,6 +6,7 @@ import type { TownScene } from "../scenes/TownScene";
 import { joinPokTable, sendPok } from "./connect";
 import { coinAmount } from "./PixelCards";
 import { AnimatedCards, PokTableView } from "./TableView";
+import { formatNumber, formatDelta } from "./numbers";
 import "./casino.css";
 
 const ERRORS: Record<string, string> = {
@@ -289,8 +290,10 @@ export class CasinoUI {
     this.wallet = wallet;
     const details = document.createElement("span");
     details.className = "wallet-hud-details";
-    details.textContent = " · ใช้ได้ " + wallet.available + " · สำรอง " + wallet.reserved;
-    this.balance.replaceChildren(coinAmount(wallet.balance, "prefix"), details);
+    details.textContent = " · ใช้ได้ " + formatNumber(wallet.available) + " · สำรอง " + formatNumber(wallet.reserved);
+    const total = coinAmount(wallet.balance, "prefix");
+    total.title = "ชิปทั้งหมดในกระเป๋า: " + formatNumber(wallet.balance) + " ชิป";
+    this.balance.replaceChildren(total, details);
     this.render();
   }
   private render() {
@@ -304,11 +307,11 @@ export class CasinoUI {
     if (this.wallet) {
       const title = document.createElement("span");
       title.className = "pok-wallet-label";
-      title.textContent = "กระเป๋าของคุณ: ";
+      title.textContent = "ชิปทั้งหมด: ";
       const details = document.createElement("span");
       details.className = "pok-wallet-details";
-      details.textContent = "  •  ใช้ได้ " + this.wallet.available + "  •  สำรอง " + this.wallet.reserved +
-        (this.lastDelta !== undefined ? "  |  ตาล่าสุด " + (this.lastDelta > 0 ? "+" : "") + this.lastDelta + " ชิป" : "");
+      details.textContent = "  •  ใช้ได้ " + formatNumber(this.wallet.available) + "  •  สำรอง " + formatNumber(this.wallet.reserved) +
+        (this.lastDelta !== undefined ? "  |  ตาล่าสุด " + formatDelta(this.lastDelta) + " ชิป" : "");
       this.walletPanel.replaceChildren(title, coinAmount(this.wallet.balance, "suffix"), details);
     } else this.walletPanel.textContent = "กำลังโหลดกระเป๋าชิป…";
     this.betEntry.hidden = !me || me.dealer || !betting;
@@ -324,8 +327,8 @@ export class CasinoUI {
     const totalBets = table?.seats.reduce((sum, seat) => sum + (seat?.bet ?? 0), 0) ?? 0;
     this.betTitle.textContent = !me ? "เลือกที่นั่งเพื่อเล่น" : me.dealer ? "♛ คุณเป็นเจ้ามือ" : betting ? "ลงเดิมพันของคุณ" : "เดิมพันตานี้";
     this.betSummary.textContent = !me ? "เจ้ามือ 1 คน · ลูกมือสูงสุด 7 คน" : me.dealer
-      ? "เดิมพันรวม " + totalBets + " ชิป · รับได้สูงสุด " + Math.floor((this.wallet?.balance ?? 0) / (table?.maxMultiplier ?? 5)) + " ชิป · เจ้ามือไม่ต้องลงเดิมพันเอง ลูกมือเสีย = ชิปเข้าเจ้ามือ / ลูกมือชนะ = หักจากเจ้ามือ"
-      : "เดิมพันที่ยืนยัน: " + me.bet + " ชิป · ตาถัดไป: " + (me.repeatBet ? me.repeatBet + " ชิป" : "พักเดิมพัน") +
+      ? "เดิมพันรวม " + formatNumber(totalBets) + " ชิป · รับได้สูงสุด " + formatNumber(Math.floor((this.wallet?.balance ?? 0) / (table?.maxMultiplier ?? 5))) + " ชิป · เจ้ามือไม่ต้องลงเดิมพันเอง ลูกมือเสีย = ชิปเข้าเจ้ามือ / ลูกมือชนะ = หักจากเจ้ามือ"
+      : "เดิมพันที่ยืนยัน: " + formatNumber(me.bet) + " ชิป · ตาถัดไป: " + (me.repeatBet ? formatNumber(me.repeatBet) + " ชิป" : "พักเดิมพัน") +
         (me.betIssue === "player_chips" ? " · ชิปคุณไม่พอ: ลดเดิมพันหรือไปตกปลาเติมชิป" : me.betIssue === "dealer_chips" ? " · ชิปเจ้ามือไม่พอรับเดิมพันนี้" : "");
     this.autoStatus.textContent = this.leaving ? "ขอออกแล้ว · ไม่ลงเดิมพันตาถัดไป" : !dealer ? "รอผู้สมัครเป็นเจ้ามือใหม่ · คนที่เหลืออยู่โต๊ะต่อได้"
       : table?.autoPlay ? (betting ? table.deadline ? "เล่นต่ออัตโนมัติเมื่อหมดเวลา · เปลี่ยน/ยกเลิกเดิมพันได้ตอนนี้" : "รอลูกมือลงเดิมพันที่ชิปพอ แล้วโต๊ะจะเล่นต่อเอง" : "เล่นต่อเนื่อง · ใช้เดิมพันเดิมในตาถัดไปจนกว่าจะยกเลิก ออก หรือชิปไม่พอ")
@@ -345,7 +348,7 @@ export class CasinoUI {
     const myPayout = me?.dealer && table?.phase === "showdown" ? -table.results.reduce((sum, item) => sum + item.delta, 0)
       : table?.results.find(item => item.playerId === this.playerId)?.delta;
     this.handValue.textContent = myCards?.length ? (me?.value && me.value.kind !== "points" ? KINDS[me.value.kind] : (score! % 10) + " แต้ม") : "กำลังรับไพ่…";
-    if (myPayout !== undefined) this.handValue.append(document.createTextNode(" · " + (myPayout > 0 ? "+" : "") + myPayout + " ชิป"));
+    if (myPayout !== undefined) this.handValue.append(document.createTextNode(" · " + formatDelta(myPayout) + " ชิป"));
     this.handPanel.dataset.outcome = myPayout === undefined ? "" : myPayout > 0 ? "win" : myPayout < 0 ? "lose" : "tie";
     this.handHint.textContent = table?.phase === "showdown" ? "เปิดไพ่แล้ว · ยอดได้–เสียเข้ากระเป๋าคุณแล้ว" : this.leaving ? "รอคิดชิปตานี้ก่อนออก"
       : ownedHand?.canDraw ? ownedHand.canStay ? "เลือกจั่วใบที่ 3 หรืออยู่ · ดูเวลาที่ด้านบน" : "ต่ำกว่า 4 แต้ม · ต้องจั่วใบที่ 3"
@@ -356,7 +359,7 @@ export class CasinoUI {
   private renderBetHelp() {
     const amount = Number(this.bet.value);
     this.betHelp.textContent = Number.isSafeInteger(amount) && amount >= (this.table?.minBet ?? 10)
-      ? "สำรอง " + amount * (this.table?.maxMultiplier ?? 5) + " ชิป เพื่อรองรับเด้ง · กดลงเดิมพันเพื่อยืนยันและใช้จำนวนนี้ตาถัดไป"
-      : "กรอกจำนวนเต็ม ขั้นต่ำ " + (this.table?.minBet ?? 10) + " ชิป";
+      ? "สำรอง " + formatNumber(amount * (this.table?.maxMultiplier ?? 5)) + " ชิป เพื่อรองรับเด้ง · กดลงเดิมพันเพื่อยืนยันและใช้จำนวนนี้ตาถัดไป"
+      : "กรอกจำนวนเต็ม ขั้นต่ำ " + formatNumber(this.table?.minBet ?? 10) + " ชิป";
   }
 }
