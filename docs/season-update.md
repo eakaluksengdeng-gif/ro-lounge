@@ -2,7 +2,7 @@
 
 Additive content update: no resets, wallet changes, schema migration or free material grants.
 
-- Seven free seeds at existing inline plots. New: eggplant 105s, strawberry 75s, corn 110s, pumpkin 150s. Original durations unchanged. Four visual growth stages use server time; ripe requires watering. Original crops reuse generic young foliage and their own ripe icon.
+- Seven free seeds at existing inline plots. New: eggplant 105s, strawberry 75s, corn 110s, pumpkin 150s. Original durations unchanged. All seven crops have their own four botanical visual stages using server time; ripe requires watering. Carrot has feathery tops, tomato yellow flowers, wheat green ears turning gold.
 - Four permanent torso outfits exchanged at the existing market shop using real harvested ingredients. Server price/ownership/proximity/confirmation checks; saved receipt prevents repeat spending. Existing quest equipment unchanged.
 - Hat alpha padding removed before head anchoring. Direction-dependent fit shared by live avatars, wardrobe, cards, fishing and cafe portraits. Hair remains visible around brim; no full hair removal.
 - Six pixel emotes replace platform emoji in the tray and overhead. Existing server whitelist and map-scoped routing unchanged.
@@ -11,7 +11,7 @@ Additive content update: no resets, wallet changes, schema migration or free mat
 
 ## Art provenance
 
-Generated using built-in imagegen, original cozy pixel art inspired by user style references, not copied from watermarked clothing. Originals preserved under Codex generated_images. Workspace originals: `client/art-source/season-v1/{crops-atlas,cozy-atlas}.png`. Prepared alpha assets: `client/public/art/season-v1/` (32 PNGs + manifest). Rebuild with `node client/scripts/prepare-season-art.mjs`. Crops/clothes/cats retain largest connected alpha component to remove adjacent atlas fragments. Emotes and water keep disconnected details.
+Generated using built-in imagegen, original cozy pixel art inspired by user style references, not copied from watermarked clothing. Originals preserved under Codex generated_images. Workspace originals: `client/art-source/season-v1/{crops-atlas,classic-crops-atlas,cozy-atlas}.png`. Prepared alpha assets: `client/public/art/season-v1/` (44 PNGs + manifest). Rebuild with `node client/scripts/prepare-season-art.mjs`. Crops/clothes/cats retain largest connected alpha component to remove adjacent atlas fragments. Emotes and water keep disconnected details.
 
 Original crop output: `exec-a81ad039-ccbf-40fd-8598-e684d17430ab.png`.
 Original cozy output: `exec-08b06c30-a11e-438b-bebd-fec4c8b20028.png`.
@@ -27,6 +27,12 @@ Use case: stylized-concept. Asset type: transparent pixel game atlas for origina
 ```
 
 ## Verification
+
+Botanical follow-up source: `exec-665745bf-4de9-4e0e-8364-956fcbfc672f.png`, built-in imagegen. Exact prompt:
+
+```
+Use case: stylized-concept. Asset type: original transparent pixel-art crop-growth game sprite atlas for cozy top-down village RPG. Exactly 4 equal columns and 3 equal rows on landscape canvas. No text, labels, watermark or UI. Generous empty transparent margins between every sprite, no overlap, each subject fully inside its cell. Left to right four stages: tiny sprout, young leaves, developing crop, fully harvestable crop. Row1 CARROT: two tiny seed leaves, feathery young carrot tops, larger feathery tops, ripe orange carrot shoulders peeking out of soil with lush tops. Row2 TOMATO: seedling, young tomato leaves, yellow star-shaped flowers on leafy tomato stem beside stake, ripe red tomatoes on same plant. Row3 WHEAT: tiny grass sprout, grass-like wheat leaves, green immature wheat ears, ripe golden wheat ears. All plants growing naturally in small dark earth patch, not pots. Same bottom baseline each row; stage1 smallest, stage4 fullest, consistent hand-painted crisp chunky 16-bit pixel art dark warm outlines, green foliage, cozy sunlight, botanical shapes correct. Real alpha background.
+```
 
 `server/test/season.test.ts`: all species/stages/water/real stock/reconstruction; server-priced unique tailoring, replay/range/confirmation/forgery rejection, wallet invariant; bounded cat pauses/resume.
 `client/test/season.e2e.mjs`: unique stage pixels, hat/outfit angle sheet, pixel emotes/poses, shop prices/disabled states, exchange/equip API, mobile widths.

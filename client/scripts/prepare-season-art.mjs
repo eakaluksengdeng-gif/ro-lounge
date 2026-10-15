@@ -15,7 +15,7 @@ async function subjectOnly(input){
 }
 async function atlas(file,rows,edges){
  const source=root+'art-source/season-v1/'+file,{width,height}=await sharp(source).metadata();
- for(let row=0;row<4;row++)for(let col=0;col<4;col++){
+ for(let row=0;row<rows.length;row++)for(let col=0;col<4;col++){
   const key=rows[row][col],left=Math.round(width*col/4),right=Math.round(width*(col+1)/4),top=Math.round(height*edges[row]),bottom=Math.round(height*edges[row+1]);
   let crop=await sharp(source).extract({left,top,width:right-left,height:bottom-top}).png().toBuffer();
   if(/^(crop|cat|equipment)-/.test(key))crop=await subjectOnly(crop);
@@ -23,6 +23,7 @@ async function atlas(file,rows,edges){
  }
 }
 await atlas('crops-atlas.png',['eggplant','strawberry','corn','pumpkin'].map(id=>Array.from({length:4},(_,i)=>'crop-'+id+'-'+i)),[0,.25,.485,.755,1]);
+await atlas('classic-crops-atlas.png',['carrot','tomato','wheat'].map(id=>Array.from({length:4},(_,i)=>'crop-'+id+'-'+i)),[0,1/3,2/3,1]);
 await atlas('cozy-atlas.png',[
  ['cream-knit','moss-hoodie','amber-raincoat','berry-cardigan'].map(id=>'equipment-'+id),
  ['happy','sad','love','wave'].map(id=>'emote-'+id),
