@@ -1,0 +1,36 @@
+{
+  "version": "activity-v2",
+  "poses": [
+    "pose-0-seated-down",
+    "pose-0-seated-side",
+    "pose-0-seated-up",
+    "pose-0-fishing-down",
+    "pose-0-fishing-side",
+    "pose-0-fishing-up",
+    "pose-1-seated-down",
+    "pose-1-seated-side",
+    "pose-1-seated-up",
+    "pose-1-fishing-down",
+    "pose-1-fishing-side",
+    "pose-1-fishing-up",
+    "pose-0-prepare-down",
+    "pose-0-cook-down",
+    "pose-0-serve-down",
+    "pose-1-prepare-down",
+    "pose-1-cook-down",
+    "pose-1-serve-down"
+  ],
+  "props": [
+    "activity-chair",
+    "activity-dock",
+    "activity-rocks",
+    "activity-reeds",
+    "activity-cat",
+    "activity-crown",
+    "activity-counter",
+    "activity-shelf"
+  ],
+  "scenes": [
+    "activity-cove"
+  ]
+}

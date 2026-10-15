@@ -9,6 +9,7 @@ import { gameSounds } from "./audio/GameSounds";
 import { WorldUI } from "./world/WorldUI";
 import { loadReferenceArt } from './reference/Assets';
 import './reference/reference.css';
+import './reference/activities.css';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 

@@ -5,7 +5,7 @@ import { FISH_SPECIES, type FishingState } from "../../../shared/nature";
 import { gameSounds } from "../audio/GameSounds";
 import { cosmeticCanvas, itemCanvas } from "./Cosmetics";
 import { appearanceToLook, loadAppearance, playerToLook } from "../character/appearance";
-import { renderCharacterCanvas } from "../art";
+import { renderCharacterCanvas, type CharacterPose } from "../art";
 import "./world.css";
 import { groundCanvas } from '../reference/WorldArt';
 const STATIONS=["รับออร์เดอร์","เตรียม","ปรุง","เสิร์ฟ"];
@@ -107,6 +107,7 @@ export class WorldUI {
       this.view.farms.flatMap(farm=>farm.plots.map(crop=>crop?Date.now()>=crop.readyAt:false)),
       Date.now()>=(this.view.progress.cooldowns[this.node?.id??""]??0)]);
     if(!force&&sig===this.signature)return;this.signature=sig;this.body.replaceChildren();
+    this.panel.dataset.page=this.page;
     if(this.page==="map"){this.title.textContent="โลกของ RO Lounge";this.mapPage();return;}
     if(this.page==="collection"||this.page==="inventory"){this.title.textContent=this.page==="collection"?"สมุดสะสม":"กระเป๋าและชุด";this.collectionPage();return;}
     if(!this.node){this.body.append(this.text("กลับไปใกล้จุดกิจกรรมเพื่อใช้งาน"));return;}
@@ -192,41 +193,51 @@ export class WorldUI {
     }this.body.append(grid,this.text("ผักเติบโตต่อเมื่อออกเกม · เมล็ดฟรี · แปลงและผลผลิตเก็บที่เซิร์ฟเวอร์"));
   }
   private cafePage(){
+    this.title.textContent='CAFE';
     const c=this.view!.cafe,id=this.player()?.playerId,member=c.members.find(m=>m.id===id);
-    const kitchen=document.createElement('div');kitchen.className='world-cafe-room';kitchen.setAttribute('aria-label','ครัวและสมาชิกทีมจริง');
+    const foodId=c.recipe==='ซุปแครอท'||c.recipe==='soup'?'soup':'salad';
+    const kitchen=document.createElement('div');kitchen.className='world-cafe-room';kitchen.dataset.phase=c.phase;kitchen.setAttribute('aria-label','ครัวและสมาชิกทีมจริง');
+    const actors=document.createElement('div');actors.className='cafe-actors';
     for(let index=0;index<4;index++){
       const station=document.createElement('div');station.className='world-cafe-worker';const m=c.members[index];
       if(m){let player:any;this.room.state?.players?.forEach((p:any)=>{if(p.playerId===m.id)player=p;});
-        if(player){const avatar=renderCharacterCanvas(playerToLook(player));avatar.getContext('2d')!.drawImage(cosmeticCanvas(player.cosmetic||'none'),0,0);station.append(avatar);}station.append(this.text(m.name));
-      }else station.append(this.text('รอเพื่อน'));
-      station.append(this.text(STATIONS[index]));kitchen.append(station);
-    }this.body.append(kitchen);
-    const foodId=c.recipe==="ซุปแครอท"||c.recipe==="soup"?"soup":"salad";
-    const order=document.createElement("div");order.className="world-cafe-order";
-    const food=itemCanvas(foodId);food.setAttribute("aria-label",foodId==="soup"?"ซุปแครอท":"สลัดสวน");
-    order.append(food,this.text((foodId==="soup"?"ซุปแครอท":"สลัดสวน")+" · เสิร์ฟ "+c.served+" / 3 จาน","world-card-title"));
-    this.body.append(order,this.text("ทีม "+c.members.length+" / 4 คน"));
-    for(const m of c.members)this.body.append(this.text(m.name+(m.id===c.host?" · เจ้าของทีม":"")+" · ช่วยงาน "+m.actions+" ครั้ง"));
-    if(!member){this.body.append(this.button("เข้าทีม",()=>this.send("cafe-join"),this.pending||c.phase!=="lobby"||c.members.length>=4));return;}
-    if(c.phase==="lobby"){
-      this.body.append(this.text("เริ่มได้เมื่อมีอย่างน้อย 2 คน · 2 คนช่วยกันทำได้ทุกหน้าที่"));
-      const recipe=document.createElement("select");recipe.setAttribute("aria-label","สูตรอาหาร");
-      for(const [value,name]of [["salad","สลัดสวน"],["soup","ซุปแครอท (เก็บแครอทเพื่อปลดล็อก)"]]){const option=document.createElement("option");option.value=value;option.textContent=name;recipe.append(option);}recipe.value=this.recipe;recipe.onchange=()=>this.recipe=recipe.value;
-      this.body.append(recipe,this.button("เริ่มครัว",()=>this.send("cafe-start",{recipe:this.recipe}),this.pending||c.host!==id||c.members.length<2));
-    }else if(c.phase==="running"){
-      const timer=this.text("");timer.dataset.readyAt=String(c.deadline);this.body.append(timer);
-      const row=document.createElement("div");row.className="world-cafe-stations";
-      STATIONS.forEach((station,index)=>{
-        const card=document.createElement("article");card.dataset.active=String(index===c.order);card.dataset.done=String(index<c.order);
-        const icon=itemCanvas(["cafe-order","cafe-prepare","cafe-cook","cafe-serve"][index]);icon.setAttribute("aria-hidden","true");
-        card.append(icon,this.text((index+1)+" · "+station,"world-card-title"),this.button(station+(index===c.order?" ← ตอนนี้":""),()=>this.send("cafe-work",{station:index,roundId:c.roundId}),this.pending||index!==c.order));row.append(card);
-      });
-      this.body.append(row,this.text("ผู้ที่ช่วยงานในรอบสำเร็จจะได้บันทึกครัว +1 ใช้แลกชุดเชฟ"));
-    }else{
-      this.body.append(this.text(c.served>=3?"สำเร็จ! ผู้ที่ลงมือช่วยได้รับรางวัลแล้ว":"หมดเวลาแล้ว ลองใหม่ได้ ไม่มีการเสียชิป"));
-      this.body.append(this.button("เตรียมรอบใหม่",()=>this.send("cafe-reset"),this.pending||c.host!==id));
+        if(player){const pose:CharacterPose=(['standing','prepare','cook','serve'] as const)[index];const avatar=renderCharacterCanvas(playerToLook(player),'down',0,pose);avatar.getContext('2d')!.drawImage(cosmeticCanvas(player.cosmetic||'none'),0,0);station.append(avatar);}
+        station.append(this.text(m.name,'cafe-worker-name'));
+      }else station.append(this.text('ว่าง','cafe-worker-name'));
+      actors.append(station);
     }
-    this.body.append(this.button("ออกจากทีม",()=>this.send("cafe-leave"),this.pending));
+    const bubbles=document.createElement('div');bubbles.className='cafe-orders';
+    const tasks=document.createElement('div');tasks.className='world-cafe-stations';
+    STATIONS.forEach((station,index)=>{
+      const bubble=document.createElement('div');bubble.className='cafe-order-bubble';bubble.dataset.station=String(index);
+      bubble.append(itemCanvas(index===0||index===3?foodId:index===1?'cafe-prepare':'cafe-cook'));
+      const progress=document.createElement('progress');progress.max=1;progress.value=c.phase==='running'?Number(index<c.order):c.phase==='result'&&c.served>=3?1:0;
+      progress.setAttribute('aria-label',station+' ของออร์เดอร์ปัจจุบัน');bubble.append(progress);bubbles.append(bubble);
+      const card=document.createElement('article');card.dataset.active=String(c.phase==='running'&&index===c.order);card.dataset.done=String(c.phase==='running'&&index<c.order);
+      const label=station+(c.phase==='running'&&index===c.order?' ← ตอนนี้':'');
+      const button=this.button(label,()=>this.send('cafe-work',{station:index,roundId:c.roundId}),this.pending||!member||c.phase!=='running'||index!==c.order);
+      button.dataset.station=String(index);card.append(button);tasks.append(card);
+    });
+    const steam=document.createElement('div');steam.className='cafe-steam';steam.hidden=c.phase!=='running'||c.order!==2;steam.setAttribute('aria-hidden','true');for(let i=0;i<3;i++)steam.append(document.createElement('span'));
+    const front=document.createElement('div');front.className='cafe-counter-front';for(let i=0;i<2;i++){const counter=document.createElement('img');counter.src='/art/activity-v2/activity-counter.png';counter.alt='';front.append(counter);}
+    kitchen.append(actors,bubbles,steam,front,tasks);this.body.append(kitchen);
+    const order=document.createElement('div');order.className='world-cafe-order';
+    order.append(itemCanvas(foodId),this.text((foodId==='soup'?'ซุปแครอท':'สลัดสวน')+' · เสิร์ฟ '+c.served+' / 3 จาน · ทีม '+c.members.length+' / 4 คน','world-card-title'));
+    this.body.append(order);
+    if(!member){this.body.append(this.button('เข้าทีม',()=>this.send('cafe-join'),this.pending||c.phase!=='lobby'||c.members.length>=4));return;}
+    const actions=document.createElement('div');actions.className='cafe-footer-actions';
+    if(c.phase==='lobby'){
+      this.body.append(this.text('เพื่อน 2–4 คนช่วยกันได้ทุกสถานี · รูปคนในครัวเป็นสมาชิกจริง'));
+      const recipe=document.createElement('select');recipe.setAttribute('aria-label','สูตรอาหาร');
+      for(const [value,name]of [['salad','สลัดสวน'],['soup','ซุปแครอท (เก็บแครอทเพื่อปลดล็อก)']]){const option=document.createElement('option');option.value=value;option.textContent=name;recipe.append(option);}recipe.value=this.recipe;recipe.onchange=()=>this.recipe=recipe.value;
+      const ready=this.button('READY · เริ่มครัว',()=>this.send('cafe-start',{recipe:this.recipe}),this.pending||c.host!==id||c.members.length<2);ready.setAttribute('aria-label','เริ่มครัว');ready.className='cafe-ready';actions.append(recipe,ready);
+    }else if(c.phase==='running'){
+      const timer=this.text('','cafe-deadline');timer.dataset.readyAt=String(c.deadline);actions.append(timer,this.text('ช่วยงานตามลำดับที่สว่าง · ทุกคนกดช่วยได้ทุกสถานี'));
+    }else{
+      this.body.append(this.text(c.served>=3?'สำเร็จ! ผู้ที่ลงมือช่วยได้รับบันทึกครัวแล้ว':'หมดเวลา ลองใหม่ได้ ไม่มีการเสียชิป'));
+      actions.append(this.button('เตรียมรอบใหม่',()=>this.send('cafe-reset'),this.pending||c.host!==id));
+    }
+    actions.append(this.button('ออกจากทีม',()=>this.send('cafe-leave'),this.pending));this.body.append(actions);
   }
   private shopPage(){
     this.body.append(this.text("แลกด้วยของสะสม ไม่มีเงินจริงและไม่ซื้อความได้เปรียบ · ทดลองชุดบนตัวเราก่อนแลก"));

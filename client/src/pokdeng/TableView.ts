@@ -117,6 +117,7 @@ export class PokTableView {
     this.timer.setAttribute("aria-label", "เวลาที่เหลือ");
     center.append(brand, this.round, this.total, this.deck, this.phase, this.timer);
     this.element.append(felt, center, this.seats);
+    for(const [key,className]of [['activity-cat','pok-inn-cat'],['activity-shelf','pok-inn-shelf']] as const){const prop=document.createElement('img');prop.src='/art/activity-v2/'+key+'.png';prop.className=className;prop.alt='';this.element.append(prop);}
     for (let i = 0; i < 8; i++) {
       const element = document.createElement("article");
       element.dataset.tableSeat = String(i);
@@ -152,12 +153,14 @@ export class PokTableView {
     this.total.replaceChildren(document.createTextNode("เดิมพันรวม "), coinAmount(total, "suffix"));
     this.round.textContent = "ตาที่ " + (table?.roundNumber || 1) + " · " + (table?.seats.filter(Boolean).length ?? 0) + "/8 คน";
     this.phase.textContent = table ? PHASES[table.phase] : "เลือกเก้าอี้รอบโต๊ะ";
+    const mapping=mine?.seat===0?[0,1,2,3,4,5,6,7]:[4,1,2,3,5,6,7,0];
+    if(mine&&mine.seat!==0){const positions=[1,2,3,5,6,7];let p=0;for(let seat=1;seat<8;seat++)mapping[seat]=seat===mine.seat?0:positions[p++];}
     for (let i = 0; i < 8; i++) {
       const seat = table?.seats[i];
       const view = this.views[i];
       const isMine = !!seat && seat.playerId === playerId;
-      // Rotate seats so this guest always faces the table from the bottom. Dealer keeps its badge.
-      const position = mine ? (i - mine.seat + 8) % 8 : (i + 4) % 8;
+      // Owner at the bottom; the other dealer stays opposite, as in the selected reference.
+      const position=mapping[i];
       view.element.dataset.position = String(position);
       view.element.className = "pok-seat" + (i === 0 ? " dealer" : "") + (isMine ? " mine" : "") + (!seat ? " empty" : "") + (seat?.cardCount ? " has-hand" : "");
       view.title.textContent = i === 0 ? "♛ เจ้ามือ" : "ลูกมือ " + i;
@@ -174,7 +177,7 @@ export class PokTableView {
         view.avatar.replaceChildren();
         delete view.avatar.dataset.look;
       }
-      if(seat){const portrait=this.portrait?.(seat.playerId);if(portrait){const signature=JSON.stringify(portrait);if(view.avatar.dataset.look!==signature){const canvas=renderCharacterCanvas(portrait.look);canvas.getContext('2d')!.drawImage(cosmeticCanvas(portrait.cosmetic),0,0);view.avatar.replaceChildren(canvas);view.avatar.dataset.look=signature;}}}
+      if(seat){const portrait=this.portrait?.(seat.playerId);if(portrait){const dir=position===0?'up':position===4?'down':'side';const flip=position>4;const signature=JSON.stringify([portrait,dir,flip]);if(view.avatar.dataset.look!==signature){const base=renderCharacterCanvas(portrait.look,dir,0,'seated');base.getContext('2d')!.drawImage(cosmeticCanvas(portrait.cosmetic),0,0);const canvas=document.createElement('canvas');canvas.width=48;canvas.height=64;const ctx=canvas.getContext('2d')!;if(flip){ctx.translate(48,0);ctx.scale(-1,1);}ctx.drawImage(base,0,0);view.avatar.replaceChildren(canvas);view.avatar.dataset.look=signature;}}}
       if (seat) {
         view.info.title = seat.dealer ? "เจ้ามือรับทุกเดิมพัน" : "เดิมพัน " + formatNumber(seat.bet) + " ชิป";
         if (seat.dealer) view.info.textContent = "รับทุกเดิมพัน";

@@ -48,6 +48,7 @@ export class CasinoUI {
   private notice = document.createElement("p");
   private balance = document.createElement("span");
   private walletPanel = document.createElement("div");
+  private walletDetails = document.createElement('p');
   private handPanel = document.createElement("section");
   private handCards = document.createElement("div");
   private handValue = document.createElement("p");
@@ -62,6 +63,8 @@ export class CasinoUI {
   private lastDelta?: number;
   private lastSettledRound?: string;
   private bet = document.createElement("input");
+  private less = this.button('−',()=>this.adjustBet(-10));
+  private more = this.button('+',()=>this.adjustBet(10));
   private betButton = this.button("ลงเดิมพัน", () => this.send("game:bet", { amount: Number(this.bet.value) }));
   private cancel = this.button("ยกเลิกเดิมพัน", () => this.send("game:cancel_bet", {}));
   private start = this.button("เริ่มเกม", () => this.send("game:start", {}));
@@ -100,7 +103,7 @@ export class CasinoUI {
     this.modal.setAttribute("role", "dialog");
     this.modal.setAttribute("aria-modal", "true");
     this.modal.setAttribute("aria-label", "Boardgame — ป๊อกเด้ง");
-    this.heading.textContent = "♠ Boardgame";
+    this.heading.textContent = "BOARDGAME";
     const header = document.createElement("header");
     const headerActions = document.createElement("div");
     headerActions.className = "pok-header-actions";
@@ -139,7 +142,7 @@ export class CasinoUI {
     decisions.className = "pok-hand-decisions";
     const handActions = document.createElement("div");
     handActions.className = "pok-hand-actions";
-    handActions.append(this.draw, this.stay);
+    // Decisions live in the bottom action dock; never duplicate action buttons.
     decisions.append(this.handValue, this.handHint, handActions);
     const handBody = document.createElement("div");
     handBody.className = "pok-hand-body";
@@ -153,16 +156,18 @@ export class CasinoUI {
     label.textContent = "จำนวนเงินเดิมพัน (ชิป)";
     const amountRow = document.createElement("div");
     amountRow.className = "pok-amount-row";
-    amountRow.append(this.bet, this.betButton, this.cancel);
+    this.less.setAttribute('aria-label','ลดเดิมพัน 10 ชิป');this.more.setAttribute('aria-label','เพิ่มเดิมพัน 10 ชิป');
+    amountRow.append(this.less,this.bet,this.more);
     const quick = document.createElement("div");
     quick.className = "pok-quick-bets";
     for (const amount of [10, 20, 50, 100]) {
       quick.append(this.button(amount + " ชิป", () => { this.bet.value = String(amount); this.renderBetHelp(); }));
     }
     this.betHelp.id = "pokBetHelp";
-    this.betEntry.append(label, amountRow, quick, this.betHelp);
+    this.betEntry.append(label,quick,this.cancel,this.betHelp);
     this.autoStatus.id = "pokAutoStatus";
-    this.bettingPanel.append(this.betTitle, this.betSummary, this.betEntry, this.start, this.takeDealer, this.autoStatus);
+    this.walletDetails.id='pokWalletDetails';
+    this.bettingPanel.append(this.betTitle,this.betSummary,this.walletDetails,this.betEntry,this.takeDealer,this.autoStatus);
     controls.append(this.stand, this.retry);
     this.notice.id = "pokNotice";
     this.notice.setAttribute("role", "status");
@@ -175,13 +180,21 @@ export class CasinoUI {
     layout.className = "pok-layout";
     const playfield = document.createElement("div");
     playfield.className = "pok-playfield";
-    playfield.append(this.tableView.element, this.handPanel);
-    const sidebar = document.createElement("aside");
+    this.tableView.element.append(this.handPanel);
+    playfield.append(this.tableView.element);
+    const dock=document.createElement('div');dock.className='pok-action-dock';
+    const funds=document.createElement('div');funds.className='pok-dock-funds';funds.append(this.walletPanel,amountRow);
+    const actions=document.createElement('div');actions.className='pok-dock-buttons';
+    for(const [button,text,label]of [[this.draw,'DRAW','จั่วไพ่'],[this.stay,'STAY','อยู่ / ผ่าน'],[this.betButton,'BET','ลงเดิมพัน']] as const){button.textContent=text;button.setAttribute('aria-label',label);}
+    this.draw.dataset.action='draw';this.stay.dataset.action='stay';this.betButton.dataset.action='bet';this.start.dataset.action='start';
+    actions.append(this.draw,this.stay,this.betButton,this.start);dock.append(funds,actions);
+    const sidebar = document.createElement("details");
     sidebar.className = "pok-sidebar";
     sidebar.setAttribute("aria-label", "เดิมพันและควบคุมโต๊ะ");
-    sidebar.append(this.bettingPanel, controls, this.notice);
-    layout.append(playfield, sidebar);
-    panel.append(header, this.walletPanel, status, layout, rules);
+    const summary=document.createElement('summary');summary.textContent='รายละเอียดเดิมพัน · ออกจากที่นั่ง · กติกา';
+    sidebar.append(summary,this.bettingPanel, controls, rules);
+    layout.append(playfield,dock,this.notice,sidebar);
+    panel.append(header,status,layout);
     this.modal.append(panel);
     document.body.append(this.modal);
     this.town.onMessage<GuestReady>("auth:ready", guest => {
@@ -338,12 +351,18 @@ export class CasinoUI {
       details.textContent = "  •  ใช้ได้ " + formatNumber(this.wallet.available) + "  •  สำรอง " + formatNumber(this.wallet.reserved) +
         (this.lastDelta !== undefined ? "  |  ตาล่าสุด " + formatDelta(this.lastDelta) + " ชิป" : "");
       this.walletPanel.replaceChildren(title, coinAmount(this.wallet.balance, "suffix"), details);
+      this.walletDetails.textContent=details.textContent;
+      this.walletPanel.setAttribute('aria-label','ชิปทั้งหมด '+formatNumber(this.wallet.balance)+details.textContent);
     } else this.walletPanel.textContent = "กำลังโหลดกระเป๋าชิป…";
     this.betEntry.hidden = !me || me.dealer || !betting;
     this.bet.disabled = this.betButton.disabled = this.cancel.disabled = !betting || this.leaving;
+    this.bet.disabled ||= !me || me.dealer;
+    this.betButton.disabled ||= !me || me.dealer;
     this.bet.min = String(table?.minBet ?? 10);
     this.bet.max = String(Math.floor(((this.wallet?.available ?? 0) + (me?.bet ?? 0) * (table?.maxMultiplier ?? 5)) / (table?.maxMultiplier ?? 5)));
     this.betButton.disabled ||= !dealer?.connected;
+    this.betButton.hidden=!!me?.dealer;
+    this.less.disabled=this.more.disabled=this.bet.disabled||!me||!!me.dealer;
     this.cancel.disabled ||= !me?.bet && !me?.repeatBet;
     this.start.hidden = !me?.dealer || !betting || !!table?.autoPlay;
     this.start.disabled = this.leaving || !table?.seats.some(seat => seat && seat.bet > 0 && seat.connected);
@@ -360,7 +379,7 @@ export class CasinoUI {
       : "กดเริ่มเกมครั้งเดียว เล่นต่อหลายตาอัตโนมัติ · ใช้เดิมพันเดิมจนกว่าจะยกเลิก ออก หรือชิปไม่พอ";
     this.renderBetHelp();
     this.stand.hidden = !me || !betting;
-    this.draw.hidden = this.stay.hidden = table?.phase !== "action" || !me?.cardCount;
+    this.draw.hidden = this.stay.hidden = false;
     const ownedHand = this.hand?.roundId === table?.roundId ? this.hand : undefined;
     this.draw.disabled = !this.room || !ownedHand?.canDraw;
     this.stay.disabled = !this.room || !ownedHand?.canStay;
@@ -386,5 +405,10 @@ export class CasinoUI {
     this.betHelp.textContent = Number.isSafeInteger(amount) && amount >= (this.table?.minBet ?? 10)
       ? "สำรอง " + formatNumber(amount * (this.table?.maxMultiplier ?? 5)) + " ชิป เพื่อรองรับเด้ง · กดลงเดิมพันเพื่อยืนยันและใช้จำนวนนี้ตาถัดไป"
       : "กรอกจำนวนเต็ม ขั้นต่ำ " + formatNumber(this.table?.minBet ?? 10) + " ชิป";
+  }
+  private adjustBet(delta:number){
+    if(this.bet.disabled)return;
+    const min=Number(this.bet.min)||10,max=Math.max(min,Number(this.bet.max)||min);
+    this.bet.value=String(Math.max(min,Math.min(max,(Number(this.bet.value)||min)+delta)));this.renderBetHelp();
   }
 }

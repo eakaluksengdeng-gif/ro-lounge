@@ -8,6 +8,11 @@ import { gameSounds } from "../audio/GameSounds";
 import { beachFishingLocation } from "../../../shared/regions";
 import "./nature.css";
 import { itemCanvas } from '../world/Cosmetics';
+import { artImage } from '../reference/Assets';
+import { renderCharacterCanvas } from '../art';
+import { playerToLook } from '../character/appearance';
+import { cosmeticCanvas } from '../world/Cosmetics';
+import { coinAmount } from '../pokdeng/PixelCards';
 
 const WEATHER = { sunny: "☀️ แดดออก", rain: "🌧️ ฝนตก", snow: "❄️ หิมะตก" };
 export class NatureUI {
@@ -21,6 +26,10 @@ export class NatureUI {
   private title = document.createElement("strong");
   private message = document.createElement("p");
   private catchArt=document.createElement('div');
+  private vignette=document.createElement('canvas');
+  private previewKey='';
+  private previewSprite?:HTMLCanvasElement;
+  private previewAt=0;
   private action = document.createElement("button");
   private cancel = document.createElement("button");
   private bar = document.createElement("div");
@@ -72,6 +81,7 @@ export class NatureUI {
     this.action.type = this.cancel.type = "button";
     this.action.addEventListener("click", () => this.interact());
     this.cancel.textContent = "เก็บเบ็ด";
+    this.cancel.id='fishCancel';
     this.cancel.addEventListener("click", () => {
       gameSounds.play("cancel");
       this.message.textContent = "เก็บเบ็ดแล้ว กดเริ่มตกปลาเพื่อลองใหม่";
@@ -102,7 +112,9 @@ export class NatureUI {
     }
     rates.append(summary, list);
     this.catchArt.id='fishCatchArt';this.catchArt.hidden=true;
-    this.panel.append(this.title, this.catchArt, this.message, this.gauge, this.bar, this.countdown, this.action, this.cancel, rates);
+    const plaque=document.createElement('div');plaque.className='activity-plaque';plaque.textContent='FISHING';
+    this.vignette.id='fishingScene';this.vignette.width=720;this.vignette.height=400;this.vignette.setAttribute('role','img');this.vignette.setAttribute('aria-label','ตัวละครคุณนั่งตกปลาที่ท่าไม้ริมน้ำ');
+    this.panel.append(plaque,this.vignette,this.catchArt,this.title,this.message,this.gauge,this.bar,this.countdown,this.action,this.cancel,rates);
     document.body.append(this.panel);
     room.onMessage<FishingState>("fish:state", state => {
       const soundState = `${state.castId}:${state.phase}:${state.result?.reason ?? ""}`;
@@ -114,7 +126,7 @@ export class NatureUI {
       this.soundState = soundState;
       this.state = state;
       this.catchArt.hidden=state.result?.reason!=='caught';
-      if(state.result?.fish&&state.result.reason==='caught')this.catchArt.replaceChildren(itemCanvas(state.result.fish.species));
+      if(state.result?.fish&&state.result.reason==='caught')this.catchArt.replaceChildren(itemCanvas(state.result.fish.species),document.createTextNode('+ '),coinAmount(state.result.rewardChips??0,'suffix'));
       if (!this.clockReady) this.offset = state.serverTime - Date.now();
       if (state.phase !== "idle") this.scene.stopNavigation();
       if (state.result?.reason === "caught") this.message.textContent = "ได้ " + state.result.fish!.name + " " + state.result.fish!.lengthCm + " ซม.! 🐟 +" + state.result.rewardChips + " ชิป";
@@ -164,6 +176,7 @@ export class NatureUI {
     const animate = () => {
       if (this.closed) return;
       this.renderGauge();
+      if(performance.now()-this.previewAt>33){this.renderVignette();this.previewAt=performance.now();}
       frame = requestAnimationFrame(animate);
     };
     frame = requestAnimationFrame(animate);
@@ -196,6 +209,21 @@ export class NatureUI {
     this.gauge.dataset.inTarget = String(position >= FISHING_TARGET_START && position <= FISHING_TARGET_END);
     this.countdown.textContent = "เหลือ " + Math.max(0, ((this.state.deadline ?? 0) - Date.now() - this.offset) / 1000).toFixed(1) + " วิ · กดได้ครั้งเดียว";
   }
+  private renderVignette(){
+    if(this.panel.hidden)return;const p=this.room.state?.players?.get(this.room.sessionId);if(!p)return;
+    const look=playerToLook(p),cosmetic=p.cosmetic&&p.cosmetic!=='none'?p.cosmetic:'straw-hat',key=JSON.stringify([look,cosmetic]);
+    if(key!==this.previewKey){this.previewKey=key;this.previewSprite=renderCharacterCanvas(look,'side',0,'fishing');this.previewSprite.getContext('2d')!.drawImage(cosmeticCanvas(cosmetic),0,0);}
+    const c=this.vignette.getContext('2d')!;c.imageSmoothingEnabled=false;c.drawImage(artImage('activity-cove'),0,0,720,540);
+    c.save();c.translate(506,0);c.scale(-1,1);c.drawImage(this.previewSprite!,0,196,96,128);c.restore();
+    const t=matchMedia('(prefers-reduced-motion: reduce)').matches?0:performance.now();
+    const y=343+Math.sin(t/(this.state?.phase==='bite'?90:700))*(this.state?.phase==='bite'?5:2);
+    if(this.state?.phase==='waiting'||this.state?.phase==='bite'){
+      c.strokeStyle='#795335';c.lineWidth=5;c.beginPath();c.moveTo(437,283);c.lineTo(335,234);c.stroke();
+      c.strokeStyle='#f7ecc8';c.lineWidth=2;c.beginPath();c.moveTo(335,234);c.lineTo(298,y);c.stroke();
+      c.strokeStyle='#d5ffff';c.lineWidth=3;c.beginPath();c.ellipse(298,y+4,18+Math.sin(t/300)*4,5,0,0,Math.PI*2);c.stroke();
+      c.fillStyle='#fff5df';c.fillRect(294,y-7,8,8);c.fillStyle='#e86675';c.fillRect(294,y+1,8,7);
+    }
+  }
 
   private interact() {
     if (this.closed || this.scene.casinoOpen || this.scene.worldOpen) return;
@@ -216,6 +244,7 @@ export class NatureUI {
     this.panel.hidden = this.scene.casinoOpen || (!this.near && phase === "idle");
     this.panel.dataset.phase = phase;
     this.panel.dataset.near = String(this.near);
+    this.panel.dataset.sitting=String(phase==='waiting'||phase==='bite');
     document.getElementById("hud")?.classList.toggle("fishing-active", !this.panel.hidden);
     const weather = (this.room.state?.weather ?? "sunny") as WeatherKind;
     gameSounds.setWeather(weather);
@@ -227,7 +256,8 @@ export class NatureUI {
     this.title.textContent = phase === "bite" ? "❗ ปลาติดเบ็ด! เล็งแถบแดง" : p?.mapId==="beach"?"🎣 ตกปลาทะเล · SPACE / แตะ":"🎣 ตกปลาได้รอบริมบ่อ";
     if (phase === "waiting") this.message.textContent = "รอทุ่นกระตุก… อย่าเพิ่งดึงเบ็ด";
     if (phase === "bite") this.message.textContent = "ตัวชี้วิ่งซ้าย–ขวา กด Space หรือดึงเบ็ดเมื่อตัวชี้ตรงแถบแดง!";
-    this.action.textContent = phase === "bite" ? "SPACE — ดึงเบ็ด!" : phase === "waiting" ? "กำลังรอปลา…" : phase === "result" ? "รอสักครู่…" : "เริ่มตกปลา (Space)";
+    this.action.textContent = phase === "bite" ? "SPACE / TAP" : phase === "waiting" ? "รอปลากินเหยื่อ…" : phase === "result" ? "รอสักครู่…" : "SPACE / TAP · ตกปลา";
+    this.action.setAttribute('aria-label',phase==='bite'?'ดึงเบ็ด Space หรือแตะ':'เริ่มตกปลา Space หรือแตะ');
     this.action.disabled = phase === "waiting" || phase === "result" || this.scene.casinoOpen;
     this.cancel.hidden = phase !== "waiting" && phase !== "bite";
     this.bar.hidden = phase !== "bite";

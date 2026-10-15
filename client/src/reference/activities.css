@@ -1,0 +1,209 @@
+/* Scene-led reference interfaces: actual avatars/cards/status stay live and separate from backdrops. */
+.activity-plaque { background:url('/art/reference-v1/ui-title.png') center/100% 100% no-repeat;text-align:center;color:#fff2d2;font:700 25px 'Pixelify Sans','Noto Sans Thai',sans-serif;line-height:42px;letter-spacing:1px; }
+html #casino { padding:12px; }
+html #casino .pok-panel { width:min(800px,100%);padding:8px;border-width:12px;border-image-width:12px; }
+html #casino .pok-panel header { position:relative;justify-content:center;background:transparent;padding:0 0 4px;min-height:54px; }
+html #casino .pok-panel h2 { width:58%;padding:9px;text-align:center;background:url('/art/reference-v1/ui-title.png') center/100% 100% no-repeat;font:700 26px 'Pixelify Sans','Noto Sans Thai',sans-serif; }
+html #casino .pok-header-actions { position:absolute;right:0;top:0;display:flex;gap:4px;max-width:40%;flex-wrap:wrap;justify-content:flex-end; }
+html #casino .pok-header-actions button { min-height:28px;padding:4px 7px;font-size:10px; }
+html #casino .pok-status { margin:0; }
+html #casino #pokPhase { margin:3px 0 7px;font:11px 'Noto Sans Thai',Arial,sans-serif;color:#fff0cf; }
+html #casino .pok-layout { display:block; }
+html #casino .pok-playfield { position:relative; }
+html #casino .pok-arena { height:auto;aspect-ratio:1.38;min-height:0;overflow:visible;border:3px solid #926137;background-size:100% 100%; }
+html #casino .pok-felt { inset:16% 6% 10%; }
+html #casino .pok-table-center { top:47%;width:34%;gap:3px; }
+html #casino .pok-table-brand { font-size:14px; }
+html #casino .pok-table-round,html #casino #pokTotalBet { font-size:10px; }
+html #casino #pokTotalBet .gold-balance { justify-content:center; }
+html #casino #pokTotalBet .gold-amount { font-size:18px; }
+html #casino #pokTotalBet .pixel-coin { width:18px;height:18px;flex-basis:18px; }
+html #casino .pok-center-phase { font-size:11px; }
+html #casino #pokTimer {font-size:17px;}
+html #casino .pok-deck {width:27px;height:37px;margin:2px auto;background:url('/art/reference-v1/icon-card-back.png') center/100% 100%;border:0;}
+html #casino .pok-deck>* {display:none;}
+html #casino .pok-seat {width:88px;max-width:none;height:96px;display:block;grid-template-columns:none;padding:0;background:transparent;border:0;box-shadow:none;overflow:visible;}
+html #casino .pok-seat::before {content:'';position:absolute;left:50%;bottom:14px;transform:translateX(-50%);width:66px;height:78px;background:url('/art/activity-v2/activity-chair.png') center/100% 100% no-repeat;z-index:0;}
+html #casino .pok-avatar {position:absolute;left:50%;bottom:22px;transform:translateX(-50%);width:58px;height:77px;background:none;box-shadow:none;z-index:2;}
+html #casino .pok-avatar canvas {width:58px;height:77px;left:0;bottom:0;}
+html #casino .pok-avatar::after {display:none;}
+html #casino .pok-seat.dealer .pok-avatar::before {content:'';position:absolute;width:25px;height:25px;top:-13px;left:17px;background:url('/art/activity-v2/activity-crown.png') center/100% 100%;z-index:3;}
+html #casino .pok-seat h3 {display:none;}
+html #casino .pok-seat.empty h3 {display:block;position:absolute;bottom:-9px;left:0;width:100%;font-size:10px;text-align:center;}
+html #casino .pok-seat-name {position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:90px;max-width:110%;background:#263e2ff0;border:1px solid #d4af64;text-align:center;font:10px/16px 'Noto Sans Thai',Arial,sans-serif;padding:1px 3px;z-index:4;}
+html #casino .pok-seat.dealer .pok-seat-name {color:#ffe291;}
+html #casino .pok-seat-stake {position:absolute;bottom:-17px;left:0;width:100%;text-align:center;font-size:9px;z-index:4;}
+html #casino .pok-seat-stake .gold-amount {font-size:12px;}
+html #casino .pok-seat-stake .pixel-coin {width:11px;height:11px;flex-basis:11px;}
+html #casino .pok-seat .pok-result {position:absolute;left:-7px;bottom:-30px;width:102px;font-size:9px;line-height:13px;color:#fff1b3;background:#21352fd9;z-index:5;}
+html #casino .pok-seat .pok-cards {position:absolute;top:31px;left:67px;width:82px;margin:0;z-index:3;justify-content:flex-start;}
+html #casino .pok-seat[data-position='5'] .pok-cards,html #casino .pok-seat[data-position='6'] .pok-cards,html #casino .pok-seat[data-position='7'] .pok-cards {left:auto;right:67px;justify-content:flex-end;}
+html #casino .pok-seat[data-position='4'] .pok-cards {top:75px;left:3px;justify-content:center;}
+html #casino .pok-seat[data-position='0'] .pok-cards {top:-21px;left:3px;justify-content:center;}
+html #casino .pok-seat .pok-card {width:31px;height:45px;}
+html #casino .pok-seat.empty button {position:absolute;left:50%;bottom:30px;transform:translateX(-50%);width:66px;padding:4px 2px;min-height:32px;font-size:10px;z-index:3;}
+html #casino .pok-seat[data-position='0'] {--seat-x:50%;--seat-y:88%;}
+html #casino .pok-seat[data-position='1'] {--seat-x:18%;--seat-y:75%;}
+html #casino .pok-seat[data-position='2'] {--seat-x:13%;--seat-y:50%;}
+html #casino .pok-seat[data-position='3'] {--seat-x:22%;--seat-y:27%;}
+html #casino .pok-seat[data-position='4'] {--seat-x:50%;--seat-y:20%;}
+html #casino .pok-seat[data-position='5'] {--seat-x:78%;--seat-y:27%;}
+html #casino .pok-seat[data-position='6'] {--seat-x:87%;--seat-y:50%;}
+html #casino .pok-seat[data-position='7'] {--seat-x:82%;--seat-y:75%;}
+.pok-inn-cat {position:absolute;top:1%;right:6%;width:42px;image-rendering:pixelated;z-index:1;}
+.pok-inn-shelf {position:absolute;top:5%;left:1%;width:43px;image-rendering:pixelated;z-index:1;}
+html #casino #pokHand {position:absolute;left:50%;bottom:7%;transform:translateX(-50%);width:210px;padding:0;border:0;background:transparent;box-shadow:none;margin:0;z-index:5;animation:none;}
+html #casino #pokHand[hidden] {display:none;}
+html #casino .pok-hand-header,html #casino #pokHandHint,html #casino .pok-hand-actions {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}
+html #casino .pok-hand-body {display:block;min-height:0;padding:0;}
+html #casino #pokHandCards {padding:0 0 5px;justify-content:center;}
+html #casino #pokHandCards .pok-card.large {width:58px;height:85px;}
+html #casino #pokHandCards .pok-card-slot+.pok-card-slot {margin-left:-15px;}
+html #casino .pok-card.large .pok-rank {font-size:14px;}
+html #casino .pok-card.large .pok-index .pixel-suit {width:8px;height:8px;}
+html #casino .pok-card.large .pok-pip {width:9px;height:9px;}
+html #casino .pok-card.large[data-rank='1'] .pok-pip {width:21px;height:21px;}
+html #casino .pok-card.large[data-rank='9'] .pok-pip,html #casino .pok-card.large[data-rank='10'] .pok-pip {width:7px;height:7px;}
+html #casino #pokHandValue {margin:0;text-align:center;font:600 12px/17px 'Noto Sans Thai',Arial,sans-serif;background:#24432edc;border:1px solid #cda957;color:#ffeba0;}
+.pok-action-dock {display:grid;grid-template-columns:minmax(150px,.8fr) minmax(0,1.4fr);gap:10px;margin-top:9px;align-items:stretch;}
+.pok-dock-funds {min-width:0;}
+html #casino #pokWallet {margin:0 0 5px;padding:5px 8px;border:2px solid #bd924b;background:#163f32;min-height:37px;}
+html #casino .pok-wallet-label,html #casino .pok-wallet-details {display:none;}
+html #casino #pokWallet .gold-amount {font-size:24px;}
+html #casino #pokWallet .gold-balance.very-wide .gold-amount {font-size:12px;}
+html #casino #pokWallet .gold-balance.wide .gold-amount {font-size:18px;}
+html #casino #pokWallet .pixel-coin {width:24px;height:24px;flex-basis:24px;}
+html #casino .pok-amount-row {display:grid;grid-template-columns:32px minmax(0,1fr) 32px;gap:4px;}
+html #casino .pok-amount-row button {padding:0;min-height:34px;color:#fff0c1;background:url('/art/reference-v1/ui-balance.png') center/100% 100%;font:bold 23px Arial,sans-serif;}
+html #casino #pokBetAmount {width:100%;padding:3px;font-size:21px;min-width:0;background:#173b34;color:#fff2c9;border:2px solid #b89a61;}
+.pok-dock-buttons {display:flex;gap:7px;align-items:stretch;min-width:0;}
+html #casino .pok-dock-buttons button {flex:1;min-width:0;padding:8px 2px;font:700 23px 'Pixelify Sans','Noto Sans Thai',sans-serif;min-height:76px;}
+html #casino .pok-dock-buttons button[hidden] {display:none;}
+html #casino .pok-dock-buttons button:disabled {opacity:.85;filter:saturate(.55) brightness(.82);}
+html #casino [data-action='draw'] {background-image:url('/art/reference-v1/ui-leaf.png');color:#fff4ce;}
+html #casino [data-action='stay'] {background-image:url('/art/reference-v1/ui-gold.png');}
+html #casino [data-action='start'] {font-size:18px;}
+html #casino .pok-sidebar {position:static;margin-top:8px;background:#193b2ce8;border:1px solid #9f7c42;padding:6px;font:11px 'Noto Sans Thai',Arial,sans-serif;color:#fff2cd;}
+html #casino .pok-sidebar>summary {cursor:pointer;padding:5px;}
+html #casino #pokNotice {font-size:12px;min-height:0;margin:7px 0;color:#fff1b8;}
+html #casino #pokNotice:empty {display:none;}
+/* Fishing: picture, real reward, central red target, then a large Space / Tap button. */
+html #fishingPanel {width:min(410px,calc(100vw - 24px));padding:9px;border:9px solid transparent;border-image:url('/art/reference-v1/ui-green.png') 55 /9px /0 stretch;background:#173e32;max-height:calc(100svh - 160px);overflow:auto;}
+#fishingScene {display:block;width:100%;height:auto;image-rendering:pixelated;border:2px solid #ba9055;}
+html #fishingPanel strong {font-size:13px;line-height:1.5;margin-top:6px;}
+html #fishingPanel p {font-size:11px;min-height:0;margin:5px 0;line-height:1.5;}
+html #fishSkillGauge {height:30px;margin:7px 0 4px;background:linear-gradient(90deg,#3e8061 0 17%,#72b568 17% 28%,#e4d879 28% 35%,#ed6674 35% 65%,#e4d879 65% 72%,#72b568 72% 83%,#3e8061 83%);border:4px solid #789288;box-shadow:0 0 0 4px #14382f,inset 0 0 0 1px #eaf3c4;overflow:visible;}
+html #fishTarget {background:#ed6674;border:0;}
+html #fishNeedle {height:44px;top:-10px;width:5px;background:#fff9df;box-shadow:2px 0 0 #543e32,-1px 0 0 #543e32;}
+html #fishCountdown {font-size:10px;}
+html #fishReaction {height:5px;margin:6px 0;}
+html #fishingPanel #fishAction {width:100%;font:700 19px 'Pixelify Sans','Noto Sans Thai',sans-serif;min-height:46px;padding:8px;margin:7px 0 0;}
+html #fishingPanel #fishAction::first-line {font-weight:700;}
+html #fishingPanel #fishAction:disabled {filter:brightness(.85);opacity:.8;}
+html #fishingPanel #fishAction+#fishCancel {margin:5px 0;}
+html #fishingPanel #fishRates {font-size:10px;margin-top:6px;}
+html #fishingPanel #fishCatchArt {display:flex;justify-content:center;align-items:center;gap:4px;background:#174a3ace;border:1px solid #d0b26a;color:#fff1ad;}
+html #fishingPanel #fishCatchArt[hidden] {display:none;}
+html #fishCatchArt canvas {width:34px;height:34px;}
+html #fishCatchArt .gold-amount {font-size:18px;}
+html #fishCatchArt .pixel-coin {width:20px;height:20px;flex-basis:20px;}
+/* Café: four food/task bubbles, real crew behind a counter, colored station controls, Ready below. */
+html #worldPanel[data-page='cafe'] .world-frame {width:min(660px,100%);padding:5px;border:13px solid transparent;border-image:url('/art/reference-v1/ui-green.png') 55 /13px /0 stretch;background:#67462e url('/art/reference-v1/tile-wood.png') center/192px;color:#fff0cf;}
+html #worldPanel[data-page='cafe'] .world-frame header {justify-content:center;border:0;position:relative;min-height:50px;}
+html #worldPanel[data-page='cafe'] h2 {width:54%;padding:8px;text-align:center;background:url('/art/reference-v1/ui-title.png') center/100% 100%;color:#fff0c6;font:700 28px 'Pixelify Sans',sans-serif;}
+html #worldPanel[data-page='cafe'] header button {position:absolute;right:0;top:0;padding:5px 9px;min-height:30px;font-size:11px;}
+html #worldPanel[data-page='cafe'] #worldNotice {color:#fff0bf;font-size:12px;}
+html #worldPanel[data-page='cafe'] #worldNotice:empty {display:none;}
+html #worldPanel[data-page='cafe'] .world-cafe-room {position:relative;display:block;width:100%;aspect-ratio:1.5;min-height:0;padding:0;border:2px solid #c29759;background-size:100% 100%;isolation:isolate;overflow:hidden;}
+.cafe-actors {position:absolute;inset:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;z-index:2;}
+html #worldPanel .world-cafe-worker {position:relative;display:block;text-align:center;}
+html #worldPanel .world-cafe-worker canvas {position:absolute;width:52%;height:auto;left:24%;top:28%;image-rendering:pixelated;}
+.cafe-worker-name {position:absolute;top:57%;left:0;width:100%;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:5;}
+html #worldPanel .world-cafe-room::after {content:'';position:absolute;inset:0;background:url('/art/reference-v1/cafe-interior.png') center/100% 100%;clip-path:polygon(0 48%,100% 48%,100% 100%,0 100%);z-index:3;pointer-events:none;}
+.cafe-orders {position:absolute;top:11%;left:4%;right:4%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5%;z-index:4;}
+.cafe-order-bubble {background:#fff0d0 url('/art/reference-v1/ui-slot.png') center/100% 100%;width:90%;max-width:82px;justify-self:center;padding:6px;border:1px solid #705431;position:relative;}
+.cafe-order-bubble::after {content:'';position:absolute;bottom:-6px;left:40%;border-left:6px solid transparent;border-right:6px solid transparent;border-top:6px solid #e8d6ad;}
+.cafe-order-bubble canvas {display:block;width:clamp(30px,6.5vw,54px);max-width:100%;height:auto;margin:auto;image-rendering:pixelated;}
+.cafe-order-bubble progress {display:block;width:100%;height:8px;border:1px solid #705431;background:#aa987b;appearance:none;}
+.cafe-order-bubble progress::-webkit-progress-bar {background:#a69475;}
+.cafe-order-bubble progress::-webkit-progress-value {background:#69ac61;}
+.cafe-order-bubble progress::-moz-progress-bar {background:#69ac61;}
+html #worldPanel .world-cafe-stations {position:absolute;left:2%;right:2%;top:66%;margin:0;gap:2%;grid-template-columns:repeat(4,minmax(0,1fr));z-index:5;}
+html #worldPanel .world-cafe-stations article {padding:0;border:0;background:none;display:block;min-width:0;}
+html #worldPanel .world-cafe-stations button {min-height:34px;padding:5px 2px;font-size:12px;color:#fff6d6;background-image:url('/art/reference-v1/ui-blue.png');box-shadow:0 2px 0 #4d3527;}
+html #worldPanel .world-cafe-stations article:nth-child(2) button {background-image:url('/art/reference-v1/ui-red.png');}
+html #worldPanel .world-cafe-stations article:nth-child(3) button {background-image:url('/art/reference-v1/ui-gold.png');color:#402818;}
+html #worldPanel .world-cafe-stations article:nth-child(4) button {background-image:url('/art/reference-v1/ui-leaf.png');}
+html #worldPanel .world-cafe-stations article[data-active='true'] button {outline:2px solid #fff0b1;outline-offset:2px;filter:brightness(1.08);}
+html #worldPanel .world-cafe-stations button:disabled {opacity:.85;filter:saturate(.55) brightness(.82);}
+.cafe-counter-front {position:absolute;display:flex;gap:2%;width:95%;height:28%;left:2.5%;bottom:0;z-index:4;pointer-events:none;}
+.cafe-counter-front img {width:49%;height:100%;object-fit:contain;image-rendering:pixelated;}
+.cafe-steam {position:absolute;left:61%;top:39%;width:10%;height:20%;z-index:5;pointer-events:none;}
+.cafe-steam[hidden] {display:none;}
+.cafe-steam span {position:absolute;width:4px;height:20px;background:#fff5d9b0;top:0;left:20%;animation:cafe-steam 1500ms linear infinite;}
+.cafe-steam span:nth-child(2) {left:50%;animation-delay:500ms;}
+.cafe-steam span:nth-child(3) {left:80%;animation-delay:1000ms;}
+@keyframes cafe-steam {from {transform:translateY(24px) rotate(-15deg);opacity:0;} 40% {opacity:.8;} to {transform:translateY(-16px) rotate(18deg);opacity:0;}}
+html #worldPanel[data-page='cafe'] .world-cafe-order {padding:5px;border:0;background:#213f2cd9;gap:8px;}
+html #worldPanel[data-page='cafe'] .world-cafe-order canvas {width:34px;height:34px;}
+html #worldPanel[data-page='cafe'] .world-card-title {font-size:12px;}
+html #worldPanel[data-page='cafe'] .world-frame>div>p {font-size:11px;margin:4px;}
+.cafe-footer-actions {display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:8px;}
+html #worldPanel .cafe-ready {min-width:46%;font:700 23px 'Pixelify Sans','Noto Sans Thai',sans-serif;min-height:46px;}
+.cafe-footer-actions select {font-size:11px;max-width:44%;}
+@media(max-width:680px){
+  html #casino .pok-panel {padding:4px;border-width:6px;border-image-width:6px;}
+  html #casino .pok-panel header {min-height:64px;}
+  html #casino .pok-panel h2 {width:55%;font-size:20px;margin-top:20px;}
+  html #casino .pok-header-actions {max-width:100%;gap:3px;}
+  html #casino .pok-header-actions button {font-size:9px;padding:4px 5px;min-height:24px;}
+  html #casino .pok-arena {aspect-ratio:.9;}
+  html #casino .pok-seat {width:58px;height:64px;}
+  html #casino .pok-seat::before {width:43px;height:52px;bottom:11px;}
+  html #casino .pok-avatar {width:38px;height:51px;bottom:16px;}
+  html #casino .pok-avatar canvas {width:38px;height:51px;}
+  html #casino .pok-seat-name {font-size:8px;line-height:12px;width:64px;}
+  html #casino .pok-seat-stake {font-size:8px;bottom:-12px;}
+  html #casino .pok-seat.dealer .pok-avatar::before {width:18px;height:18px;top:-10px;left:10px;}
+  html #casino .pok-seat .pok-cards {top:21px;left:44px;width:57px;}
+  html #casino .pok-seat[data-position='5'] .pok-cards,html #casino .pok-seat[data-position='6'] .pok-cards,html #casino .pok-seat[data-position='7'] .pok-cards {right:44px;left:auto;}
+  html #casino .pok-seat[data-position='4'] .pok-cards {top:49px;left:1px;}
+  html #casino .pok-seat[data-position='0'] .pok-cards {top:-18px;left:1px;}
+  html #casino .pok-seat .pok-card {width:22px;height:32px;}
+  html #casino .pok-seat.empty button {min-height:26px;width:46px;bottom:24px;font-size:8px;}
+  html #casino .pok-seat .pok-result {font-size:7px;line-height:10px;width:70px;bottom:-25px;left:-6px;}
+  html #casino .pok-table-center {top:46%;width:35%;}
+  html #casino .pok-table-brand {font-size:10px;}
+  html #casino .pok-table-round,html #casino .pok-center-phase {font-size:8px;}
+  html #casino #pokTotalBet {font-size:8px;}
+  html #casino #pokTimer {font-size:12px;}
+  html #casino #pokHand {width:140px;bottom:8%;}
+  html #casino #pokHandCards .pok-card.large {width:43px;height:63px;}
+  html #casino #pokHandCards .pok-card-slot+.pok-card-slot {margin-left:-12px;}
+  html #casino .pok-card.large .pok-rank {font-size:11px;}
+  html #casino #pokHandValue {font-size:10px;line-height:13px;}
+  .pok-action-dock {grid-template-columns:minmax(110px,.85fr) minmax(0,1.3fr);gap:6px;}
+  html #casino #pokWallet .gold-amount {font-size:19px;}
+  html #casino #pokWallet .gold-balance.wide .gold-amount {font-size:13px;}
+  html #casino #pokWallet .gold-balance.very-wide .gold-amount {font-size:8px;}
+  html #casino #pokWallet .gold-unit {font-size:9px;}
+  html #casino #pokWallet .pixel-coin {width:17px;height:17px;flex-basis:17px;}
+  html #casino #pokWallet {padding:4px;}
+  html #casino .pok-dock-buttons {gap:4px;}
+  html #casino .pok-dock-buttons button {font-size:16px;min-height:68px;}
+  html #casino [data-action='start'] {font-size:11px;}
+  html #casino .pok-amount-row {grid-template-columns:26px minmax(0,1fr) 26px;gap:2px;}
+  html #casino .pok-amount-row button {min-height:31px;}
+  html #casino #pokBetAmount {font-size:17px;}
+  html #fishingPanel {bottom:76px;right:8px;width:calc(100vw - 16px);padding:7px;border-width:6px;border-image-width:6px;}
+  html #fishingPanel .activity-plaque {line-height:34px;font-size:21px;}
+  html #worldPanel[data-page='cafe'] .world-frame {border-width:7px;border-image-width:7px;}
+  html #worldPanel .world-cafe-stations button {font-size:9px;min-height:29px;padding:3px 1px;}
+  .cafe-worker-name {font-size:8px;top:57%;}
+  .cafe-order-bubble {border:0;padding:4px;}
+  .cafe-orders {top:6%;}
+  .cafe-order-bubble progress {height:5px;}
+  html #worldPanel .cafe-ready {font-size:18px;}
+  html #worldPanel[data-page='cafe'] .world-card-title {font-size:10px;}
+}
+@media(prefers-reduced-motion:reduce){.cafe-steam span {animation:none;opacity:.35;transform:none;} }
