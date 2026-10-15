@@ -38,6 +38,8 @@ export const SEEDS = [
   { id:"wheat",name:"ข้าวสาลี",growMs:120000,color:0xe0c570 },
 ] as const;
 export type SeedId = typeof SEEDS[number]["id"];
+/** Same plot anchors for world crops, inline controls and authoritative range validation. */
+export const FARM_PLOTS=Array.from({length:6},(_,slot)=>({slot,nodeId:slot<4?'farm-plots':'greenhouse',x:slot<4?410+(slot%2)*130:984+(slot-4)*78,y:slot<4?379+Math.floor(slot/2)*80:312}));
 export const ITEMS: Record<string, { name: string; icon: string; category: string }> = {
   'garden-salad':{name:'สลัดสวน',icon:'🥗',category:'อาหาร'},
   'forest-soup':{name:'ซุปเห็ดอุ่นใจ',icon:'🍲',category:'อาหาร'},

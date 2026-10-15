@@ -13,6 +13,7 @@ import {catalogue,bagEntries,bagQuantity} from './inventory';
 import {VILLAGE_ORDERS,SKILL_NAMES,villageLevel} from '../../../shared/village';
 import {CozyUI} from './CozyUI';
 import {RECIPES,FURNITURE} from '../../../shared/cozy';
+import {DirectFarmUI} from './DirectFarmUI';
 const STATIONS=["รับออร์เดอร์","เตรียม","ปรุง","เสิร์ฟ"];
 const COLLECTION_HINTS:Record<string,string>={
   butterfly:"ป่าน้ำตก · ผีเสื้อฟ้าตามทาง",beetle:"ป่าน้ำตก · ด้วงทองฝั่งตะวันออก",firefly:"ป่าน้ำตก · ตอนเย็นหรือกลางคืน",
@@ -41,7 +42,6 @@ export class WorldUI {
   private category='ทั้งหมด';
   private grounds=new Map<MapId,HTMLCanvasElement>();
   private node?:WorldNode;
-  private owner="";
   private recipe="salad";
   private signature="";
   private pending=false;
@@ -60,7 +60,9 @@ export class WorldUI {
   private fishDiscoveries:string[]=[];
   private villageConfirmation?:{verb:'order-submit'|'museum-donate';id:string};
   private cozyUI=new CozyUI();
+  private farm:DirectFarmUI;
   constructor(private room:Room,private scene:TownScene) {
+    this.farm=new DirectFarmUI(scene,(verb,payload)=>this.send(verb,payload));
     this.toolbar.id="worldToolbar";this.minimap.width=120;this.minimap.height=72;this.minimap.setAttribute("aria-label","แผนที่ย่อและตำแหน่งของคุณ");
     const bag=this.button('กระเป๋า',()=>this.open('inventory'));bag.id='worldBagButton';bag.setAttribute('aria-label','กระเป๋า');bag.title='กระเป๋า · B';this.bagCount.className='bag-count';this.bagCount.setAttribute('aria-hidden','true');bag.prepend(bagCanvas());bag.append(this.bagCount);
     this.toolbar.append(this.mapLabel,this.minimap,this.button("🧭 แผนที่",()=>this.open("map")),this.button("สมุดสะสม",()=>this.open("collection")),bag);
@@ -93,16 +95,18 @@ export class WorldUI {
       if(event.key==="Escape"&&!this.panel.hidden){event.preventDefault();this.close();return;}
       if(event.code!=="KeyE"||event.repeat||this.scene.casinoOpen||!this.panel.hidden)return;
       if((event.target as HTMLElement)?.closest("input,textarea,select,button,[contenteditable]"))return;
+      if(this.farm.primary()){event.preventDefault();return;}
       if(this.node){event.preventDefault();this.activate();}
     },{signal:this.controller.signal});
     const timer=window.setInterval(()=>this.update(),200);
-    this.room.onLeave(()=>{this.controller.abort();window.clearInterval(timer);window.clearTimeout(this.pendingTimer);window.clearTimeout(this.toastTimer);this.toast.remove();this.close();this.toolbar.remove();this.interact.remove();this.panel.remove();});
+    this.room.onLeave(()=>{this.farm.destroy();this.controller.abort();window.clearInterval(timer);window.clearTimeout(this.pendingTimer);window.clearTimeout(this.toastTimer);this.toast.remove();this.close();this.toolbar.remove();this.interact.remove();this.panel.remove();});
     this.room.send("world:sync",{});
     const direct=(id:string)=>{const node=WORLD_NODES.find(n=>n.id===id);const p=this.player();if(node&&p&&node.map===p.mapId&&Math.hypot(p.x-node.x,p.y-node.y)<=100){this.node=node;this.activate();}};
     this.scene.interactions?.on('world:interact',direct);
     this.room.onLeave(()=>this.scene.interactions?.off('world:interact',direct));
     const wild=(id:string)=>{const node=this.wildlifeNode(id),p=this.player();if(node&&p&&Math.hypot(p.x-node.x,p.y-node.y)<=100){this.node=node;this.activate();}};
     this.scene.interactions?.on('world:wildlife',wild);this.room.onLeave(()=>this.scene.interactions?.off('world:wildlife',wild));
+    const plot=(slot:number)=>{this.farm.select(slot);this.update();};this.scene.interactions?.on('world:plot',plot);this.room.onLeave(()=>this.scene.interactions?.off('world:plot',plot));
   }
   private button(label:string,run:()=>void,disabled=false) {
     const b=document.createElement("button");b.type="button";b.textContent=label;b.disabled=disabled;b.addEventListener("click",run);return b;
@@ -116,6 +120,7 @@ export class WorldUI {
   }
   private activate(){
     if(!this.node||this.scene.casinoOpen)return;
+    if(this.node.kind==='farm'||this.node.kind==='greenhouse'){this.farm.primary();return;}
     if(this.node.id.startsWith('wildlife:')){this.send('catch',{wildlifeId:this.node.id.split(':')[2]});return;}
     if(['bug','mushroom','rare','shell','treasure','cleanup','animal','water'].includes(this.node.kind)){
       this.send(this.node.kind==='water'?'refill':this.node.kind==='animal'?'feed':'collect');
@@ -128,7 +133,7 @@ export class WorldUI {
     this.pendingTimer=window.setTimeout(()=>{this.pending=false;this.notice.textContent="ยังไม่ได้รับการยืนยัน กรุณารอแล้วลองใหม่";this.render(true);},12000);
     this.render(true);
   }
-  private open(page:string) {if(!this.view||this.scene.casinoOpen)return;this.page=page;this.panel.hidden=false;this.scene.worldOpen=true;document.body.classList.add("world-ui-open");this.notice.textContent="";this.render(true);}
+  private open(page:string) {if(!this.view||this.scene.casinoOpen||page==='farm'||page==='greenhouse')return;this.page=page;this.panel.hidden=false;this.scene.worldOpen=true;document.body.classList.add("world-ui-open");this.notice.textContent="";this.render(true);}
   private close(){this.cozyUI.reset();this.villageConfirmation=undefined;this.panel.hidden=true;this.scene.worldOpen=false;document.body.classList.remove("world-ui-open");}
   private update() {
     const p=this.player();if(!p)return;
@@ -138,7 +143,8 @@ export class WorldUI {
     this.room.state?.wildlife?.forEach((_animal:WildlifeView,id:string)=>{const node=this.wildlifeNode(id);if(node&&(this.view?.progress.cooldowns[node.id]??0)<=Date.now())nearby.push(node);});
     if(this.panel.hidden)this.node=nearby.filter(n=>Math.hypot(p.x-n.x,p.y-n.y)<=100).sort((a,b)=>Math.hypot(p.x-a.x,p.y-a.y)-Math.hypot(p.x-b.x,p.y-b.y))[0];
     this.bagCount.textContent=String(this.view?bagQuantity(this.view.progress,this.fish):0);
-    this.interact.hidden=!this.node||this.scene.casinoOpen||!this.panel.hidden||p.activity==="boat";
+    this.farm.update(this.view,p,this.scene.casinoOpen||!this.panel.hidden||p.activity==='boat',this.pending);
+    this.interact.hidden=!this.node||this.scene.casinoOpen||!this.panel.hidden||p.activity==="boat"||this.node.kind==='farm'||this.node.kind==='greenhouse';
     this.interact.textContent=this.node?this.node.name+" · E / แตะ":"";
     const cooldown=this.view?.progress.cooldowns[this.node?.kind==='water'?'refill':this.node?.kind==='animal'?'feed':this.node?.id??'']??0;
     this.interact.disabled=this.pending||cooldown>Date.now();
@@ -179,7 +185,6 @@ export class WorldUI {
     if(this.page==='cooking'){this.title.textContent='ครัวส่วนตัว · ปรุงอาหาร';this.body.append(this.button('กลับไปครัวทีม',()=>this.open('cafe')));}
     if(['home','community','cooking'].includes(this.page)){this.cozyUI.render(this.page,this.view,this.fish,this.body,this.player()?.playerId,this.pending,(verb,payload)=>this.send(verb,payload),()=>this.render(true),id=>{let player:any;this.room.state?.players?.forEach((p:any)=>{if(p.playerId===id)player=p;});if(!player||typeof player.color!=='number')return;const person=document.createElement('div');person.append(renderCharacterCanvas(playerToLook(player),'down',0,'seated'),this.text(player.name??'เพื่อน'));return person;});return;}
     if(this.page==='orders'||this.page==='museum'){this.villagePage();return;}
-    if(["farm","greenhouse"].includes(this.page)){this.farmPage();return;}
     if(this.page==="cafe"){this.cafePage();return;}
     if(this.page==="shop"){this.shopPage();return;}
     if(this.page==="stage"){
@@ -323,26 +328,6 @@ export class WorldUI {
       const grid=document.createElement('div');grid.className='village-orders';for(const id of [...FISH_SPECIES.map(f=>f.id),'bee','ladybug','butterfly','beetle','firefly']){const card=document.createElement('article');card.dataset.specimen=id;card.append(itemCanvas(id),this.text(name(id),'world-card-title'),this.text(v.museum.includes(id)?'จัดแสดงถาวรแล้ว ✓':'มีในกระเป๋า '+stock(id)));
         card.append(this.button(v.museum.includes(id)?'มอบแล้ว':'ตรวจรายการมอบตัวอย่าง',()=>{this.villageConfirmation={verb:'museum-donate',id};this.render(true);},this.pending||v.museum.includes(id)||stock(id)<1));grid.append(card);}this.body.append(grid);
     }
-  }
-  private farmPage() {
-    const water=document.createElement('div');water.className='water-supply';water.append(this.text('💧 น้ำของคุณ '+(this.view!.progress.water??2)+' หน่วย'));
-    water.append(this.button('＋ ไปตักน้ำ',()=>{this.close();this.scene.navigateTo([{x:800,y:520}]);}));this.body.append(water);
-    const mine=this.player()?.playerId,farms=this.view!.farms;
-    if(!this.owner||!farms.some(f=>f.id===this.owner))this.owner=mine;
-    const select=document.createElement("select");select.setAttribute("aria-label","เลือกแปลงเจ้าของ");for(const farm of farms){const opt=document.createElement("option");opt.value=farm.id;opt.textContent=farm.name+(farm.id===mine?" (คุณ)":"");select.append(opt);}select.value=this.owner;
-    select.addEventListener("change",()=>{this.owner=select.value;this.render(true);});this.body.append(select);
-    const farm=farms.find(f=>f.id===this.owner);if(!farm)return;
-    if(farm.id===mine)this.body.append(this.button(farm.allowHelp?"ปิดให้เพื่อนช่วยรดน้ำ":"เปิดให้เพื่อนช่วยรดน้ำ",()=>this.send("allow-help",{ownerId:mine,allow:!farm.allowHelp}),this.pending));
-    else this.body.append(this.text(farm.allowHelp?"เจ้าของอนุญาตให้ช่วยรดน้ำ":"เจ้าของยังไม่อนุญาต · เก็บเกี่ยวได้เฉพาะเจ้าของ"));
-    const grid=document.createElement("div");grid.className="world-collection";
-    const slots=this.page==="greenhouse"?[4,5]:[0,1,2,3];
-    for(const slot of slots){const crop=farm.plots[slot],card=document.createElement("article");card.append(this.text("แปลง "+(slot+1),"world-card-title"));
-      if(!crop){card.append(this.text("เลือกเมล็ด · ปลูกฟรี"));for(const seed of SEEDS){const button=this.button("ปลูก"+seed.name,()=>this.send("plant",{ownerId:this.owner,slot,seed:seed.id}),this.pending||this.owner!==mine);button.className='seed-choice';button.prepend(itemCanvas(seed.id));card.append(button);}}
-      else {card.append(itemCanvas(crop.seed),this.text(SEEDS.find(s=>s.id===crop.seed)!.name));const timer=this.text("");timer.dataset.readyAt=String(crop.readyAt);card.append(timer,this.text(crop.watered?"รดน้ำแล้ว":"ต้องรดน้ำ"));
-        const growth=document.createElement('progress');growth.max=1;growth.value=Math.min(1,(Date.now()-crop.plantedAt)/(crop.readyAt-crop.plantedAt));growth.setAttribute('aria-label','การเติบโต');card.append(growth);
-        card.append(this.button("💧 รดน้ำ −1",()=>this.send("water",{ownerId:this.owner,slot}),this.pending||crop.watered||(this.view!.progress.water??2)<=0||(this.owner!==mine&&!farm.allowHelp)),this.button("เก็บเกี่ยว",()=>this.send("harvest",{ownerId:this.owner,slot}),this.pending||this.owner!==mine||!crop.watered||Date.now()<crop.readyAt));}
-      grid.append(card);
-    }this.body.append(grid,this.text("ผักเติบโตต่อเมื่อออกเกม · เมล็ดฟรี · แปลงและผลผลิตเก็บที่เซิร์ฟเวอร์"));
   }
   private cafePage(){
     this.title.textContent='CAFE';

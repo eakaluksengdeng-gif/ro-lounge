@@ -9,6 +9,7 @@ import { planRoute } from "../world/PathPlanner";
 import { ensureCosmetics } from "../world/Cosmetics";
 import { WORLD_NODES, type MapId, type WorldView } from "../../../shared/regions";
 import {ProjectScenery} from '../world/ProjectScenery';
+import {FARM_PLOTS} from '../../../shared/regions';
 import { CATCHABLE_BUGS,wildlifeCatchKey,type WildlifeView } from '../../../shared/nature';
 import { CASINO_BUILDING, CASINO_DOOR } from "../../../shared/casinoWorld";
 import { HAIR_COLORS as HAIR, SKIN_COLORS as SKIN, PANTS_COLORS as PANTS } from "../character/appearance";
@@ -68,6 +69,7 @@ export class TownScene extends Phaser.Scene {
   private mapObjects: Phaser.GameObjects.GameObject[] = [];
   private worldRenderer?: WorldRenderer;
   private worldView?: WorldView;
+  farmOwner?:string;
   private projectScenery?:ProjectScenery;
   setWorldView(view:WorldView) {this.worldView=view;}
   wildlifeAvailable(id:string){return (this.worldView?.progress.cooldowns[wildlifeCatchKey(this.map,id)]??0)<=Date.now();}
@@ -111,9 +113,11 @@ export class TownScene extends Phaser.Scene {
     // คลิกพื้นเพื่อเดิน
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
       // Phaser can receive document-level pointer events over HTML overlays.
-      if (!(p.event?.target instanceof HTMLCanvasElement)) return;
+      if (p.event?.target !== this.game.canvas) return;
       if (this.casinoOpen || this.worldOpen) return;
       const me=this.room.state.players.get(this.room.sessionId);
+      const plot=me?.mapId==='farm'&&FARM_PLOTS.find(plot=>Math.hypot(p.worldX-plot.x,p.worldY-plot.y)<36&&Math.hypot(me.x-plot.x,me.y-plot.y)<=100);
+      if(plot){this.interactions.emit('world:plot',plot.slot);return;}
       let wildlifeId:string|undefined;
       this.room.state.wildlife.forEach((animal:WildlifeView,id:string)=>{if(me&&this.wildlifeAvailable(id)&&CATCHABLE_BUGS[animal.kind]&&Math.hypot(me.x-animal.x,me.y-animal.y)<=100&&Math.hypot(p.worldX-animal.x,p.worldY-(animal.y-16))<32)wildlifeId=id;});
       if(wildlifeId){this.interactions.emit('world:wildlife',wildlifeId);return;}
@@ -235,7 +239,7 @@ export class TownScene extends Phaser.Scene {
     this.nature?.update(_t, dtMs);
     const me = this.room.state?.players?.get(this.room.sessionId);
     if(me&&(me.mapId??"town")!==this.map)this.rebuildMap(me.mapId);
-    this.worldRenderer?.update(this.worldView,this.room.state?.weather??"sunny");
+    this.worldRenderer?.update(this.worldView,this.room.state?.weather??"sunny",this.farmOwner);
     this.projectScenery?.update(this.map,this.worldView);
     if (me) gameSounds.setNearWater(this.map==="beach"&&me.y>530 || this.map==="forest"&&Math.hypot(me.x-780,me.y-210)<260 || this.map==="town"&&(Math.hypot(me.x - FOUNTAIN.x, me.y - FOUNTAIN.y) < 130 ||
       Math.hypot(me.x - POND.cx * TILE_PX, me.y - POND.cy * TILE_PX) < 180));

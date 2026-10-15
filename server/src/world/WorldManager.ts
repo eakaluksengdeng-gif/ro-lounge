@@ -9,6 +9,7 @@ import {FISH_SPECIES} from '../../../shared/nature';
 import type {FishingManager} from '../nature/FishingManager';
 import {CozyManager} from './CozyManager';
 import {cozyFresh} from '../../../shared/cozy';
+import {FARM_PLOTS} from '../../../shared/regions';
 export interface WorldActor { id:string; name:string; map:MapId; x:number; y:number; inCasino?:boolean; }
 const fresh = ():Progress => ({map:"town",water:2,inventory:{},discovered:[],plots:Array(6).fill(null),allowHelp:false,unlocks:["none"],equipped:"none",cooldowns:{}});
 const cafeFresh = ():CafeView => ({phase:"lobby",members:[],host:null,deadline:null,order:0,served:0,recipe:"สลัดสวน",roundId:null});
@@ -67,7 +68,8 @@ export class WorldManager {
         node={id:wildlifeCatchKey(actor.map,id),map:actor.map,x:animal.x,y:animal.y,kind:'bug',name:bug.name,item:bug.item};
       }else node=WORLD_NODES.find(node=>node.id===msg.nodeId);
       requireGame(node&&node.map===actor.map,"WRONG_MAP","กิจกรรมนี้อยู่ในแมพอื่น");
-      requireGame(Math.hypot(actor.x-node.x,actor.y-node.y)<=100,"TOO_FAR","เดินเข้าใกล้จุดกิจกรรมก่อน");
+      const plot=verb==='allow-help'?FARM_PLOTS.find(p=>p.nodeId===node!.id&&Math.hypot(actor.x-p.x,actor.y-p.y)<=100):['plant','water','harvest'].includes(verb)?FARM_PLOTS.find(p=>p.slot===msg.slot&&p.nodeId===node!.id):undefined;
+      requireGame(Math.hypot(actor.x-node.x,actor.y-node.y)<=100||!!plot&&Math.hypot(actor.x-plot.x,actor.y-plot.y)<=100,"TOO_FAR","เดินเข้าใกล้จุดกิจกรรมก่อน");
       if(verb==='cook'||verb.startsWith('home-')||verb==='project-contribute'||verb.startsWith('picnic-')||verb==='festival-claim'){
         notice=this.cozy.action(actor.id,p,node,verb,msg,cost=>this.consumeMaterials(actor.id,p,cost),(item,n)=>this.add(p,item,n));this.commit(actor.id,p);
       }else if(verb==='order-submit'||verb==='museum-donate'){

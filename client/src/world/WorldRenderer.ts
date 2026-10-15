@@ -5,6 +5,7 @@ import { mulberry32 } from "../art";
 import { buildNatureTextures } from "../nature/art";
 import { artImage } from "../reference/Assets";
 import { groundCanvas } from "../reference/WorldArt";
+import {FARM_PLOTS} from '../../../shared/regions';
 const FONT='"Noto Sans Thai",Arial,sans-serif';
 export class WorldRenderer {
   private motion=window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -65,7 +66,7 @@ export class WorldRenderer {
       const icon=({mushroom:'mushroom',shell:node.id==='shell-a'?'shell':'pearl',cleanup:'cleanup',treasure:'treasure'} as Record<string,string>)[node.kind];
       if(icon)this.image('icon-'+icon,node.x,node.y+8,42);
     }
-    if(this.map==='farm')for(let i=0;i<6;i++)this.crops.push(this.image('icon-carrot',i<4?410+(i%2)*130:984+(i-4)*78,i<4?379+Math.floor(i/2)*80:312,42).setVisible(false));
+    if(this.map==='farm')for(const plot of FARM_PLOTS){this.scene.add.text(plot.x,plot.y+16,String(plot.slot+1),{fontFamily:FONT,fontSize:'12px',color:'#fff1c9',backgroundColor:'#654e38',padding:{x:4,y:1}}).setOrigin(.5).setDepth(plot.y+18);this.crops.push(this.image('icon-carrot',plot.x,plot.y,42).setVisible(false));}
     this.boat=this.image('icon-voyager',1080,690,100).setVisible(false);
     this.water=this.scene.add.graphics().setDepth(-990);
     this.drawExits();
@@ -84,7 +85,7 @@ export class WorldRenderer {
       this.scene.add.text(x,y-20,arrow+' '+MAP_NAMES[next],{fontFamily:FONT,fontSize:'12px',color:'#fff1d5'}).setOrigin(.5).setDepth(y+1);
     }
   }
-  update(view:WorldView|undefined,weather='sunny'){
+  update(view:WorldView|undefined,weather='sunny',owner?:string){
     const t=this.motion.matches?0:this.scene.time.now;
     for(const moving of this.movingSprites){moving.sprite.setVisible((view?.progress.cooldowns[moving.id]??0)<=Date.now()&&(moving.id!=='forest-rare'||weather==='snow')&&(moving.id!=='bug-firefly'||Math.floor(Date.now()/300000)%4>=2));moving.sprite.setPosition(moving.x+Math.round(Math.sin(t/1300+moving.x)*9),moving.y+Math.round(Math.cos(t/850+moving.x)*5));moving.sprite.setTexture('nature-'+moving.kind+'-'+Math.floor(t/220)%2);}
     this.fire?.setScale(.84+Math.sin(t/180)*.015);
@@ -92,7 +93,7 @@ export class WorldRenderer {
     if(this.map==='forest')for(let i=0;i<6;i++)this.water?.fillStyle(0xe4ffff,.65).fillRect(752+i*7,90+(Math.floor(t/60+i*6)%110),3,12);
     if(this.map==='beach')for(let i=0;i<8;i++)this.water?.fillStyle(0xe4ffff,.5).fillRect(i*180+(Math.floor(t/110)%20)*3,626+Math.floor(Math.sin(t/800+i)*3),48,3);
     if(this.map==='farm')this.crops.forEach((sprite,i)=>{
-      const crop=view?.progress.plots[i];sprite.setVisible(!!crop);if(!crop)return;
+      const crop=(owner?view?.farms.find(f=>f.id===owner)?.plots:view?.progress.plots)?.[i];sprite.setVisible(!!crop);if(!crop)return;
       const age=Math.max(0,(Date.now()-crop.plantedAt)/Math.max(1,crop.readyAt-crop.plantedAt));
       const stage=Math.min(crop.watered?3:2,Math.floor(age*4));
       const key='ref-icon-'+crop.seed;if(!this.scene.textures.exists(key))this.scene.textures.addImage(key,artImage('icon-'+crop.seed));
