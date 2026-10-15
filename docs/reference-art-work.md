@@ -45,7 +45,7 @@ Use case: background-extraction. Edit target: the generated 18-sprite RO Lounge 
 - [x] Prepare and validate frame alignment and transparency.
 - [x] Generate remaining character/environment/UI asset families.
 - [x] Replace all game surfaces and integrate rendering.
-- [ ] Regression tests, live publication and visual verification.
+- [x] Regression tests, live publication and visual verification.
 
 ## Implemented
 
@@ -63,4 +63,14 @@ Use case: background-extraction. Edit target: the generated 18-sprite RO Lounge 
 Server: 56 tests and TypeScript passed. Client: build/typecheck, reference asset tests, character creator, 52 card faces/readable amounts, table/private-hand animation and responsive layout, casino repeated rounds/payout/exit, wildlife/weather/fishing reward/gauge, quiet music/effects, and five-map ownership/café/collection/persistence browser tests were exercised. Final browser rerun and live release check are tracked below.
 
 The reference asset test verifies all 140 raster assets decode without missing requests, every appearance option changes pixels, creator and wire colors produce identical sprites, alpha transparency and unchanged world footprint. Browser screenshots are inspected, including 320/390px layouts. Final visual fixes prevent atlas roof pixels leaking into water and preserve cottage aspect ratios.
+
+## Published release
+
+- PR #18 merged on 2026-10-15; production merge `ea7ef68c209f37927a370fa83414b145f5a433e0`, Vercel status success.
+- Final local five-map/browser regression and real repeated-round casino test passed after the final atlas/portrait fixes.
+- Live `https://ro-lounge.vercel.app/` black-box verification passed at 01:24 UTC: 140 assets decoded, all five actual map transitions, raster collection/filter, eight-seat inn spectator UI, 390/320px layout, no missing art requests or page errors.
+- Live creator test passed, including appearance changes, keyboard, mobile, refresh and unavailable storage.
+- The isolated test Guest kept exactly 100 chips: production visual QA does not sit/bet/start, collect items or join other players' kitchens. Existing players and wallets are not reset.
+- Backend `/version` stayed `cozy-world-v1`, `durableStorage: true`, commit `d1fbe710cdadbbd634e21d55cf56a78be4595436` before/after the frontend release. No backend deployment/restart or database changes.
+- Reproduce production visual smoke: `cd client && E2E_URL=https://ro-lounge.vercel.app/ RO_QA_OUTPUT=data/reference-art-live node test/reference-art.live.e2e.mjs`. Screenshots/report are generated locally under the selected ignored output directory.
 
