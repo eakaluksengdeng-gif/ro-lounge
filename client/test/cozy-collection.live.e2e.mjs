@@ -10,12 +10,17 @@ try{
  const art=await page.request.get(new URL('/art/cozy-v3/fountain-garden.png',url).href);assert.equal(art.status(),200);report.checks.push('new generated fountain and cozy-v3 assets decoded');
  await page.locator('#nameInput').fill('Cozy Bag QA');await page.getByRole('button',{name:'เข้าเมือง',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#worldToolbar strong')?.textContent==='เมืองกลาง',null,{timeout:90000});await page.waitForTimeout(800);
  assert.equal(await page.locator('#worldBagButton canvas').count(),1);await page.screenshot({path:join(out,'town.png')});
+ await page.getByRole('button',{name:'กระเป๋า',exact:true}).click();assert.equal(await page.locator('#worldPanel h2').innerText(),'กระเป๋าของฉัน');assert.equal(await page.locator('[data-item]').count(),0);assert.match(await page.locator('.inventory-empty').innerText(),/ยังไม่มีของ/);
+ await page.getByRole('button',{name:'เปิดสมุดสะสม',exact:true}).click();assert.equal(await page.locator('#worldPanel h2').innerText(),'สมุดสะสม');assert.ok(await page.locator('[data-item].world-locked').count()>0);
+ await page.getByRole('button',{name:'เปิดกระเป๋าของจริง',exact:true}).click();assert.equal(await page.locator('[data-item]').count(),0);await page.locator('#worldPanel').getByRole('button',{name:'ปิด',exact:true}).click();report.checks.push('empty real backpack is distinct from journal silhouettes; no zero stacks in bag');
  await page.mouse.click(430,460);await page.waitForFunction(()=>{const b=document.querySelector('#worldInteract');return b&&!b.hidden&&!b.disabled&&/จับผีเสื้อ|จับผึ้ง|จับเต่าทอง/.test(b.textContent);},null,{timeout:35000});
  await page.locator('#worldInteract').click();await page.waitForFunction(()=>document.querySelector('#worldToast')?.textContent.includes('สำเร็จ +1'),null,{timeout:20000});
  assert.equal(await page.locator('#worldPanel').isVisible(),false);await page.waitForFunction(()=>document.querySelector('#worldBagButton .bag-count')?.textContent==='1');
  report.checks.push('actual nearby roaming bug captured without modal; real bag count becomes one');
  await page.getByRole('button',{name:'กระเป๋า',exact:true}).click();await page.getByRole('button',{name:'แมลง',exact:true}).click();
  await page.locator('.collection-book [data-item]').filter({hasText:'× 1'}).first().click();assert.match(await page.locator('.collection-inspector').innerText(),/ในกระเป๋า × 1/);
+ assert.equal(await page.locator('[data-item]').count(),1);assert.equal(await page.locator('.inventory-book .world-locked').count(),0);const caughtId=await page.locator('[data-item]').getAttribute('data-item');
+ await page.getByRole('button',{name:'เปิดสมุดสะสม',exact:true}).click();assert.equal(await page.locator('[data-item="'+caughtId+'"]').evaluate(el=>el.classList.contains('world-locked')),false);await page.getByRole('button',{name:'เปิดกระเป๋าของจริง',exact:true}).click();await page.getByRole('button',{name:'แมลง',exact:true}).click();
  await page.waitForTimeout(2600);await page.screenshot({path:join(out,'collection.png')});
  for(const width of [390,320]){await page.setViewportSize({width,height:864});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:join(out,'collection-'+width+'.png')});}
  await page.reload();await page.getByRole('button',{name:'เข้าเมือง',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#worldBagButton .bag-count')?.textContent==='1',null,{timeout:90000});

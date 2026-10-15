@@ -9,6 +9,7 @@ import { renderCharacterCanvas, type CharacterPose } from "../art";
 import "./world.css";
 import { groundCanvas } from '../reference/WorldArt';
 import { bagCanvas } from './bag';
+import {catalogue,bagEntries,bagQuantity} from './inventory';
 const STATIONS=["รับออร์เดอร์","เตรียม","ปรุง","เสิร์ฟ"];
 const COLLECTION_HINTS:Record<string,string>={
   butterfly:"ป่าน้ำตก · ผีเสื้อฟ้าตามทาง",beetle:"ป่าน้ำตก · ด้วงทองฝั่งตะวันออก",firefly:"ป่าน้ำตก · ตอนเย็นหรือกลางคืน",
@@ -45,6 +46,10 @@ export class WorldUI {
   private controller=new AbortController();
   private selectedItem='';
   private bagCount=document.createElement('span');
+  private inventoryCategory='ทั้งหมด';
+  private inventoryQuery='';
+  private inventorySort='name';
+  private journalFilter='all';
   constructor(private room:Room,private scene:TownScene) {
     this.toolbar.id="worldToolbar";this.minimap.width=120;this.minimap.height=72;this.minimap.setAttribute("aria-label","แผนที่ย่อและตำแหน่งของคุณ");
     const bag=this.button('กระเป๋า',()=>this.open('inventory'));bag.id='worldBagButton';bag.setAttribute('aria-label','กระเป๋า');bag.title='กระเป๋า · B';this.bagCount.className='bag-count';this.bagCount.setAttribute('aria-hidden','true');bag.prepend(bagCanvas());bag.append(this.bagCount);
@@ -122,7 +127,7 @@ export class WorldUI {
     const nearby=WORLD_NODES.filter(n=>n.map===(p.mapId??'town'));
     this.room.state?.wildlife?.forEach((_animal:WildlifeView,id:string)=>{const node=this.wildlifeNode(id);if(node&&(this.view?.progress.cooldowns[node.id]??0)<=Date.now())nearby.push(node);});
     if(this.panel.hidden)this.node=nearby.filter(n=>Math.hypot(p.x-n.x,p.y-n.y)<=100).sort((a,b)=>Math.hypot(p.x-a.x,p.y-a.y)-Math.hypot(p.x-b.x,p.y-b.y))[0];
-    this.bagCount.textContent=String(Object.values(this.view?.progress.inventory??{}).reduce((a,b)=>a+b,0)+Object.values(this.fish).reduce((a,b)=>a+b,0));
+    this.bagCount.textContent=String(this.view?bagQuantity(this.view.progress,this.fish):0);
     this.interact.hidden=!this.node||this.scene.casinoOpen||!this.panel.hidden||p.activity==="boat";
     this.interact.textContent=this.node?this.node.name+" · E / แตะ":"";
     const cooldown=this.view?.progress.cooldowns[this.node?.kind==='water'?'refill':this.node?.kind==='animal'?'feed':this.node?.id??'']??0;
@@ -154,7 +159,8 @@ export class WorldUI {
     if(!force&&sig===this.signature)return;this.signature=sig;this.body.replaceChildren();
     this.panel.dataset.page=this.page;
     if(this.page==="map"){this.title.textContent="โลกของ RO Lounge";this.mapPage();return;}
-    if(this.page==="collection"||this.page==="inventory"){this.title.textContent=this.page==="collection"?"สมุดสะสม":"กระเป๋าและชุด";this.collectionPage();return;}
+    if(this.page==='inventory'){this.title.textContent='กระเป๋าของฉัน';this.inventoryPage();return;}
+    if(this.page==='collection'){this.title.textContent='สมุดสะสม';this.collectionPage();return;}
     if(!this.node){this.body.append(this.text("กลับไปใกล้จุดกิจกรรมเพื่อใช้งาน"));return;}
     this.title.textContent=this.node.name;
     if(["farm","greenhouse"].includes(this.page)){this.farmPage();return;}
@@ -205,34 +211,63 @@ export class WorldUI {
     else if(map==="market"&&direction==="west")this.scene.navigateTo([{x:800,y:p.y},{x:800,y:540},{x:150,y:540},{x:24,y:432}]);
     else this.scene.navigateTo(paths[direction]);
   }
+  private inventoryPage(){
+    const progress=this.view!.progress,owned=bagEntries(progress,this.fish),total=bagQuantity(progress,this.fish);
+    const summary=document.createElement('div');summary.className='inventory-summary';summary.append(bagCanvas(),this.text('ของที่มีจริง','collection-plaque'),this.text(owned.length+' ชนิด · '+total+' ชิ้น'));
+    this.body.append(summary,this.text('ของหมดจะหายจากกระเป๋า แต่ประวัติยังอยู่ในสมุดสะสม','inventory-explainer'));
+    const tools=document.createElement('div');tools.className='inventory-tools';
+    const search=document.createElement('input');search.type='search';search.placeholder='ค้นหาของที่มี…';search.setAttribute('aria-label','ค้นหาของในกระเป๋า');search.value=this.inventoryQuery;
+    search.addEventListener('input',()=>{this.inventoryQuery=search.value;const cursor=search.selectionStart;this.render(true);const next=this.body.querySelector<HTMLInputElement>('input[type=search]');next?.focus();if(cursor!==null)next?.setSelectionRange(cursor,cursor);});
+    const sort=document.createElement('select');sort.setAttribute('aria-label','เรียงของในกระเป๋า');for(const [id,label]of [['name','เรียงตามชื่อ'],['quantity','จำนวนมากก่อน']]){const option=document.createElement('option');option.value=id;option.textContent=label;sort.append(option);}sort.value=this.inventorySort;sort.onchange=()=>{this.inventorySort=sort.value;this.render(true);};tools.append(search,sort);this.body.append(tools);
+    const book=document.createElement('div');book.className='collection-book inventory-book';const tabs=document.createElement('div');tabs.className='collection-tabs';
+    for(const [category,icon]of [['ทั้งหมด','treasure'],['ปลา','carp'],['แมลง','butterfly'],['วัตถุดิบ','mushroom']]){const button=this.button(category,()=>{this.inventoryCategory=category;this.render(true);});button.prepend(itemCanvas(icon));button.setAttribute('aria-label',category);button.setAttribute('aria-pressed',String(this.inventoryCategory===category));tabs.append(button);}book.append(tabs);
+    const content=document.createElement('div');content.className='collection-content';const grid=document.createElement('div');grid.className='world-collection';const detail=document.createElement('aside');detail.className='collection-inspector inventory-inspector';detail.setAttribute('aria-live','polite');
+    const entries=owned.filter(e=>(this.inventoryCategory==='ทั้งหมด'||e.category===this.inventoryCategory||(this.inventoryCategory==='วัตถุดิบ'&&!['ปลา','แมลง'].includes(e.category)))&&e.name.includes(this.inventoryQuery.trim())).sort((a,b)=>this.inventorySort==='quantity'?b.count-a.count||a.name.localeCompare(b.name,'th'):a.name.localeCompare(b.name,'th'));
+    const inspect=(entry:typeof entries[number])=>{this.selectedItem=entry.id;grid.querySelectorAll<HTMLElement>('[data-item]').forEach(card=>card.dataset.selected=String(card.dataset.item===entry.id));
+      detail.replaceChildren(itemCanvas(entry.id),this.text(entry.name,'world-card-title'),this.text('ในกระเป๋า × '+entry.count,'collection-quantity'),this.text(entry.category,'collection-hint'));
+      const uses=COSMETICS.filter(c=>Object.prototype.hasOwnProperty.call(c.cost,entry.id)&&!progress.unlocks.includes(c.id));
+      if(uses.length){const recipes=document.createElement('div');recipes.className='inventory-uses';for(const cosmetic of uses){const cost=Object.entries(cosmetic.cost) as [string,number][];const ready=cost.every(([id,n])=>(progress.inventory[id]??0)>=n);recipes.append(this.text((ready?'✓ พร้อมแลก ':'ใช้แลก ')+cosmetic.name+' · '+cost.map(([id,n])=>(ITEMS[id]?.name??id)+' '+Math.min(progress.inventory[id]??0,n)+'/'+n).join(' · ')));}recipes.append(this.text('ยืนยันแลกได้เมื่อเดินไปถึงร้านในตลาด'));detail.append(recipes);}
+      else detail.append(this.text(entry.category==='ปลา'?'ปลาที่จับได้จะเก็บไว้ที่นี่ · ชิปจากการตกปลาเข้ากระเป๋าเงินแล้ว':'เก็บไว้ใช้แลกของหรือสะสมต่อได้','collection-hint'));
+    };
+    for(const entry of entries){const card=document.createElement('article');card.dataset.item=entry.id;card.tabIndex=0;card.setAttribute('role','button');card.setAttribute('aria-label',entry.name+' จำนวน '+entry.count);card.append(itemCanvas(entry.id),this.text(entry.name,'world-card-title'),this.text('× '+entry.count,'collection-count'));card.onclick=()=>inspect(entry);card.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();inspect(entry);}};grid.append(card);}
+    if(entries.length){content.append(grid);book.append(content);this.body.append(book,detail);inspect(entries.find(e=>e.id===this.selectedItem)??entries[0]);}
+    else{const empty=document.createElement('div');empty.className='inventory-empty';empty.append(bagCanvas(),this.text(owned.length?'ไม่พบของตามตัวกรอง':'ยังไม่มีของในกระเป๋า','world-card-title'),this.text(owned.length?'ลองเปลี่ยนหมวดหรือคำค้น':'จับแมลง ตกปลา เก็บหอย หรือปลูกผักเพื่อเริ่มเก็บของ'));
+      if(owned.length)empty.append(this.button('ล้างตัวกรอง',()=>{this.inventoryCategory='ทั้งหมด';this.inventoryQuery='';this.render(true);}));else empty.append(this.button('ดูสมุดสะสม',()=>this.open('collection')));
+      content.append(empty);book.append(content);this.body.append(book);}
+    const resources=document.createElement('div');resources.className='inventory-resources';resources.append(this.text('💧 น้ำส่วนตัว '+(progress.water??2)+' หน่วย'),this.button('เปิดสมุดสะสม',()=>this.open('collection')));this.body.append(resources);
+    const equipment=document.createElement('details');equipment.className='inventory-equipment';const label=document.createElement('summary');label.textContent='ชุดและเครื่องประดับของฉัน · '+progress.unlocks.filter(id=>id!=='none').length+' ชิ้น';equipment.append(label);
+    const outfits=document.createElement('div');outfits.className='world-actions';
+    for(const cosmetic of COSMETICS)if(cosmetic.id!=='none'&&progress.unlocks.includes(cosmetic.id)){const b=this.button(cosmetic.name+(progress.equipped===cosmetic.id?' ✓':''),()=>this.send('equip',{cosmeticId:cosmetic.id}),this.pending);b.prepend(itemCanvas(cosmetic.id));outfits.append(b);}
+    if(progress.equipped!=='none')outfits.append(this.button('ถอดเครื่องประดับ',()=>this.send('equip',{cosmeticId:'none'}),this.pending));
+    equipment.append(outfits,this.text('เป็นของที่ปลดล็อกแล้ว ไม่ปนกับจำนวนวัตถุดิบ · แลกเพิ่มได้ที่ตลาด'));this.body.append(equipment);
+  }
   private collectionPage() {
     const progress=this.view!.progress,layout=document.createElement('div');layout.className='collection-book';
-    const entries=[...Object.entries(ITEMS).map(([id,item])=>({id,...item,count:progress.inventory[id]??0,found:progress.discovered.includes(id)})),...FISH_SPECIES.map(f=>({id:f.id,name:f.name,icon:"🐟",category:"ปลา",count:this.fish[f.id]??0,found:(this.fish[f.id]??0)>0}))];
+    const entries=catalogue(progress,this.fish);
     const summary=document.createElement('div');summary.className='collection-summary';const found=entries.filter(e=>e.found).length;
     const meter=document.createElement('progress');meter.max=entries.length;meter.value=found;meter.setAttribute('aria-label','ความคืบหน้าของสะสม');
     summary.append(this.text('COLLECTION','collection-plaque'),this.text('พบแล้ว '+found+' / '+entries.length),meter);this.body.append(summary);
+    this.body.append(this.text('บันทึกสิ่งที่เคยค้นพบ ไม่ใช่จำนวนของที่ถืออยู่ · ใช้ของหมดแล้วบันทึกยังอยู่','inventory-explainer'));
+    const filters=document.createElement('div');filters.className='journal-filters';for(const [id,label]of [['all','ทั้งหมดที่บันทึก'],['found','ค้นพบแล้ว'],['missing','ยังไม่พบ']]){const b=this.button(label,()=>{this.journalFilter=id;this.render(true);});b.setAttribute('aria-pressed',String(this.journalFilter===id));filters.append(b);}filters.append(this.button('เปิดกระเป๋าของจริง',()=>this.open('inventory')));this.body.append(filters);
     const tabs=document.createElement('div');tabs.className='collection-tabs';
     const icons:Record<string,string>={ทั้งหมด:'treasure',ปลา:'carp',แมลง:'butterfly',ของสะสม:'shell',สัตว์:'animal-friend'};
     for(const category of Object.keys(icons)){const button=this.button(category,()=>{this.category=category;this.render(true);});button.setAttribute('aria-label',category);button.prepend(itemCanvas(icons[category]));button.setAttribute('aria-pressed',String(this.category===category));tabs.append(button);}
     const content=document.createElement('div');content.className='collection-content';const detail=document.createElement('aside');detail.className='collection-inspector';detail.setAttribute('aria-live','polite');
     const inspect=(entry:typeof entries[number])=>{this.selectedItem=entry.id;content.querySelectorAll<HTMLElement>('[data-item]').forEach(card=>card.dataset.selected=String(card.dataset.item===entry.id));
       const hint=COLLECTION_HINTS[entry.id]??(entry.category==='แมลง'?'เดินเข้าใกล้แมลงในแมพ แล้วกด E หรือแตะจับ':entry.category==='ปลา'?(["mackerel","clownfish","seahorse"].includes(entry.id)?'หาดสายลม · ตกปลาริมทะเลหรือท่าเรือ':'เมืองกลาง · ตกปลารอบบ่อ'):'สำรวจโลกเพื่อค้นพบ');
-      detail.replaceChildren(itemCanvas(entry.id),this.text(entry.name,'world-card-title'),this.text('ในกระเป๋า × '+entry.count,'collection-quantity'),this.text(entry.found?'ค้นพบแล้ว ✓':'ยังไม่ค้นพบ'),this.text(hint,'collection-hint'));
+      detail.replaceChildren(itemCanvas(entry.id),this.text(entry.name,'world-card-title'),this.text(entry.found?'เคยค้นพบแล้ว ✓':'ยังไม่ค้นพบ','collection-quantity'),this.text(entry.record?'บันทึกกิจกรรม / ความสำเร็จ ไม่ใช่สิ่งของในกระเป๋า':entry.count>0?'ของที่มีตอนนี้ × '+entry.count:'ตอนนี้ไม่มีของชิ้นนี้ในกระเป๋า','collection-hint'),this.text(hint,'collection-hint'));
     };
-    const filtered=entries.filter(e=>this.category==='ทั้งหมด'||e.category===this.category||(this.category==='ของสะสม'&&!['ปลา','แมลง','สัตว์'].includes(e.category)));
+    const filtered=entries.filter(e=>(this.category==='ทั้งหมด'||e.category===this.category||(this.category==='ของสะสม'&&!['ปลา','แมลง','สัตว์'].includes(e.category)))&&(this.journalFilter==='all'||(this.journalFilter==='found'?e.found:!e.found)));
     for(const category of ['ปลา','แมลง','ของป่า','ชายหาด','ผลผลิต','สัตว์','กิจกรรม'].filter(category=>filtered.some(e=>e.category===category))){
       const group=document.createElement('section');group.className='collection-group';group.append(this.text(category,'collection-group-title'));
       const grid=document.createElement('div');grid.className='world-collection';
       for(const entry of filtered.filter(e=>e.category===category)){
-        const card=document.createElement('article');card.className=entry.found?'':'world-locked';card.tabIndex=0;card.setAttribute('role','button');card.setAttribute('aria-label',entry.name+' จำนวน '+entry.count);card.dataset.item=entry.id;
-        card.append(itemCanvas(entry.id),this.text(entry.found?entry.name:'?','world-card-title'),this.text('× '+entry.count,'collection-count'));
+        const card=document.createElement('article');card.className=entry.found?'':'world-locked';card.tabIndex=0;card.setAttribute('role','button');card.setAttribute('aria-label',entry.name+(entry.found?' ค้นพบแล้ว':' ยังไม่พบ'));card.dataset.item=entry.id;
+        card.append(itemCanvas(entry.id),this.text(entry.found?entry.name:'?','world-card-title'),this.text(entry.found?'✓':'ยังไม่พบ','collection-count'));
         card.addEventListener('click',()=>inspect(entry));card.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();inspect(entry);}});grid.append(card);
       }group.append(grid);content.append(group);
     }
-    layout.append(tabs,content);this.body.append(layout,detail);inspect(filtered.find(e=>e.id===this.selectedItem)??filtered[0]);
-    const outfits=document.createElement("div");outfits.className="world-actions";
-    for(const cosmetic of COSMETICS)if(progress.unlocks.includes(cosmetic.id))outfits.append(this.button(cosmetic.name+(progress.equipped===cosmetic.id?" ✓":""),()=>this.send("equip",{cosmeticId:cosmetic.id}),this.pending));
-    this.body.append(this.text("ชุดและเครื่องประดับที่มี"),outfits);
+    layout.append(tabs,content);this.body.append(layout);if(filtered.length){this.body.append(detail);inspect(filtered.find(e=>e.id===this.selectedItem)??filtered[0]);}else content.append(this.text('ยังไม่มีรายการในหมวดนี้ · ลองเปลี่ยนตัวกรอง'));
   }
   private farmPage() {
     const water=document.createElement('div');water.className='water-supply';water.append(this.text('💧 น้ำของคุณ '+(this.view!.progress.water??2)+' หน่วย'));
