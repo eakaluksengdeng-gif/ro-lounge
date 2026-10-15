@@ -1,13 +1,14 @@
 import type { Room } from "colyseus.js";
 import type { TownScene } from "../scenes/TownScene";
-import { MAP_NAMES, WORLD_NODES, MAP_IDS, ITEMS, COSMETICS, SEEDS, destination, type MapId, type WorldView, type WorldNode, type Direction } from "../../../shared/regions";
-import { FISH_SPECIES, type FishingState } from "../../../shared/nature";
+import { MAP_NAMES, WORLD_NODES, MAP_IDS, ITEMS, COSMETICS, SEEDS, destination,worldBlocked, type MapId, type WorldView, type WorldNode, type Direction } from "../../../shared/regions";
+import { FISH_SPECIES,CATCHABLE_BUGS,wildlifeCatchKey,type WildlifeView,type FishingState } from "../../../shared/nature";
 import { gameSounds } from "../audio/GameSounds";
 import { cosmeticCanvas, itemCanvas } from "./Cosmetics";
 import { appearanceToLook, loadAppearance, playerToLook } from "../character/appearance";
 import { renderCharacterCanvas, type CharacterPose } from "../art";
 import "./world.css";
 import { groundCanvas } from '../reference/WorldArt';
+import { bagCanvas } from './bag';
 const STATIONS=["รับออร์เดอร์","เตรียม","ปรุง","เสิร์ฟ"];
 const COLLECTION_HINTS:Record<string,string>={
   butterfly:"ป่าน้ำตก · ผีเสื้อฟ้าตามทาง",beetle:"ป่าน้ำตก · ด้วงทองฝั่งตะวันออก",firefly:"ป่าน้ำตก · ตอนเย็นหรือกลางคืน",
@@ -42,9 +43,12 @@ export class WorldUI {
   private toast=document.createElement('div');
   private toastTimer?:number;
   private controller=new AbortController();
+  private selectedItem='';
+  private bagCount=document.createElement('span');
   constructor(private room:Room,private scene:TownScene) {
     this.toolbar.id="worldToolbar";this.minimap.width=120;this.minimap.height=72;this.minimap.setAttribute("aria-label","แผนที่ย่อและตำแหน่งของคุณ");
-    this.toolbar.append(this.mapLabel,this.minimap,this.button("🧭 แผนที่",()=>this.open("map")),this.button("สมุดสะสม",()=>this.open("collection")),this.button("กระเป๋า",()=>this.open("inventory")));
+    const bag=this.button('กระเป๋า',()=>this.open('inventory'));bag.id='worldBagButton';bag.setAttribute('aria-label','กระเป๋า');bag.title='กระเป๋า · B';this.bagCount.className='bag-count';this.bagCount.setAttribute('aria-hidden','true');bag.prepend(bagCanvas());bag.append(this.bagCount);
+    this.toolbar.append(this.mapLabel,this.minimap,this.button("🧭 แผนที่",()=>this.open("map")),this.button("สมุดสะสม",()=>this.open("collection")),bag);
     document.body.append(this.toolbar);
     this.interact.id="worldInteract";this.interact.type="button";this.interact.hidden=true;
     this.interact.addEventListener("click",()=>this.activate());document.body.append(this.interact);
@@ -58,7 +62,7 @@ export class WorldUI {
       if(view.map!==this.previousMap){this.close();this.previousMap=view.map;gameSounds.play("join");}
       if(view.notice){this.notice.textContent=view.notice;this.pending=false;window.clearTimeout(this.pendingTimer);
         this.showToast(view.notice);
-        if(this.pendingVerb!=="note")gameSounds.play(this.pendingVerb==="exchange"?"win":this.pendingVerb==="collect"?"catch":"select");
+        if(this.pendingVerb!=="note")gameSounds.play(this.pendingVerb==="exchange"?"win":['collect','catch'].includes(this.pendingVerb)?"catch":"select");
         if(this.pendingVerb==="boat"||this.pendingVerb==="sit")this.close();this.pendingVerb="";this.render(true);}
       else this.render();
     });
@@ -70,6 +74,7 @@ export class WorldUI {
       this.showToast(error.message);
     });
     document.addEventListener("keydown",event=>{
+      if(event.code==='KeyB'&&!event.repeat&&!(event.target as HTMLElement)?.closest('input,textarea,select,[contenteditable]')){event.preventDefault();if(!this.panel.hidden&&this.page==='inventory')this.close();else this.open('inventory');return;}
       if(event.key==="Escape"&&!this.panel.hidden){event.preventDefault();this.close();return;}
       if(event.code!=="KeyE"||event.repeat||this.scene.casinoOpen||!this.panel.hidden)return;
       if((event.target as HTMLElement)?.closest("input,textarea,select,button,[contenteditable]"))return;
@@ -79,8 +84,10 @@ export class WorldUI {
     this.room.onLeave(()=>{this.controller.abort();window.clearInterval(timer);window.clearTimeout(this.pendingTimer);window.clearTimeout(this.toastTimer);this.toast.remove();this.close();this.toolbar.remove();this.interact.remove();this.panel.remove();});
     this.room.send("world:sync",{});
     const direct=(id:string)=>{const node=WORLD_NODES.find(n=>n.id===id);const p=this.player();if(node&&p&&node.map===p.mapId&&Math.hypot(p.x-node.x,p.y-node.y)<=100){this.node=node;this.activate();}};
-    this.scene.events?.on('world:interact',direct);
-    this.room.onLeave(()=>this.scene.events?.off('world:interact',direct));
+    this.scene.interactions?.on('world:interact',direct);
+    this.room.onLeave(()=>this.scene.interactions?.off('world:interact',direct));
+    const wild=(id:string)=>{const node=this.wildlifeNode(id),p=this.player();if(node&&p&&Math.hypot(p.x-node.x,p.y-node.y)<=100){this.node=node;this.activate();}};
+    this.scene.interactions?.on('world:wildlife',wild);this.room.onLeave(()=>this.scene.interactions?.off('world:wildlife',wild));
   }
   private button(label:string,run:()=>void,disabled=false) {
     const b=document.createElement("button");b.type="button";b.textContent=label;b.disabled=disabled;b.addEventListener("click",run);return b;
@@ -88,12 +95,13 @@ export class WorldUI {
   private text(text:string,className="") {const p=document.createElement("p");p.textContent=text;p.className=className;return p;}
   private player(){return this.room.state?.players?.get(this.room.sessionId);}
   private showToast(message:string){
-    this.toast.replaceChildren();if(this.pendingVerb==='collect'&&this.node?.item)this.toast.append(itemCanvas(this.node.item));
+    this.toast.replaceChildren();if(['collect','catch'].includes(this.pendingVerb)&&this.node?.item)this.toast.append(itemCanvas(this.node.item));
     this.toast.append(document.createTextNode(message));this.toast.hidden=false;
     window.clearTimeout(this.toastTimer);this.toastTimer=window.setTimeout(()=>this.toast.hidden=true,2600);
   }
   private activate(){
     if(!this.node||this.scene.casinoOpen)return;
+    if(this.node.id.startsWith('wildlife:')){this.send('catch',{wildlifeId:this.node.id.split(':')[2]});return;}
     if(['bug','mushroom','rare','shell','treasure','cleanup','animal','water'].includes(this.node.kind)){
       this.send(this.node.kind==='water'?'refill':this.node.kind==='animal'?'feed':'collect');
     }else this.open(this.node.kind);
@@ -111,7 +119,10 @@ export class WorldUI {
     const p=this.player();if(!p)return;
     if(this.scene.casinoOpen&&!this.panel.hidden)this.close();
     this.toolbar.hidden=this.scene.casinoOpen;
-    if(this.panel.hidden)this.node=WORLD_NODES.filter(n=>n.map===(p.mapId??"town")&&Math.hypot(p.x-n.x,p.y-n.y)<=100).sort((a,b)=>Math.hypot(p.x-a.x,p.y-a.y)-Math.hypot(p.x-b.x,p.y-b.y))[0];
+    const nearby=WORLD_NODES.filter(n=>n.map===(p.mapId??'town'));
+    this.room.state?.wildlife?.forEach((_animal:WildlifeView,id:string)=>{const node=this.wildlifeNode(id);if(node&&(this.view?.progress.cooldowns[node.id]??0)<=Date.now())nearby.push(node);});
+    if(this.panel.hidden)this.node=nearby.filter(n=>Math.hypot(p.x-n.x,p.y-n.y)<=100).sort((a,b)=>Math.hypot(p.x-a.x,p.y-a.y)-Math.hypot(p.x-b.x,p.y-b.y))[0];
+    this.bagCount.textContent=String(Object.values(this.view?.progress.inventory??{}).reduce((a,b)=>a+b,0)+Object.values(this.fish).reduce((a,b)=>a+b,0));
     this.interact.hidden=!this.node||this.scene.casinoOpen||!this.panel.hidden||p.activity==="boat";
     this.interact.textContent=this.node?this.node.name+" · E / แตะ":"";
     const cooldown=this.view?.progress.cooldowns[this.node?.kind==='water'?'refill':this.node?.kind==='animal'?'feed':this.node?.id??'']??0;
@@ -127,6 +138,13 @@ export class WorldUI {
       const remaining=Math.max(0,Math.ceil((Number(el.dataset.readyAt)-Date.now())/1000));
       el.textContent=remaining?remaining+" วินาที":"โตแล้ว";
     });
+  }
+  private wildlifeNode(id:string):WorldNode|undefined {
+    const animal=this.room.state?.wildlife?.get(id) as WildlifeView|undefined,p=this.player();
+    const bug=animal&&CATCHABLE_BUGS[animal.kind];if(!animal||!bug||!p)return;
+    const map=(p.mapId??'town') as MapId;
+    if(map!=='town'&&worldBlocked(map,animal.x,animal.y))return;
+    return {id:wildlifeCatchKey(map,id),map,x:animal.x,y:animal.y,kind:'bug',name:bug.name,item:bug.item};
   }
   private render(force=false) {
     if(this.panel.hidden||!this.view)return;
@@ -188,17 +206,30 @@ export class WorldUI {
     else this.scene.navigateTo(paths[direction]);
   }
   private collectionPage() {
-    const progress=this.view!.progress,grid=document.createElement("div");grid.className="world-collection";
+    const progress=this.view!.progress,layout=document.createElement('div');layout.className='collection-book';
     const entries=[...Object.entries(ITEMS).map(([id,item])=>({id,...item,count:progress.inventory[id]??0,found:progress.discovered.includes(id)})),...FISH_SPECIES.map(f=>({id:f.id,name:f.name,icon:"🐟",category:"ปลา",count:this.fish[f.id]??0,found:(this.fish[f.id]??0)>0}))];
-    this.body.append(this.text("พบแล้ว "+entries.filter(e=>e.found).length+" / "+entries.length+" · แลกของแล้วบันทึกการค้นพบยังอยู่"));
+    const summary=document.createElement('div');summary.className='collection-summary';const found=entries.filter(e=>e.found).length;
+    const meter=document.createElement('progress');meter.max=entries.length;meter.value=found;meter.setAttribute('aria-label','ความคืบหน้าของสะสม');
+    summary.append(this.text('COLLECTION','collection-plaque'),this.text('พบแล้ว '+found+' / '+entries.length),meter);this.body.append(summary);
     const tabs=document.createElement('div');tabs.className='collection-tabs';
-    for(const category of ['ทั้งหมด','ปลา','แมลง','ของป่า','สัตว์','ผลผลิต','ชายหาด','กิจกรรม']){const button=this.button(category,()=>{this.category=category;this.render(true);});button.setAttribute('aria-pressed',String(this.category===category));tabs.append(button);}this.body.append(tabs);
-    for(const entry of entries.filter(e=>this.category==='ทั้งหมด'||e.category===this.category)){const card=document.createElement("article");card.className=entry.found?"":"world-locked";
-      card.tabIndex=0;card.setAttribute('aria-label',entry.name+' จำนวน '+entry.count);
-      const icon=itemCanvas(entry.id);icon.setAttribute("aria-hidden","true");card.append(icon,this.text(entry.found?entry.name:"ยังไม่พบ","world-card-title"),this.text(this.page==="inventory"?'× '+entry.count:entry.found?'✓ พบแล้ว':'?'));
-      const hint=COLLECTION_HINTS[entry.id]??(["mackerel","clownfish","seahorse"].includes(entry.id)?"หาดสายลม · ตกปลาริมทะเลหรือท่าเรือ":"เมืองกลาง · ตกปลารอบบ่อ");
-      card.append(this.text(hint,"world-item-hint"));grid.append(card);
-    }this.body.append(grid);
+    const icons:Record<string,string>={ทั้งหมด:'treasure',ปลา:'carp',แมลง:'butterfly',ของสะสม:'shell',สัตว์:'animal-friend'};
+    for(const category of Object.keys(icons)){const button=this.button(category,()=>{this.category=category;this.render(true);});button.setAttribute('aria-label',category);button.prepend(itemCanvas(icons[category]));button.setAttribute('aria-pressed',String(this.category===category));tabs.append(button);}
+    const content=document.createElement('div');content.className='collection-content';const detail=document.createElement('aside');detail.className='collection-inspector';detail.setAttribute('aria-live','polite');
+    const inspect=(entry:typeof entries[number])=>{this.selectedItem=entry.id;content.querySelectorAll<HTMLElement>('[data-item]').forEach(card=>card.dataset.selected=String(card.dataset.item===entry.id));
+      const hint=COLLECTION_HINTS[entry.id]??(entry.category==='แมลง'?'เดินเข้าใกล้แมลงในแมพ แล้วกด E หรือแตะจับ':entry.category==='ปลา'?(["mackerel","clownfish","seahorse"].includes(entry.id)?'หาดสายลม · ตกปลาริมทะเลหรือท่าเรือ':'เมืองกลาง · ตกปลารอบบ่อ'):'สำรวจโลกเพื่อค้นพบ');
+      detail.replaceChildren(itemCanvas(entry.id),this.text(entry.name,'world-card-title'),this.text('ในกระเป๋า × '+entry.count,'collection-quantity'),this.text(entry.found?'ค้นพบแล้ว ✓':'ยังไม่ค้นพบ'),this.text(hint,'collection-hint'));
+    };
+    const filtered=entries.filter(e=>this.category==='ทั้งหมด'||e.category===this.category||(this.category==='ของสะสม'&&!['ปลา','แมลง','สัตว์'].includes(e.category)));
+    for(const category of ['ปลา','แมลง','ของป่า','ชายหาด','ผลผลิต','สัตว์','กิจกรรม'].filter(category=>filtered.some(e=>e.category===category))){
+      const group=document.createElement('section');group.className='collection-group';group.append(this.text(category,'collection-group-title'));
+      const grid=document.createElement('div');grid.className='world-collection';
+      for(const entry of filtered.filter(e=>e.category===category)){
+        const card=document.createElement('article');card.className=entry.found?'':'world-locked';card.tabIndex=0;card.setAttribute('role','button');card.setAttribute('aria-label',entry.name+' จำนวน '+entry.count);card.dataset.item=entry.id;
+        card.append(itemCanvas(entry.id),this.text(entry.found?entry.name:'?','world-card-title'),this.text('× '+entry.count,'collection-count'));
+        card.addEventListener('click',()=>inspect(entry));card.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();inspect(entry);}});grid.append(card);
+      }group.append(grid);content.append(group);
+    }
+    layout.append(tabs,content);this.body.append(layout,detail);inspect(filtered.find(e=>e.id===this.selectedItem)??filtered[0]);
     const outfits=document.createElement("div");outfits.className="world-actions";
     for(const cosmetic of COSMETICS)if(progress.unlocks.includes(cosmetic.id))outfits.append(this.button(cosmetic.name+(progress.equipped===cosmetic.id?" ✓":""),()=>this.send("equip",{cosmeticId:cosmetic.id}),this.pending));
     this.body.append(this.text("ชุดและเครื่องประดับที่มี"),outfits);

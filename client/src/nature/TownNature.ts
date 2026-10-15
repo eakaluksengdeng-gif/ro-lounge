@@ -8,6 +8,8 @@ import { buildNatureTextures } from "./art";
 import { gameSounds } from "../audio/GameSounds";
 import { artImage } from '../reference/Assets';
 import { worldBlocked, type MapId } from "../../../shared/regions";
+import type { TownScene } from '../scenes/TownScene';
+import { CATCHABLE_BUGS } from '../../../shared/nature';
 
 interface AnimalSprite { body: Phaser.GameObjects.Container; sprite: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Ellipse }
 interface Particle { x: number; y: number; speed: number; drift: number }
@@ -60,6 +62,7 @@ export class TownNature {
         view = { body, sprite, shadow }; this.animals.set(id, view);
       }
       const k = 1 - Math.pow(.001, dtMs / 1000);
+      view.body.setVisible(!CATCHABLE_BUGS[animal.kind]||(this.scene as TownScene).wildlifeAvailable(id));
       view.body.x += (animal.x - view.body.x) * k;
       view.body.y += (animal.y - view.body.y) * k;
       view.body.setDepth(view.body.y);

@@ -9,9 +9,28 @@ import { GuestManager } from "../src/auth/GuestManager";
 import { WorldManager, type WorldActor } from "../src/world/WorldManager";
 import { FishingManager } from "../src/nature/FishingManager";
 import { WORLD_NODES, destination, exitDirection, arrival, worldBlocked, beachFishingLocation, boatPosition } from "../../shared/regions";
+import { EnvironmentManager } from '../src/nature/EnvironmentManager';
+import { CATCHABLE_BUGS,wildlifeCatchKey } from '../../shared/nature';
 let sequence=0;
 const request=(verb:string,nodeId:string,extra:Record<string,unknown>={})=>({requestId:"action-qa-"+(++sequence),verb,nodeId,...extra});
 const actor=(id:string,nodeId:string):WorldActor=> {const n=WORLD_NODES.find(n=>n.id===nodeId)!;return{id,name:id,map:n.map,x:n.x,y:n.y};};
+test('every roaming insect is catchable using trusted live positions, never client rewards or animals',()=>{
+ const store=new SnapshotStore(),world=new WorldManager(store,()=>10000),env=new EnvironmentManager(10000);world.connect('catcher','C');
+ let count=0;
+ for(const [id,animal]of env.animals){if(!CATCHABLE_BUGS[animal.kind])continue;
+   const who:WorldActor={id:'catcher',name:'C',map:'town',x:animal.x,y:animal.y};const msg=request('catch','forged-node',{wildlifeId:id,item:'treasure',amount:99999,x:0,y:0});
+   world.action(who,msg,'sunny',env.animals);world.action(who,msg,'sunny',env.animals);count++;
+   assert.throws(()=>world.action(who,request('catch','',{wildlifeId:id}),'sunny',env.animals),/ฟื้นตัว/);
+   assert.ok(world.profile('catcher').cooldowns[wildlifeCatchKey('town',id)]);
+ }
+ assert.equal(count,7);assert.equal(world.profile('catcher').inventory.butterfly,3);assert.equal(world.profile('catcher').inventory.bee,2);assert.equal(world.profile('catcher').inventory.ladybug,2);assert.equal(world.profile('catcher').inventory.treasure,undefined);
+ const who:WorldActor={id:'catcher',name:'C',map:'town',x:0,y:0};
+ assert.throws(()=>world.action(who,request('catch','',{wildlifeId:'wild-6',x:430,y:460}),'sunny',env.animals),/เข้าใกล้/);
+ for(const id of ['wild-0','wild-3','missing','__proto__'])assert.throws(()=>world.action(who,request('catch','',{wildlifeId:id}),'sunny',env.animals),/จับไม่ได้/);
+ assert.throws(()=>world.action({...who,x:430,y:460},request('catch','',{wildlifeId:'wild-6',kind:'butterfly'}),'sunny'),/จับไม่ได้/);
+ const restored=new WorldManager(store,()=>10000);assert.equal(restored.profile('catcher').inventory.bee,2);
+ assert.throws(()=>restored.action({...who,x:430,y:460},request('catch','',{wildlifeId:'wild-6'}),'sunny',env.animals),/ฟื้นตัว/);
+});
 test('personal water is spent once, refill requires proximity, and zero survives reload',()=>{
   let now=10000;const store=new SnapshotStore(),world=new WorldManager(store,()=>now);world.connect('water-user','W');
   assert.equal(world.profile('water-user').water,2);

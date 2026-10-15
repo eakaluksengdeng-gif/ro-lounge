@@ -50,7 +50,7 @@ export class NatureUI {
 
   constructor(private room: Room, private scene: TownScene) {
     const stop=()=>{if(this.continuous){this.continuous=false;this.room.send('fish:cancel',{});}};
-    this.scene.events?.on('world:manual-move',stop);
+    this.scene.interactions?.on('world:manual-move',stop);
     const toolbar = document.createElement("div");
     toolbar.id = "natureBar";
     this.weather.id = "townWeather";
@@ -189,7 +189,7 @@ export class NatureUI {
     };
     frame = requestAnimationFrame(animate);
     room.onLeave(() => {
-      this.scene.events?.off('world:manual-move',stop);
+      this.scene.interactions?.off('world:manual-move',stop);
       this.closed = true;
       window.clearInterval(interval);
       window.clearInterval(clockInterval);

@@ -92,7 +92,7 @@ export function buildWorldTextures(scene: Phaser.Scene) {
   const add=(key:string,asset:string,w:number,h:number)=>{if(!scene.textures.exists(key))scene.textures.addCanvas(key,artCanvas(asset,w,h))?.setFilter(Phaser.Textures.FilterMode.NEAREST);};
   for(let i=0;i<4;i++){add('grass'+i,'tile-grass',48,48);add('flower'+i,'tile-flowers',48,48);}
   for(let i=0;i<3;i++)add('path'+i,'tile-stone',48,48);
-  for(let i=0;i<2;i++){add('stone'+i,i?'tile-stone-alt':'tile-stone',48,48);add('water'+i,i?'tile-pond-alt':'tile-pond',48,48);add('fountain'+i,'prop-fountain',126,126);}
+  for(let i=0;i<2;i++){add('stone'+i,i?'tile-stone-alt':'tile-stone',48,48);add('water'+i,i?'tile-pond-alt':'tile-pond',48,48);add('fountain'+i,'fountain-garden',174,146);}
   add('sand0','tile-sand',48,48);add('tree','prop-oak',144,156);add('bush','prop-bush-white',66,54);add('bench','prop-bench',78,54);add('lamp','prop-lamp',48,90);
   add('board','ui-title',180,54);if(!scene.textures.exists('shadow')){const canvas=document.createElement('canvas');canvas.width=42;canvas.height=15;const c=canvas.getContext('2d')!;c.fillStyle='#173c3440';c.beginPath();c.ellipse(21,7,20,6,0,0,Math.PI*2);c.fill();scene.textures.addCanvas('shadow',canvas);}
 }

@@ -8,6 +8,7 @@ import { WorldRenderer } from "../world/WorldRenderer";
 import { planRoute } from "../world/PathPlanner";
 import { ensureCosmetics } from "../world/Cosmetics";
 import { WORLD_NODES, type MapId, type WorldView } from "../../../shared/regions";
+import { CATCHABLE_BUGS,wildlifeCatchKey,type WildlifeView } from '../../../shared/nature';
 import { CASINO_BUILDING, CASINO_DOOR } from "../../../shared/casinoWorld";
 import { HAIR_COLORS as HAIR, SKIN_COLORS as SKIN, PANTS_COLORS as PANTS } from "../character/appearance";
 import type { Room } from "colyseus.js";
@@ -52,6 +53,8 @@ interface Avatar {
 }
 
 export class TownScene extends Phaser.Scene {
+  /** Available before Phaser boots, because DOM activity UIs bind before Game creation. */
+  readonly interactions=new Phaser.Events.EventEmitter();
   casinoOpen = false;
   worldOpen = false;
   onManualMove?: () => void;
@@ -65,6 +68,7 @@ export class TownScene extends Phaser.Scene {
   private worldRenderer?: WorldRenderer;
   private worldView?: WorldView;
   setWorldView(view:WorldView) {this.worldView=view;}
+  wildlifeAvailable(id:string){return (this.worldView?.progress.cooldowns[wildlifeCatchKey(this.map,id)]??0)<=Date.now();}
   navigateTo(points: { x: number; y: number }[]) {
     const p=this.room.state?.players?.get(this.room.sessionId);if(!p)return;
     let cursor={x:p.x,y:p.y};this.route=[];
@@ -108,10 +112,13 @@ export class TownScene extends Phaser.Scene {
       if (!(p.event?.target instanceof HTMLCanvasElement)) return;
       if (this.casinoOpen || this.worldOpen) return;
       const me=this.room.state.players.get(this.room.sessionId);
+      let wildlifeId:string|undefined;
+      this.room.state.wildlife.forEach((animal:WildlifeView,id:string)=>{if(me&&this.wildlifeAvailable(id)&&CATCHABLE_BUGS[animal.kind]&&Math.hypot(me.x-animal.x,me.y-animal.y)<=100&&Math.hypot(p.worldX-animal.x,p.worldY-(animal.y-16))<32)wildlifeId=id;});
+      if(wildlifeId){this.interactions.emit('world:wildlife',wildlifeId);return;}
       const node=me&&WORLD_NODES.find(n=>n.map===me.mapId&&['bug','mushroom','rare','shell','treasure','cleanup','water'].includes(n.kind)&&Math.hypot(p.worldX-n.x,p.worldY-n.y)<42&&Math.hypot(me.x-n.x,me.y-n.y)<=100);
-      if(node){this.events.emit('world:interact',node.id);return;}
+      if(node){this.interactions.emit('world:interact',node.id);return;}
       this.onManualMove?.();
-      this.events.emit('world:manual-move');
+      this.interactions.emit('world:manual-move');
       this.stopNavigation();
       const x = Math.round(p.worldX);
       const y = Math.round(p.worldY);

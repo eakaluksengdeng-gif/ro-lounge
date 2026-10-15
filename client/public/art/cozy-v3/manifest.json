@@ -1,0 +1,9 @@
+{
+  "version": "cozy-v3",
+  "props": [
+    "fountain-garden"
+  ],
+  "tiles": [
+    "water-ripples"
+  ]
+}

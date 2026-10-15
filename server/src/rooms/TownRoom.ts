@@ -94,7 +94,7 @@ export class TownRoom extends Room<TownState> {
       if(this.pendingActions.has(client.sessionId)){client.send("api:error",{event:"world:action",code:"SAVE_PENDING",message:"รอคำสั่งก่อนหน้ายืนยันก่อน"});return;}
       this.pendingActions.add(client.sessionId);
       try {
-        const result = await storage.run(() => world.action({ id:p.playerId,name:p.name,map:p.mapId as MapId,x:p.x,y:p.y,inCasino:!!casinoAccess.roomFor(p.playerId) }, message, this.state.weather));
+        const result = await storage.run(() => world.action({ id:p.playerId,name:p.name,map:p.mapId as MapId,x:p.x,y:p.y,inCasino:!!casinoAccess.roomFor(p.playerId) }, message, this.state.weather,this.environment.animals));
         p.cosmetic = world.profile(p.playerId).equipped;
         if (result.activity) {
           if(fishing.cancel(p.playerId,this.fishingOwner(client)))this.sendFishing(client,p);
