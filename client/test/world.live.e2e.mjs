@@ -1,11 +1,20 @@
 import { chromium } from "playwright";
 import assert from "node:assert/strict";
+import { mkdirSync,writeFileSync } from "node:fs";
+import { resolve,join } from "node:path";
 
 // Black-box browser test: no DEV hook, server override, teleport or privileged API.
 // Uses only isolated Guests. Optional stdin gate lets the operator verify a real server restart.
 const url=process.env.E2E_URL??"http://127.0.0.1:5173";
 const browser=await chromium.launch({channel:"chrome",headless:true});
 const contexts=[],errors=[];
+const reportDir=process.env.RO_QA_OUTPUT?resolve(process.env.RO_QA_OUTPUT):null;
+const report={url,startedAt:new Date().toISOString(),phase:"running",checks:[]};
+function checkpoint(phase){
+  report.phase=phase;report.updatedAt=new Date().toISOString();
+  if(reportDir){mkdirSync(reportDir,{recursive:true,mode:0o700});writeFileSync(join(reportDir,"result.json"),JSON.stringify(report,null,2),{mode:0o600});}
+}
+checkpoint("running");
 async function guest(name){
   const context=await browser.newContext({viewport:{width:1440,height:864}});contexts.push(context);
   const page=await context.newPage();page.on("pageerror",error=>errors.push(error.message));
@@ -46,7 +55,7 @@ async function fish(page){
 try{
   const a=await guest("World Live Owner"),b=await guest("World Live Friend");
   const sessions=await Promise.all([a,b].map(p=>p.evaluate(()=>localStorage.getItem("ro-guest-session"))));
-  assert.notEqual(sessions[0],sessions[1]);
+  assert.ok(sessions[0]!==sessions[1],"isolated Guest sessions must differ");
   await fish(a);const balance=await a.locator("#casinoToolbar .gold-balance").getAttribute("data-balance");assert.ok(Number(balance)>100&&Number(balance)<=120);
   await map(a,"ป่าน้ำตก");await activity(a,360,560,"เก็บเห็ด");await action(a,"เก็บเห็ด","สำเร็จ");
   await a.screenshot({path:"/tmp/ro-world-live-forest.png"});
@@ -72,18 +81,23 @@ try{
   assert.match(await a.locator(".world-collection article").filter({hasText:"เห็ดป่า"}).innerText(),/ของป่า · 1/);
   assert.match(await a.locator(".world-collection article").filter({hasText:"หอยมุก"}).innerText(),/ชายหาด · 1/);
   for(const width of [1280,768,390,320]){await a.setViewportSize({width,height:864});assert.equal(await a.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}
+  report.checks=["five maps","real catch/non-default wallet","watered crop","two-player cafe","earned cosmetic","inventory","1280/768/390/320"];
+  report.balanceBefore=Number(balance);
+  checkpoint("saved-before-restart");
   if(process.env.E2E_RESTART_CHECK==="1"){
     console.log("READY_FOR_SERVER_RESTART: five maps, real catch/wallet, farm, two-player cafe, collection and outfit saved; send newline after backend is healthy");
     process.stdin.resume();await new Promise(resolve=>process.stdin.once("data",resolve));process.stdin.pause();
   }
   await a.reload();await a.getByRole("button",{name:"เข้าเมือง",exact:true}).click();await a.locator("#worldToolbar").waitFor({timeout:90000});
   await a.waitForFunction(value=>document.querySelector("#casinoToolbar .gold-balance")?.dataset.balance===value,balance);
-  assert.equal(await a.evaluate(()=>localStorage.getItem("ro-guest-session")),sessions[0]);
+  assert.ok(await a.evaluate(()=>localStorage.getItem("ro-guest-session"))===sessions[0],"saved Guest identity must survive");
   await bag(a);assert.match(await a.locator("#worldPanel").innerText(),/หมวกเชฟ ✓/);
   assert.match(await a.locator(".world-collection article").filter({hasText:"เห็ดป่า"}).innerText(),/ของป่า · 1/);
   await close(a);await a.setViewportSize({width:1440,height:864});await map(a,"เมืองกลาง");await map(a,"ฟาร์มเพื่อนรัก");await activity(a,490,460,"แปลงผัก");
   assert.match(await a.locator("#worldPanel").innerText(),/แครอท/);assert.match(await a.locator("#worldPanel").innerText(),/รดน้ำแล้ว/);
   assert.deepEqual(errors,[]);
+  report.checks.push("same Guest and rewarded wallet restored","earned outfit and inventory restored","watered crop restored");
+  report.restartChecked=process.env.E2E_RESTART_CHECK==="1";report.pageErrors=errors.length;checkpoint("passed");
   console.log("PASS: "+url+" black-box production-compatible five-map browser play, catch and non-default wallet, crops, 2-player cafe, cosmetics, collection, four viewport sizes and saved identity/progress after "+(process.env.E2E_RESTART_CHECK==="1"?"server restart":"reload"));
-}catch(error){for(const [i,c]of contexts.entries())for(const p of c.pages())await p.screenshot({path:"/tmp/ro-world-live-failure-"+i+".png"}).catch(()=>{});throw error;}
+}catch(error){report.failure=error.message;checkpoint("failed");for(const [i,c]of contexts.entries())for(const p of c.pages())await p.screenshot({path:"/tmp/ro-world-live-failure-"+i+".png"}).catch(()=>{});throw error;}
 finally{await browser.close();}

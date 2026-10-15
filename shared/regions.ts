@@ -78,7 +78,7 @@ export function arrival(map:MapId,from:MapId) {
 }
 export function worldBlocked(map:MapId,x:number,y:number) {
   if (map==="beach") return y>620 && !(x>=1044&&x<=1116&&y<=792);
-  if (map==="forest") return ((x-780)/180)**2+((y-210)/75)**2<1 || (x>590&&x<625&&y>90&&y<310);
+  if (map==="forest") return ((x-780)/180)**2+((y-210)/75)**2<1 || (x>590&&x<625&&y>90&&y<310&&y<288);
   if (map==="farm") return x>930&&x<1140&&y>160&&y<275;
   if (map==="market") return (x>290&&x<560&&y>270&&y<435) || (x>890&&x<1120&&y>360&&y<440);
   return false;

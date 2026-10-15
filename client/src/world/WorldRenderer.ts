@@ -68,7 +68,14 @@ export class WorldRenderer {
     }
   }
   private forest(g:G) {
+    // Draw the same stream footprint as the shared collision, with a walkable wooden bridge.
+    g.fillStyle(0x40575e).fillRect(584,90,48,222);
+    g.fillStyle(0x72b5b2).fillRect(590,90,36,222);
+    g.fillStyle(0x9bd2ce).fillRect(596,96,6,190).fillRect(617,102,3,184);
     ellipse(g,0x40575e,780,210,192,87);ellipse(g,0x72b5b2,780,210,180,75);
+    g.fillStyle(0x795a41).fillRect(570,286,78,30);
+    for(let x=576;x<648;x+=12)g.fillStyle(0xc39560).fillRect(x,289,9,24);
+    g.fillStyle(0x604631).fillRect(570,286,78,3).fillRect(570,313,78,3);
     g.fillStyle(0x4d6661).fillRect(680,78,220,45);g.fillStyle(0x87cbd0).fillRect(748,84,54,140);
     for(let i=0;i<7;i++)g.fillStyle(i%2?0xd3eee0:0xa1dad4).fillRect(748+i*6,90,3,126);
     g.fillStyle(0xc3dcd0).fillRect(714,225,96,6);
