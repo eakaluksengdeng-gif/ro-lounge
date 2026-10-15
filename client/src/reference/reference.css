@@ -1,0 +1,50 @@
+/* Generated timber/parchment textures; live text, wallet and private cards stay separate. */
+:root { --ref-wood:#714c31;--ref-cream:#fff0cb;--ref-ink:#493722; }
+html[data-art-version] #login { background:linear-gradient(#122f28b0,#10291bf0),url('/art/reference-v1/tile-forest.png') center/192px; }
+html #login #loginForm { background:#f9e7be; color:var(--ref-ink);border:26px solid transparent;border-image:url('/art/reference-v1/ui-parchment.png') 105 fill /26px /0 stretch;box-shadow:0 14px 40px #081b28a0; }
+html #login h1,html #characterPreviewName,html .creator-options legend { color:#684225; }
+html .creator-header,html .creator-footer { border-color:#ac8556; }
+html .creator-preview { border:0;background:transparent;padding:0; }
+html .creator-caption { background:url('/art/reference-v1/ui-title.png') center/100% 100% no-repeat;color:#fff0cf;padding:14px 18px;letter-spacing:1px;font-weight:700;margin-bottom:8px; }
+html .creator-scenery { background-image:url('/art/reference-v1/creator-courtyard.png');border:4px solid #896239; }
+html .creator-card { background:#ffeecb url('/art/reference-v1/ui-slot.png') center/100% 100% no-repeat;border:2px solid transparent;box-shadow:none; }
+html .creator-tile input:checked+.creator-card { background:#f4d986 url('/art/reference-v1/ui-slot.png') center/100% 100% no-repeat;border-color:#c9912e;box-shadow:0 0 0 2px #7d582b; }
+html #login button,html .world-frame button,html #worldToolbar button,html #worldInteract,html #casino button,html #fishingPanel button { background:#f3be50 url('/art/reference-v1/ui-gold.png') center/100% 100% no-repeat;border:0;color:#482f1a;box-shadow:0 3px 0 #4a301f;min-height:40px;padding:10px 16px;font-family:'Noto Sans Thai',Arial,sans-serif; }
+html button:disabled { filter:grayscale(.65) brightness(.85); }
+html .creator-turn button { background-image:url('/art/reference-v1/ui-leaf.png'); }
+html #casinoToolbar,html #natureBar,html #worldToolbar { background:#174b35;border:9px solid transparent;border-image:url('/art/reference-v1/ui-green.png') 35 fill /10px /0 stretch; }
+html #worldToolbar canvas { border:5px solid #a97842; }
+html #worldPanel,html #casino { background:#091d1be8;backdrop-filter:blur(3px); }
+html .world-frame { border:24px solid transparent;border-image:url('/art/reference-v1/ui-parchment.png') 105 fill /24px /0 stretch;background:#f9e7be;color:#4f402b;padding:12px; }
+html .world-frame h2 { color:#70482c; }
+html #worldNotice { color:#776138; }
+html .world-frame header { border-bottom:2px solid #aa885850;padding-bottom:10px; }
+html .world-map-grid article,html .world-collection article { border:10px solid transparent;border-image:url('/art/reference-v1/ui-slot.png') 42 fill /10px /0 stretch;background:#ffefd1;color:#59462c; }
+html .world-collection canvas { width:64px; }
+html .world-cafe-order { background:#3d6345;color:#fff2ce;border-color:#926b3d; }
+.world-cafe-room { background:#936342 url('/art/reference-v1/cafe-interior.png') center/cover no-repeat;padding:130px 12px 24px;min-height:285px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;border:4px solid #745131; }
+.world-cafe-worker { display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;color:#fff1cb;font-size:12px;text-shadow:1px 2px #34251d;text-align:center;min-width:0; }
+.world-cafe-worker canvas { width:64px;height:86px;image-rendering:pixelated; }
+html .world-cafe-stations article { background:#35633d;color:#ffefd0;border-color:#ad8650; }
+html #casino .pok-panel { background:#583d2c url('/art/reference-v1/tile-wood.png') center/192px;border:16px solid transparent;border-image:url('/art/reference-v1/ui-green.png') 35 /16px /0 stretch;box-shadow:0 10px 40px #061912; }
+html .pok-panel header { background:#203f2edb;padding:8px; }
+html #casino .pok-arena { background:url('/art/reference-v1/inn-interior.png') center/cover no-repeat; }
+html #casino .pok-felt { background:url('/art/reference-v1/ui-table.png') center/100% 100% no-repeat;clip-path:none;filter:drop-shadow(0 9px 0 #2b1d2290); }
+html .pok-felt::before,html .pok-felt::after { display:none; }
+html #casino .pok-seat { background:#163e2fe8;border-color:#b98649; }
+html .pok-avatar { background:url('/art/reference-v1/ui-portrait.png') center/100% 100% no-repeat;overflow:visible;border:0;box-shadow:none; }
+html .pok-avatar::after,html .pok-avatar-face { display:none; }
+.pok-avatar canvas { width:44px;height:58px;image-rendering:pixelated;position:absolute;left:-4px;bottom:0; }
+html #pokWallet { background:#174d36;border-color:#ad8542; }
+html #casino #pokBetting { background:#163e2fe8;border-color:#d4a34e; }
+html .pok-back-pattern { background:url('/art/reference-v1/icon-card-back.png') center/100% 100% no-repeat; }
+html .pok-back-pattern>* { opacity:0; }
+html .fishing-panel,html #fishingPanel { border-color:#a17a48;background:#244c38ef; }
+html #hud #log { border-color:#ad8552; }
+.collection-tabs { display:flex;gap:8px;flex-wrap:wrap;margin:12px 0; }
+.collection-tabs button[aria-pressed=true] { background-image:url('/art/reference-v1/ui-leaf.png'); }
+html #fishBag p { display:flex;gap:8px;align-items:center; }
+#fishBag canvas { width:32px;height:32px;image-rendering:pixelated; }
+#fishCatchArt {text-align:center;}
+#fishCatchArt canvas {width:72px;height:72px;image-rendering:pixelated;}
+@media(max-width:680px) {html #login #loginForm,html .world-frame { border-width:15px;border-image-width:15px; } .world-cafe-room {padding-top:90px;min-height:220px;gap:2px;padding-inline:4px;} .world-cafe-worker canvas {width:48px;height:64px;} .world-cafe-worker {font-size:10px;} html #casino .pok-panel {border-width:8px;border-image-width:8px;} html #casinoToolbar,html #natureBar {border-width:3px;border-image-width:7px;} html #casino .pok-seat.empty button {padding:8px 2px;font-size:11px;} .pok-avatar canvas {width:32px;height:43px;left:-4px;} }

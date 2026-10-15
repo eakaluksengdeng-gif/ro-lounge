@@ -7,6 +7,8 @@ import { CharacterCreator } from "./character/CharacterCreator";
 import { NatureUI } from "./nature/NatureUI";
 import { gameSounds } from "./audio/GameSounds";
 import { WorldUI } from "./world/WorldUI";
+import { loadReferenceArt } from './reference/Assets';
+import './reference/reference.css';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -32,7 +34,11 @@ const setStatus = (t: string) => {
 };
 
 try { nameInput.value = localStorage.getItem("ro-name") ?? ""; } catch { /* ignore */ }
-const creator = new CharacterCreator($("customize"), nameInput);
+let creator:CharacterCreator;
+const enter=loginForm.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+enter.disabled=true;setStatus('กำลังโหลดภาพตัวละครและโลก…');
+const artReady=loadReferenceArt().then(()=>{creator=new CharacterCreator($("customize"),nameInput);enter.disabled=false;setStatus('');});
+artReady.catch(()=>setStatus('โหลดภาพไม่สำเร็จ กรุณารีเฟรชหน้าเพื่อลองใหม่'));
 
 function addLog(m: ChatMsg) {
   const line = document.createElement("div");
@@ -46,6 +52,7 @@ function addLog(m: ChatMsg) {
 
 loginForm.addEventListener("submit", async (e) => {
   e.preventDefault();
+  try {await artReady;}catch{return;}
   const name = nameInput.value.trim() || "Guest";
   const appearance = creator.selectedLook();
   try {

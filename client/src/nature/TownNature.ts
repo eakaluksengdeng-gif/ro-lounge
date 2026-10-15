@@ -54,7 +54,7 @@ export class TownNature {
         const feet = animal.kind === "cat" ? 19 : animal.kind === "rabbit" ? 20 : animal.kind === "ladybug" ? 18 : 16;
         const shadow = this.scene.add.ellipse(0, -2, animal.kind === "cat" ? 28 : 18, 6, 0x17242a, .2);
         const sprite = this.scene.add.image(0, 0, `nature-${animal.kind}-${animal.variant}-0`)
-          .setOrigin(.5, feet / 22).setScale(animal.kind === "cat" ? 3 : 2);
+          .setOrigin(.5, feet / 22).setScale(animal.kind === "cat" ? 1.25 : animal.kind==='rabbit'?1:.65);
         const body = this.scene.add.container(animal.x, animal.y, [shadow, sprite]);
         view = { body, sprite, shadow }; this.animals.set(id, view);
       }

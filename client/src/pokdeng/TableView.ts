@@ -1,6 +1,8 @@
 import type { Card, PrivateHand, SeatView, TableState } from "../../../shared/pokdeng";
 import { coinAmount, goldCoin, playingCard } from "./PixelCards";
 import { formatNumber, formatDelta } from "./numbers";
+import { renderCharacterCanvas, type Look } from '../art';
+import { cosmeticCanvas } from '../world/Cosmetics';
 
 const KINDS = { points: "แต้ม", pok8: "ป๊อก 8", pok9: "ป๊อก 9", sian: "เซียน", straight: "เรียง", tong: "ตอง" };
 const PHASES = { betting: "รอเดิมพัน", dealing: "กำลังแจกไพ่", check_pok: "ตรวจป๊อก", action: "จั่ว หรือ อยู่", showdown: "เปิดไพ่ · คิดชิปแล้ว" };
@@ -93,7 +95,7 @@ export class PokTableView {
   private views: { element: HTMLElement; title: HTMLElement; name: HTMLElement; info: HTMLElement; result: HTMLElement;
     avatar: HTMLElement; sit: HTMLButtonElement; hand: AnimatedCards; playerId?: string }[] = [];
 
-  constructor(sit: (seat: number) => void) {
+  constructor(sit: (seat: number) => void, private portrait?:(id:string)=>{look:Look;cosmetic:string}|undefined) {
     this.element.className = "pok-arena";
     this.element.setAttribute("aria-label", "โต๊ะป๊อกเด้ง 8 ที่นั่ง");
     const felt = document.createElement("div");
@@ -121,10 +123,6 @@ export class PokTableView {
       const avatar = document.createElement("div");
       avatar.className = "pok-avatar";
       avatar.setAttribute("aria-hidden", "true");
-      // Small code-native pixel guest portrait, not a photo or an invented player balance.
-      const face = document.createElement("span");
-      face.className = "pok-avatar-face";
-      avatar.append(face);
       const title = document.createElement("h3");
       const name = document.createElement("p");
       name.className = "pok-seat-name";
@@ -173,9 +171,10 @@ export class PokTableView {
       view.element.dataset.connection = seat?.leaving ? "leaving" : seat?.connected ? "online" : "offline";
       if (seat?.playerId !== view.playerId) {
         view.playerId = seat?.playerId;
-        const hue = [...(seat?.playerId ?? "")].reduce((sum, c) => sum + c.charCodeAt(0), 0) % 360;
-        view.avatar.style.setProperty("--avatar-color", `hsl(${hue} 46% 58%)`);
+        view.avatar.replaceChildren();
+        delete view.avatar.dataset.look;
       }
+      if(seat){const portrait=this.portrait?.(seat.playerId);if(portrait){const signature=JSON.stringify(portrait);if(view.avatar.dataset.look!==signature){const canvas=renderCharacterCanvas(portrait.look);canvas.getContext('2d')!.drawImage(cosmeticCanvas(portrait.cosmetic),0,0);view.avatar.replaceChildren(canvas);view.avatar.dataset.look=signature;}}}
       if (seat) {
         view.info.title = seat.dealer ? "เจ้ามือรับทุกเดิมพัน" : "เดิมพัน " + formatNumber(seat.bet) + " ชิป";
         if (seat.dealer) view.info.textContent = "รับทุกเดิมพัน";
