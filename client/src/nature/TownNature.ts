@@ -70,7 +70,7 @@ export class TownNature {
       const frame = this.motion.matches?0:Math.floor(t / (flying ? 160 : 240)) % 2;
       view.sprite.setTexture(`nature-${animal.kind}-${animal.variant}-${animal.moving || flying ? frame : 0}`);
       if(animal.kind==='cat'&&!animal.moving&&['sit','groom','stretch','sleep'].includes(animal.behavior??'')){
-        view.sprite.setTexture('nature-cat-'+animal.behavior);
+        view.sprite.setTexture(`nature-cat-${animal.variant}-${animal.behavior}`);
         // Stable feet; tiny grooming nod and slow sleeping breathing, never sliding the body.
         const breathe=this.motion.matches?0:Math.sin(t/(animal.behavior==='sleep'?1100:220))*(animal.behavior==='groom'?.035:.012);
         view.sprite.setScale(1.25,1.25+breathe);
