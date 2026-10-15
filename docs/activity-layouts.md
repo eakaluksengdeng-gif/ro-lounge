@@ -34,3 +34,5 @@ Local verification passed: 56 server tests and TypeScript; client production bui
 
 Production verification is performed after publishing, using an isolated Guest and no wagers/kitchen joins/item collection. Its own cast is cancelled without awarding anything. The safe black-box smoke records screenshots/results locally, checks the activity-v2 art version, actual five-map navigation, read-only café scene, fishing preview/gauge, Boardgame spectator controls/mobile, no missing art/page errors, and unchanged balance/backend.
 
+PR #20 published the runtime UI (merge 662fba0155afec5f39da116d414b1f541283d2d8). The production smoke passed all checks, with 100 chips before/after and backend commit d1fbe710cdadbbd634e21d55cf56a78be4595436 unchanged/durable. Live sound/mobile spectator checks also passed. Screenshot inspection caught a first-open café backdrop loading flash; the follow-up explicitly predecodes the creator/café/inn scene PNGs alongside the existing asset set, before the game becomes interactive. No runtime/schema/server state logic is changed by this first-paint fix.
+

@@ -24,6 +24,7 @@ try{
     if(id==='market'){
       await page.mouse.click(430,540);await page.waitForFunction(()=>{const button=document.querySelector('#worldInteract');return button&&!button.hidden&&button.textContent.includes('คาเฟ่');},null,{timeout:25000});
       await page.locator('#worldInteract').click();assert.equal(await page.locator('.cafe-orders progress').count(),4);assert.ok(await page.locator('.world-cafe-worker canvas').count()<=4);
+      assert.match(await page.locator('.world-cafe-room').evaluate(el=>getComputedStyle(el).backgroundImage),/cafe-interior\.png/);
       await page.screenshot({path:join(output,'cafe.png'),fullPage:true});await page.locator('#worldPanel').getByRole('button',{name:'ปิด',exact:true}).click();report.checks.push('read-only live cafe tableau and four stage progress bubbles');
     }
   }

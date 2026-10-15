@@ -9,7 +9,9 @@ export function loadReferenceArt(){
       const response=await fetch('/art/'+directory+'/manifest.json');
       if(!response.ok)throw new Error('โหลดชุดภาพเกมไม่สำเร็จ');
       const manifest=await response.json();
-      await Promise.all(Object.values(manifest).filter(Array.isArray).flat().map(async(key:any)=>{
+      const keys=Object.values(manifest).filter(Array.isArray).flat();
+      if(directory==='reference-v1')keys.push('creator-courtyard','cafe-interior','inn-interior');
+      await Promise.all(keys.map(async(key:any)=>{
         const image=new Image();image.src='/art/'+directory+'/'+key+'.png';await image.decode();images.set(key,image);
       }));
     }
