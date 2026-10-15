@@ -2,6 +2,7 @@ import {FARM_PLOTS,SEEDS,type WorldView} from '../../../shared/regions';
 import type {TownScene} from '../scenes/TownScene';
 import {itemCanvas} from './Cosmetics';
 import './direct-farm.css';
+import {artCanvas} from '../reference/Assets';
 type Send=(verb:string,payload:Record<string,unknown>)=>void;
 /** A non-modal tool strip at the real crop, never a full-screen farm menu. */
 export class DirectFarmUI {
@@ -27,12 +28,13 @@ export class DirectFarmUI {
   if(sig===this.signature){const status=this.root.querySelector('[data-growth]');if(status)status.textContent=cropLabel;return;}this.signature=sig;this.root.replaceChildren();this.root.dataset.slot=String(plot.slot);
   const button=(label:string,run:()=>void,disabled=false)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.disabled=pending||disabled;b.onclick=run;return b;};
   const send=(verb:string,extra:Record<string,unknown>={})=>this.send(verb,{nodeId:plot.nodeId,ownerId:farm!.id,slot:plot.slot,...extra});
-  const header=document.createElement('header'),title=document.createElement('strong');title.textContent='แปลง '+(plot.slot+1)+' · 💧 '+(view.progress.water??2);header.append(title);
+  const header=document.createElement('header'),title=document.createElement('strong');title.textContent='แปลง '+(plot.slot+1)+' · '+(view.progress.water??2);title.prepend(artCanvas('tool-water',18));header.append(title);
   const owners=document.createElement('select');owners.setAttribute('aria-label','แปลงของใคร');for(const f of view.farms){const option=document.createElement('option');option.value=f.id;option.textContent=f.id===mine?'ของฉัน':f.name;owners.append(option);}owners.value=farm.id;owners.disabled=pending;owners.onchange=()=>{this.owner=owners.value;this.signature='';};header.append(owners);this.root.append(header);
   if(farm.id===mine){const help=button(farm.allowHelp?'เพื่อนช่วยรดน้ำ: เปิด':'เพื่อนช่วยรดน้ำ: ปิด',()=>send('allow-help',{allow:!farm!.allowHelp}));help.className='farm-help';this.root.append(help);}
   if(!crop){const seeds=document.createElement('div');seeds.className='farm-seeds';for(const seed of SEEDS){const b=button('ปลูก'+seed.name,()=>send('plant',{seed:seed.id}),farm.id!==mine);b.prepend(itemCanvas(seed.id));seeds.append(b);}this.root.append(seeds);return;}
   const status=document.createElement('p');status.textContent=cropLabel;status.dataset.growth='true';this.root.append(status);
-  const action=!crop.watered?button('💧 รดน้ำ −1 · E',()=>send('water'),(view.progress.water??2)<=0||farm.id!==mine&&!farm.allowHelp):button(remaining?'กำลังโต…':'เก็บเกี่ยว · E',()=>send('harvest'),remaining>0||farm.id!==mine);
+  const action=!crop.watered?button('รดน้ำ −1 · E',()=>send('water'),(view.progress.water??2)<=0||farm.id!==mine&&!farm.allowHelp):button(remaining?'กำลังโต…':'เก็บเกี่ยว · E',()=>send('harvest'),remaining>0||farm.id!==mine);
+  if(!crop.watered)action.prepend(artCanvas('tool-watering-can',24));
   action.dataset.primary='true';this.root.append(action);
   if(!crop.watered&&(view.progress.water??2)<=0){const hint=document.createElement('small');hint.textContent='น้ำหมด · ไปตักน้ำที่บ่อในฟาร์ม';this.root.append(hint);}
  }

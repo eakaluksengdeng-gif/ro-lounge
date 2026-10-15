@@ -172,6 +172,7 @@ export class TownRoom extends Room<TownState> {
         for (const [id, animal] of this.environment.animals) {
           const value = this.state.wildlife.get(id)!;
           value.x = animal.x; value.y = animal.y; value.facing = animal.facing; value.moving = animal.moving;
+          value.behavior = animal.behavior??'sit';
         }
       }
       const weather = this.environment.weather(now);

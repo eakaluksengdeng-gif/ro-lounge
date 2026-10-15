@@ -3,6 +3,7 @@ import type { AnimalKind } from "../../../shared/nature";
 import { artCanvas } from "../reference/Assets";
 /** Real generated walking/flapping frames; variation is a subtle coat palette tint. */
 export function buildNatureTextures(scene:Phaser.Scene){
+  for(const pose of ['sit','groom','stretch','sleep'])if(!scene.textures.exists('nature-cat-'+pose))scene.textures.addCanvas('nature-cat-'+pose,artCanvas('cat-'+pose,48))?.setFilter(Phaser.Textures.FilterMode.NEAREST);
   for(const kind of ['cat','rabbit','butterfly','bee','ladybug'] as AnimalKind[])for(let variant=0;variant<3;variant++)for(let frame=0;frame<2;frame++){
     const key=`nature-${kind}-${variant}-${frame}`;if(scene.textures.exists(key))continue;
     const canvas=artCanvas(`animal-${kind}-${frame}`,48);

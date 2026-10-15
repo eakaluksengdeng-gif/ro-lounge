@@ -69,12 +69,18 @@ export class TownNature {
       const flying = animal.kind === "bee" || animal.kind === "butterfly";
       const frame = this.motion.matches?0:Math.floor(t / (flying ? 160 : 240)) % 2;
       view.sprite.setTexture(`nature-${animal.kind}-${animal.variant}-${animal.moving || flying ? frame : 0}`);
+      if(animal.kind==='cat'&&!animal.moving&&['sit','groom','stretch','sleep'].includes(animal.behavior??'')){
+        view.sprite.setTexture('nature-cat-'+animal.behavior);
+        // Stable feet; tiny grooming nod and slow sleeping breathing, never sliding the body.
+        const breathe=this.motion.matches?0:Math.sin(t/(animal.behavior==='sleep'?1100:220))*(animal.behavior==='groom'?.035:.012);
+        view.sprite.setScale(1.25,1.25+breathe);
+      }else if(animal.kind==='cat')view.sprite.setScale(1.25);
       view.sprite.setFlipX(animal.facing < 0);
       view.sprite.y = this.motion.matches?(flying?-16:0):flying ? -16 + Math.sin(t / 260 + animal.variant) * 4
         : animal.kind === "rabbit" && animal.moving ? -Math.abs(Math.sin(t / 160)) * 7 : 0;
       view.shadow.setAlpha(flying ? .09 : .2);
       if (me && Math.hypot(animal.x - me.x, animal.y - me.y) < 100) {
-        if (animal.kind === "cat" && !animal.moving) gameSounds.play("cat");
+        if (animal.kind === "cat" && !animal.moving&&animal.behavior!=='sleep') gameSounds.play("cat");
         if (animal.kind === "bee") gameSounds.play("bee");
         if (animal.kind === "rabbit" && animal.moving) gameSounds.play("hop");
       }

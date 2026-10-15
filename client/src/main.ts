@@ -7,12 +7,13 @@ import { CharacterCreator } from "./character/CharacterCreator";
 import { NatureUI } from "./nature/NatureUI";
 import { gameSounds } from "./audio/GameSounds";
 import { WorldUI } from "./world/WorldUI";
-import { loadReferenceArt } from './reference/Assets';
+import { loadReferenceArt,artCanvas } from './reference/Assets';
 import './reference/reference.css';
 import './reference/activities.css';
 import './world/modern.css';
 import './world/collection.css';
 import './nature/fishing-layout.css';
+import './world/season.css';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -140,11 +141,11 @@ loginForm.addEventListener("submit", async (e) => {
     chatInput.value = "";
   });
 
-  const icons: [string, string][] = [["happy", "😄"], ["sad", "😢"], ["love", "❤️"], ["wave", "👋"], ["angry", "💢"], ["sleepy", "💤"]];
+  const icons: [string, string][] = [["happy", "ดีใจ"], ["sad", "เศร้า"], ["love", "รัก"], ["wave", "ทักทาย"], ["angry", "โกรธ"], ["sleepy", "ง่วง"]];
   for (const [name, icon] of icons) {
     const b = document.createElement("button");
     b.type = "button";
-    b.textContent = icon;
+    const image=artCanvas('emote-'+name,32);image.style.imageRendering='pixelated';b.append(image);b.title=icon;b.setAttribute('aria-label',icon);
     b.addEventListener("click", () => room.send("emote", { name }));
     emotesEl.append(b);
   }

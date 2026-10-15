@@ -14,7 +14,7 @@ export class EnvironmentManager {
     if (!Number.isSafeInteger(phaseMs) || phaseMs < 1000) throw new Error("Invalid weather phase duration");
     HOMES.forEach(([kind, x, y], index) => this.animals.set("wild-" + index, {
       kind, variant: index % 3, x, y, homeX: x, homeY: y, tx: x, ty: y,
-      facing: 1, moving: false, pauseUntil: epoch + index * 160,
+      facing: 1, moving: false, behavior:'sit', pauseUntil: epoch + index * 160,
     }));
   }
   weather(now: number): { kind: WeatherKind; nextChangeAt: number; serverTime: number } {
@@ -32,6 +32,10 @@ export class EnvironmentManager {
       if (distance < 3) {
         animal.moving = false;
         animal.pauseUntil = now + (flying ? 300 : 1000) + this.random() * 2800;
+        if(animal.kind==='cat'){
+          animal.behavior=(['sit','groom','stretch','sleep'] as const)[Math.min(3,Math.floor(this.random()*4))];
+          animal.pauseUntil=now+(animal.behavior==='sleep'?12000:animal.behavior==='stretch'?2200:4500)+this.random()*3000;
+        }
         for (let tries = 0; tries < 16; tries++) {
           const angle = this.random() * Math.PI * 2;
           const radius = 20 + this.random() * (flying ? 100 : 70);
@@ -46,6 +50,7 @@ export class EnvironmentManager {
       const x = animal.x + dx / distance * step, y = animal.y + dy / distance * step;
       if (isBlocked(x, y)) { animal.tx = animal.x; animal.ty = animal.y; animal.moving = false; continue; }
       animal.x = x; animal.y = y; animal.facing = dx < 0 ? -1 : 1; animal.moving = true;
+      animal.behavior='walk';
     }
   }
 }

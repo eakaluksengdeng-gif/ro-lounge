@@ -62,7 +62,7 @@ try{
   const readyAt=await a.evaluate(()=>window.qaWorld.progress.plots[0].readyAt);assert.ok(readyAt>Date.now());
   await a.getByRole("button",{name:"เพื่อนช่วยรดน้ำ: ปิด",exact:true}).click();await saved(a,"เปิดให้");
   await b.getByRole("combobox",{name:"แปลงของใคร",exact:true}).selectOption(ids[0]);
-  await b.getByRole("button",{name:"💧 รดน้ำ −1 · E",exact:true}).click();await saved(b,"รดน้ำแล้ว");
+  await b.getByRole("button",{name:"รดน้ำ −1 · E",exact:true}).click();await saved(b,"รดน้ำแล้ว");
   await a.waitForFunction(()=>window.qaWorld.progress.plots[0].watered===true);
   await a.screenshot({path:"/tmp/ro-world-farm-ui.png"});await close(a);await close(b);
   await go(a,984,312);await a.waitForFunction(()=>document.querySelector('#directFarm')?.dataset.slot==='4');

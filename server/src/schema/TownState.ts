@@ -29,6 +29,7 @@ export class Wildlife extends Schema {
   @type("number") y = 0;
   @type("int8") facing = 1;
   @type("boolean") moving = false;
+  @type("string") behavior = 'sit';
 }
 
 export class TownState extends Schema {

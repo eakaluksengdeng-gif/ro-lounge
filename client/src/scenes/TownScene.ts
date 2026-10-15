@@ -28,9 +28,7 @@ import {
 const FONT = '"Pixelify Sans", "Noto Sans Thai", system-ui, sans-serif';
 const BUBBLE_MS = 5000;
 const EMOTE_MS = 1800;
-const EMOTE_ICONS: Record<string, string> = {
-  happy: "😄", sad: "😢", love: "❤️", wave: "👋", angry: "💢", sleepy: "💤",
-};
+const EMOTE_NAMES=['happy','sad','love','wave','angry','sleepy'];
 
 
 const HEAD_Y = -(CHAR_H + 2) * CHAR_SCALE - 4; // Sprite resolution does not change its world-space foot anchor.
@@ -45,7 +43,7 @@ interface Avatar {
   bubble: Phaser.GameObjects.Container;
   bubbleGfx: Phaser.GameObjects.Graphics;
   bubbleText: Phaser.GameObjects.Text;
-  emote: Phaser.GameObjects.Text;
+  emote: Phaser.GameObjects.Image;
   bubbleTimer?: Phaser.Time.TimerEvent;
   emoteTimer?: Phaser.Time.TimerEvent;
   dir: Dir;
@@ -92,6 +90,7 @@ export class TownScene extends Phaser.Scene {
   create() {
     buildWorldTextures(this);
     ensureCosmetics(this);
+    for(const name of EMOTE_NAMES)if(!this.textures.exists('pixel-emote-'+name))this.textures.addImage('pixel-emote-'+name,artImage('emote-'+name));
     this.cameras.main.setBackgroundColor("#1b2230");
     this.cameras.main.setBounds(0, 0, MAP_W, MAP_H);
     this.cameras.main.setRoundPixels(true);
@@ -286,7 +285,7 @@ export class TownScene extends Phaser.Scene {
     av.sprite.setAlpha(p.activity==="camp"?.9:1);
     av.sprite.y = av.gear.y = p.activity === "camp" ? 6 : 0;
     if(p.activity!==av.lastActivity){
-      if(p.activity==="feed") {av.emote.setText("♥").setColor("#f3a6a5").setVisible(true);av.emoteTimer?.remove();av.emoteTimer=this.time.delayedCall(1700,()=>av.emote.setVisible(false));}
+      if(p.activity==="feed") {av.emote.setTexture('pixel-emote-love').setDisplaySize(34,34).setVisible(true);av.emoteTimer?.remove();av.emoteTimer=this.time.delayedCall(1700,()=>av.emote.setVisible(false));}
       av.lastActivity=p.activity;
     }
 
@@ -357,7 +356,7 @@ export class TownScene extends Phaser.Scene {
     }).setOrigin(0.5, 0);
     const bubble = this.add.container(0, HEAD_Y, [bubbleGfx, bubbleText]).setVisible(false);
 
-    const emote = this.add.text(0, HEAD_Y, "", { fontSize: "30px" }).setOrigin(0.5, 1).setVisible(false);
+    const emote = this.add.image(0, HEAD_Y,'pixel-emote-happy').setDisplaySize(34,34).setOrigin(0.5, 1).setVisible(false);
 
     const container = this.add.container(0, 0, [shadow, sprite, gear, name, bubble, emote]);
     return {
@@ -393,11 +392,11 @@ export class TownScene extends Phaser.Scene {
 
   private showEmote(id: string, name: string) {
     const av = this.avatars.get(id);
-    const icon = EMOTE_ICONS[name];
-    if (!av || !icon) return;
+    if (!av || !EMOTE_NAMES.includes(name)) return;
     av.bubble.setVisible(false);
-    av.emote.setText(icon).setVisible(true).setScale(0.3);
-    this.tweens.add({ targets: av.emote, scale: 1, duration: 220, ease: "Back.Out" });
+    av.emote.setTexture('pixel-emote-'+name).setVisible(true).setDisplaySize(12,12);
+    if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)av.emote.setDisplaySize(34,34);
+    else this.tweens.add({ targets: av.emote, displayWidth:34,displayHeight:34, duration: 220, ease: "Back.Out" });
     av.emoteTimer?.remove();
     av.emoteTimer = this.time.delayedCall(EMOTE_MS, () => av.emote.setVisible(false));
   }

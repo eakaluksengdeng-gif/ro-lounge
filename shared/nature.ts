@@ -1,6 +1,7 @@
 export type WeatherKind = "sunny" | "rain" | "snow";
 export type AnimalKind = "cat" | "rabbit" | "butterfly" | "bee" | "ladybug";
-export interface WildlifeView { kind: AnimalKind; variant: number; x: number; y: number; facing: number; moving: boolean }
+export type CatBehavior='walk'|'sit'|'groom'|'stretch'|'sleep';
+export interface WildlifeView { kind: AnimalKind; variant: number; x: number; y: number; facing: number; moving: boolean; behavior?:CatBehavior }
 export const CATCHABLE_BUGS:Partial<Record<AnimalKind,{item:string;name:string}>>={butterfly:{item:'butterfly',name:'จับผีเสื้อ'},bee:{item:'bee',name:'จับผึ้ง'},ladybug:{item:'ladybug',name:'จับเต่าทอง'}};
 export const wildlifeCatchKey=(map:string,id:string)=>'wildlife:'+map+':'+id;
 export interface WeatherView { kind: WeatherKind; nextChangeAt: number; serverTime: number }
