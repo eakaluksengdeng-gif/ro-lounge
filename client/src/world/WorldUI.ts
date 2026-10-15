@@ -10,6 +10,7 @@ import "./world.css";
 import { groundCanvas } from '../reference/WorldArt';
 import { bagCanvas } from './bag';
 import {catalogue,bagEntries,bagQuantity} from './inventory';
+import {VILLAGE_ORDERS,SKILL_NAMES,villageLevel} from '../../../shared/village';
 const STATIONS=["รับออร์เดอร์","เตรียม","ปรุง","เสิร์ฟ"];
 const COLLECTION_HINTS:Record<string,string>={
   butterfly:"ป่าน้ำตก · ผีเสื้อฟ้าตามทาง",beetle:"ป่าน้ำตก · ด้วงทองฝั่งตะวันออก",firefly:"ป่าน้ำตก · ตอนเย็นหรือกลางคืน",
@@ -50,6 +51,8 @@ export class WorldUI {
   private inventoryQuery='';
   private inventorySort='name';
   private journalFilter='all';
+  private fishDiscoveries:string[]=[];
+  private villageConfirmation?:{verb:'order-submit'|'museum-donate';id:string};
   constructor(private room:Room,private scene:TownScene) {
     this.toolbar.id="worldToolbar";this.minimap.width=120;this.minimap.height=72;this.minimap.setAttribute("aria-label","แผนที่ย่อและตำแหน่งของคุณ");
     const bag=this.button('กระเป๋า',()=>this.open('inventory'));bag.id='worldBagButton';bag.setAttribute('aria-label','กระเป๋า');bag.title='กระเป๋า · B';this.bagCount.className='bag-count';this.bagCount.setAttribute('aria-hidden','true');bag.prepend(bagCanvas());bag.append(this.bagCount);
@@ -71,7 +74,7 @@ export class WorldUI {
         if(this.pendingVerb==="boat"||this.pendingVerb==="sit")this.close();this.pendingVerb="";this.render(true);}
       else this.render();
     });
-    this.room.onMessage<FishingState>("fish:state",state=>{this.fish={...state.inventory} as Record<string,number>;this.render();});
+    this.room.onMessage<FishingState>("fish:state",state=>{this.fish={...state.inventory} as Record<string,number>;this.fishDiscoveries=state.discovered??[];this.render();});
     this.room.onMessage("world:note",(event:{note:number})=>gameSounds.playNote(event.note));
     this.room.onMessage("api:error",(error:{event:string;message:string})=>{
       if(!error.event.startsWith("world:"))return;this.pending=false;window.clearTimeout(this.pendingTimer);
@@ -119,7 +122,7 @@ export class WorldUI {
     this.render(true);
   }
   private open(page:string) {if(!this.view||this.scene.casinoOpen)return;this.page=page;this.panel.hidden=false;this.scene.worldOpen=true;document.body.classList.add("world-ui-open");this.notice.textContent="";this.render(true);}
-  private close(){this.panel.hidden=true;this.scene.worldOpen=false;document.body.classList.remove("world-ui-open");}
+  private close(){this.villageConfirmation=undefined;this.panel.hidden=true;this.scene.worldOpen=false;document.body.classList.remove("world-ui-open");}
   private update() {
     const p=this.player();if(!p)return;
     if(this.scene.casinoOpen&&!this.panel.hidden)this.close();
@@ -153,7 +156,7 @@ export class WorldUI {
   }
   private render(force=false) {
     if(this.panel.hidden||!this.view)return;
-    const sig=JSON.stringify([this.page,this.view.progress,this.view.farms,this.view.cafe,this.view.boat,this.view.cleanup,this.fish,this.pending,this.node?.id,
+    const sig=JSON.stringify([this.page,this.view.progress,this.view.farms,this.view.cafe,this.view.boat,this.view.cleanup,this.fish,this.fishDiscoveries,this.pending,this.node?.id,
       this.view.farms.flatMap(farm=>farm.plots.map(crop=>crop?Date.now()>=crop.readyAt:false)),
       Date.now()>=(this.view.progress.cooldowns[this.node?.id??""]??0)]);
     if(!force&&sig===this.signature)return;this.signature=sig;this.body.replaceChildren();
@@ -163,6 +166,7 @@ export class WorldUI {
     if(this.page==='collection'){this.title.textContent='สมุดสะสม';this.collectionPage();return;}
     if(!this.node){this.body.append(this.text("กลับไปใกล้จุดกิจกรรมเพื่อใช้งาน"));return;}
     this.title.textContent=this.node.name;
+    if(this.page==='orders'||this.page==='museum'){this.villagePage();return;}
     if(["farm","greenhouse"].includes(this.page)){this.farmPage();return;}
     if(this.page==="cafe"){this.cafePage();return;}
     if(this.page==="shop"){this.shopPage();return;}
@@ -186,7 +190,7 @@ export class WorldUI {
     const grid=document.createElement("div");grid.className="world-map-grid";
     for(const map of MAP_IDS){
       const card=document.createElement("article");card.dataset.map=map;card.append(this.text(MAP_NAMES[map],"world-card-title"));
-      const activities={town:"Boardgame · บ่อปลา · แชท",forest:"แมลง · เห็ด · กระต่ายหิมะ · แคมป์",farm:"ปลูกผัก · โรงเรือน · รดน้ำเพื่อน · สัตว์",beach:"ปลาทะเล · หอย · สมบัติ · เก็บขยะ · เรือ",market:"ครัว 2–4 คน · ร้านชุด · เวทีดนตรี"};
+      const activities={town:"Boardgame · บ่อปลา · ออร์เดอร์ · หอสะสม",forest:"แมลง · เห็ด · กระต่ายหิมะ · แคมป์",farm:"ปลูกผัก · โรงเรือน · รดน้ำเพื่อน · สัตว์",beach:"ปลาทะเล · หอย · สมบัติ · เก็บขยะ · เรือ",market:"ครัว 2–4 คน · ร้านชุด · เวทีดนตรี"};
       card.append(this.text(activities[map]));grid.append(card);
     }
     this.body.append(grid);
@@ -197,6 +201,10 @@ export class WorldUI {
       actions.append(this.button(({north:"↑",south:"↓",west:"←",east:"→"} as const)[direction]+" เดินไป"+MAP_NAMES[next],()=>this.navigateExit(direction),p?.activity==="boat"));
     }
     this.body.append(actions);
+    if(map==='town'){
+      const village=document.createElement('div');village.className='world-actions';
+      for(const id of ['village-board','nature-museum']){const node=WORLD_NODES.find(n=>n.id===id)!;village.append(this.button('เดินไป'+node.name,()=>{this.close();this.scene.navigateTo([{x:node.x,y:node.y}]);},p?.activity==='boat'));}this.body.append(village);
+    }
   }
   private navigateExit(direction:Direction) {
     const p=this.player();if(!p)return;this.close();
@@ -228,6 +236,9 @@ export class WorldUI {
       const uses=COSMETICS.filter(c=>Object.prototype.hasOwnProperty.call(c.cost,entry.id)&&!progress.unlocks.includes(c.id));
       if(uses.length){const recipes=document.createElement('div');recipes.className='inventory-uses';for(const cosmetic of uses){const cost=Object.entries(cosmetic.cost) as [string,number][];const ready=cost.every(([id,n])=>(progress.inventory[id]??0)>=n);recipes.append(this.text((ready?'✓ พร้อมแลก ':'ใช้แลก ')+cosmetic.name+' · '+cost.map(([id,n])=>(ITEMS[id]?.name??id)+' '+Math.min(progress.inventory[id]??0,n)+'/'+n).join(' · ')));}recipes.append(this.text('ยืนยันแลกได้เมื่อเดินไปถึงร้านในตลาด'));detail.append(recipes);}
       else detail.append(this.text(entry.category==='ปลา'?'ปลาที่จับได้จะเก็บไว้ที่นี่ · ชิปจากการตกปลาเข้ากระเป๋าเงินแล้ว':'เก็บไว้ใช้แลกของหรือสะสมต่อได้','collection-hint'));
+      const jobs=VILLAGE_ORDERS.filter(o=>Object.prototype.hasOwnProperty.call(o.cost,entry.id));
+      if(jobs.length){const uses=document.createElement('div');uses.className='inventory-uses';for(const job of jobs)uses.append(this.text('ออร์เดอร์ '+job.name+' · ใช้ '+(job.cost as Record<string,number>)[entry.id]+' ชิ้น · '+SKILL_NAMES[job.skill]+' +'+job.xp+' XP'));uses.append(this.text('ส่งได้ที่กระดานออร์เดอร์ข้างน้ำพุ'));detail.append(uses);}
+      if((entry.category==='ปลา'||entry.category==='แมลง')&&!progress.village?.museum.includes(entry.id))detail.append(this.text('มอบ 1 ตัวให้หอสะสมธรรมชาติได้ · ความชำนาญ +5 XP','collection-hint'));
     };
     for(const entry of entries){const card=document.createElement('article');card.dataset.item=entry.id;card.tabIndex=0;card.setAttribute('role','button');card.setAttribute('aria-label',entry.name+' จำนวน '+entry.count);card.append(itemCanvas(entry.id),this.text(entry.name,'world-card-title'),this.text('× '+entry.count,'collection-count'));card.onclick=()=>inspect(entry);card.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();inspect(entry);}};grid.append(card);}
     if(entries.length){content.append(grid);book.append(content);this.body.append(book,detail);inspect(entries.find(e=>e.id===this.selectedItem)??entries[0]);}
@@ -243,7 +254,7 @@ export class WorldUI {
   }
   private collectionPage() {
     const progress=this.view!.progress,layout=document.createElement('div');layout.className='collection-book';
-    const entries=catalogue(progress,this.fish);
+    const entries=catalogue(progress,this.fish,this.fishDiscoveries);
     const summary=document.createElement('div');summary.className='collection-summary';const found=entries.filter(e=>e.found).length;
     const meter=document.createElement('progress');meter.max=entries.length;meter.value=found;meter.setAttribute('aria-label','ความคืบหน้าของสะสม');
     summary.append(this.text('COLLECTION','collection-plaque'),this.text('พบแล้ว '+found+' / '+entries.length),meter);this.body.append(summary);
@@ -268,6 +279,35 @@ export class WorldUI {
       }group.append(grid);content.append(group);
     }
     layout.append(tabs,content);this.body.append(layout);if(filtered.length){this.body.append(detail);inspect(filtered.find(e=>e.id===this.selectedItem)??filtered[0]);}else content.append(this.text('ยังไม่มีรายการในหมวดนี้ · ลองเปลี่ยนตัวกรอง'));
+  }
+  private villagePage(){
+    const p=this.view!.progress,v=p.village??{xp:{},completed:[],museum:[]};
+    const skills=document.createElement('div');skills.className='village-skills';
+    for(const [id,name]of Object.entries(SKILL_NAMES)){const xp=v.xp[id]??0,level=villageLevel(xp),card=document.createElement('article'),bar=document.createElement('progress');bar.max=25*level*level-25*(level-1)*(level-1);bar.value=xp-25*(level-1)*(level-1);bar.setAttribute('aria-label',name+' ระดับ '+level);card.append(this.text(name+' · Lv.'+level),bar,this.text(xp+' XP'));skills.append(card);}this.body.append(skills);
+    const stock=(id:string)=>FISH_SPECIES.some(f=>f.id===id)?this.fish[id]??0:p.inventory[id]??0;
+    const name=(id:string)=>ITEMS[id]?.name??FISH_SPECIES.find(f=>f.id===id)?.name??id;
+    const ingredients=(cost:Record<string,number>)=>{const row=document.createElement('div');row.className='village-ingredients';for(const [id,n]of Object.entries(cost)){const cell=document.createElement('div');cell.dataset.enough=String(stock(id)>=n);cell.append(itemCanvas(id),this.text(name(id)),this.text(stock(id)+' / '+n));row.append(cell);}return row;};
+    if(this.villageConfirmation){
+      const confirmation=this.villageConfirmation,order=VILLAGE_ORDERS.find(o=>o.id===confirmation.id),cost=confirmation.verb==='order-submit'?order!.cost as Record<string,number>:{[confirmation.id]:1};
+      const confirm=document.createElement('section');confirm.className='village-confirmation';confirm.setAttribute('role','group');confirm.setAttribute('aria-label','ยืนยันการใช้วัตถุดิบ');
+      confirm.append(this.text('ตรวจรายการก่อนส่ง','world-card-title'),ingredients(cost),this.text('ของตามรายการจะถูกหักจริง · สมุดยังจำว่าเคยพบ · ไม่หักหรือเพิ่มชิป'));
+      confirm.append(this.button('ยืนยันส่งของ',()=>{this.villageConfirmation=undefined;this.send(confirmation.verb,{confirmed:true,...(confirmation.verb==='order-submit'?{orderId:confirmation.id}:{itemId:confirmation.id})});},this.pending||!Object.entries(cost).every(([id,n])=>stock(id)>=n)),this.button('ยกเลิก ไม่ใช้ของ',()=>{this.villageConfirmation=undefined;this.render(true);},this.pending));this.body.append(confirm);return;
+    }
+    if(this.page==='orders'){
+      this.body.append(this.text('เลือกช่วยงานที่ชอบ ไม่ต้องรับทุกงาน · ส่งสำเร็จพักออร์เดอร์นั้น 24 ชั่วโมง · ไม่มีค่าปรับเมื่อไม่เล่น'));
+      const grid=document.createElement('div');grid.className='village-orders';
+      for(const order of VILLAGE_ORDERS){const card=document.createElement('article');card.dataset.order=order.id;const cost=order.cost as Record<string,number>,ready=Object.entries(cost).every(([id,n])=>stock(id)>=n),cooldown=p.cooldowns['order:'+order.id]??0;
+        card.append(this.text(order.npc,'village-npc'),this.text(order.name,'world-card-title'),ingredients(cost),this.text(SKILL_NAMES[order.skill]+' +'+order.xp+' XP'));
+        if(order.reward){const cosmetic=COSMETICS.find(c=>c.id===order.reward)!;const reward=document.createElement('div');reward.className='village-reward';reward.append(itemCanvas(cosmetic.id),this.text((v.completed.includes(order.id)?'รับรางวัลครั้งแรกแล้ว: ':p.unlocks.includes(cosmetic.id)?'มีชุดนี้แล้ว · ยังรับ XP ได้: ':'ครั้งแรกปลดล็อก: ')+cosmetic.name));card.append(reward);}
+        if(cooldown>Date.now())card.append(this.text('พักอีก '+Math.ceil((cooldown-Date.now())/3600000)+' ชั่วโมง'));
+        card.append(this.button(cooldown>Date.now()?'ส่งแล้ว รอรอบใหม่':ready?'ตรวจรายการส่งของ':'วัตถุดิบยังไม่ครบ',()=>{this.villageConfirmation={verb:'order-submit',id:order.id};this.render(true);},this.pending||!ready||cooldown>Date.now()));grid.append(card);
+      }this.body.append(grid);
+    }else{
+      this.body.append(this.text('หอสะสมส่วนตัว · มอบปลา/แมลงชนิดละ 1 ตัวเพียงครั้งเดียว · ทุกชนิดได้ความชำนาญ +5 XP'));
+      this.body.append(this.text('จัดแสดงแล้ว '+v.museum.length+' / 12 ชนิด · ครบ 5 ชนิดปลดล็อกหมวกแมว'));
+      const grid=document.createElement('div');grid.className='village-orders';for(const id of [...FISH_SPECIES.map(f=>f.id),'bee','ladybug','butterfly','beetle','firefly']){const card=document.createElement('article');card.dataset.specimen=id;card.append(itemCanvas(id),this.text(name(id),'world-card-title'),this.text(v.museum.includes(id)?'จัดแสดงถาวรแล้ว ✓':'มีในกระเป๋า '+stock(id)));
+        card.append(this.button(v.museum.includes(id)?'มอบแล้ว':'ตรวจรายการมอบตัวอย่าง',()=>{this.villageConfirmation={verb:'museum-donate',id};this.render(true);},this.pending||v.museum.includes(id)||stock(id)<1));grid.append(card);}this.body.append(grid);
+    }
   }
   private farmPage() {
     const water=document.createElement('div');water.className='water-supply';water.append(this.text('💧 น้ำของคุณ '+(this.view!.progress.water??2)+' หน่วย'));

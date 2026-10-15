@@ -104,6 +104,7 @@ export class TownRoom extends Room<TownState> {
         }
         if (result.note !== undefined) for (const other of this.clients) if(this.state.players.get(other.sessionId)?.mapId===p.mapId) other.send("world:note",{id:client.sessionId,note:result.note});
         this.sendWorld(client, result.notice);
+        this.sendFishing(client,p);
       } catch (error) { this.worldError(client,"world:action",error); }
       finally {this.pendingActions.delete(client.sessionId);}
     });

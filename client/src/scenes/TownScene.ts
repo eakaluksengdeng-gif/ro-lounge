@@ -189,6 +189,10 @@ export class TownScene extends Phaser.Scene {
 
     // น้ำพุ
     this.buildCasino();
+    for(const node of WORLD_NODES.filter(n=>n.map==='town')){
+      this.add.image(node.x,node.y,'board').setDisplaySize(126,55).setDepth(node.y);
+      this.add.text(node.x,node.y,node.kind==='orders'?'ออร์เดอร์':'หอธรรมชาติ',{fontFamily:FONT,fontSize:'14px',color:'#fff3c5'}).setOrigin(.5).setDepth(node.y+1);
+    }
     this.fountain = this.add.image(FOUNTAIN.x, FOUNTAIN.y, "fountain0").setScale(1).setDepth(FOUNTAIN.y + 40);
 
     // ม้านั่งและโคมไฟ
