@@ -11,6 +11,7 @@ import { gameSounds } from "../audio/GameSounds";
 import { CasinoSounds } from "../audio/CasinoSounds";
 import "./casino.css";
 import { playerToLook } from '../character/appearance';
+import {wireEquipment} from '../world/EquipmentArt';
 
 const ERRORS: Record<string, string> = {
   INSUFFICIENT_CHIPS: "ชิปที่ใช้ได้ไม่พอ ต้องสำรองเงินทั้งลูกมือและเจ้ามือสูงสุด 5 เท่าของเดิมพัน",
@@ -42,7 +43,7 @@ export class CasinoUI {
   private phase = document.createElement("p");
   private tableView = new PokTableView(seat => this.send("table:sit", { seat }),id=>{
     let found:any;this.town.state?.players?.forEach((p:any)=>{if(p.playerId===id)found=p;});
-    return found?{look:playerToLook(found),cosmetic:found.cosmetic||'none'}:undefined;
+    return found?{look:playerToLook(found),cosmetic:found.cosmetic||'none',equipment:wireEquipment(found)}:undefined;
   });
   private timer = this.tableView.timer;
   private notice = document.createElement("p");

@@ -96,6 +96,7 @@ export class TownRoom extends Room<TownState> {
       try {
         const result = await storage.run(() => world.action({ id:p.playerId,name:p.name,map:p.mapId as MapId,x:p.x,y:p.y,inCasino:!!casinoAccess.roomFor(p.playerId) }, message, this.state.weather,this.environment.animals));
         p.cosmetic = world.profile(p.playerId).equipped;
+        p.equipment = JSON.stringify(world.profile(p.playerId).equipment);
         if (result.activity) {
           if(fishing.cancel(p.playerId,this.fishingOwner(client)))this.sendFishing(client,p);
           p.activity=result.activity;
@@ -163,7 +164,7 @@ export class TownRoom extends Room<TownState> {
       this.worldElapsed += dtMs;
       if (this.worldElapsed >= 1000 && !storage.busy) {
         this.worldElapsed = 0;
-        void storage.run(() => world.tick()).then(() => { for(const client of this.clients){const p=this.state.players.get(client.sessionId);if(p)p.cosmetic=world.profile(p.playerId).equipped;this.sendWorld(client);} }).catch(() => {});
+        void storage.run(() => world.tick()).then(() => { for(const client of this.clients){const p=this.state.players.get(client.sessionId);if(p){p.cosmetic=world.profile(p.playerId).equipped;p.equipment=JSON.stringify(world.profile(p.playerId).equipment);}this.sendWorld(client);} }).catch(() => {});
       }
       this.natureElapsed += dtMs;
       if (this.natureElapsed >= 100) {
@@ -238,6 +239,7 @@ export class TownRoom extends Room<TownState> {
     p.playerId = identity.playerId;
     p.name = cleanName(options?.name);
     p.mapId = progress.map; p.cosmetic = progress.equipped;
+    p.equipment = JSON.stringify(progress.equipment);
     const appearance = options?.appearance;
     p.color = COLORS[optionIndex(appearance?.color, COLORS.length, Math.floor(Math.random() * COLORS.length))];
     p.hair = optionIndex(appearance?.hair, 6);

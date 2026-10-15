@@ -11,7 +11,7 @@ import { itemCanvas } from '../world/Cosmetics';
 import { artImage } from '../reference/Assets';
 import { renderCharacterCanvas } from '../art';
 import { playerToLook } from '../character/appearance';
-import { cosmeticCanvas } from '../world/Cosmetics';
+import {equipmentCanvas,wireEquipment} from '../world/EquipmentArt';
 import { coinAmount } from '../pokdeng/PixelCards';
 
 const WEATHER = { sunny: "☀️ แดดออก", rain: "🌧️ ฝนตก", snow: "❄️ หิมะตก" };
@@ -221,8 +221,8 @@ export class NatureUI {
   }
   private renderVignette(){
     if(this.panel.hidden)return;const p=this.room.state?.players?.get(this.room.sessionId);if(!p)return;
-    const look=playerToLook(p),cosmetic=p.cosmetic&&p.cosmetic!=='none'?p.cosmetic:'straw-hat',key=JSON.stringify([look,cosmetic]);
-    if(key!==this.previewKey){this.previewKey=key;this.previewSprite=renderCharacterCanvas(look,'side',0,'fishing');this.previewSprite.getContext('2d')!.drawImage(cosmeticCanvas(cosmetic),0,0);}
+    const look=playerToLook(p),equipment=wireEquipment(p);if(!equipment.head)equipment.head='straw-hat';const key=JSON.stringify([look,equipment]);
+    if(key!==this.previewKey){this.previewKey=key;this.previewSprite=renderCharacterCanvas(look,'side',0,'fishing');this.previewSprite.getContext('2d')!.drawImage(equipmentCanvas(equipment,'side','fishing'),0,0);}
     const c=this.vignette.getContext('2d')!;c.imageSmoothingEnabled=false;c.drawImage(artImage('activity-cove'),0,0,720,540);
     c.save();c.translate(506,0);c.scale(-1,1);c.drawImage(this.previewSprite!,0,196,96,128);c.restore();
     const t=matchMedia('(prefers-reduced-motion: reduce)').matches?0:performance.now();

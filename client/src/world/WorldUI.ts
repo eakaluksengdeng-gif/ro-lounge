@@ -14,6 +14,9 @@ import {VILLAGE_ORDERS,SKILL_NAMES,villageLevel} from '../../../shared/village';
 import {CozyUI} from './CozyUI';
 import {RECIPES,FURNITURE} from '../../../shared/cozy';
 import {DirectFarmUI} from './DirectFarmUI';
+import {WardrobeUI} from './WardrobeUI';
+import {NEW_GEAR} from '../../../shared/equipment';
+import {equipmentCanvas,wireEquipment} from './EquipmentArt';
 const STATIONS=["รับออร์เดอร์","เตรียม","ปรุง","เสิร์ฟ"];
 const COLLECTION_HINTS:Record<string,string>={
   butterfly:"ป่าน้ำตก · ผีเสื้อฟ้าตามทาง",beetle:"ป่าน้ำตก · ด้วงทองฝั่งตะวันออก",firefly:"ป่าน้ำตก · ตอนเย็นหรือกลางคืน",
@@ -61,6 +64,7 @@ export class WorldUI {
   private villageConfirmation?:{verb:'order-submit'|'museum-donate';id:string};
   private cozyUI=new CozyUI();
   private farm:DirectFarmUI;
+  private wardrobe=new WardrobeUI();
   constructor(private room:Room,private scene:TownScene) {
     this.farm=new DirectFarmUI(scene,(verb,payload)=>this.send(verb,payload));
     this.toolbar.id="worldToolbar";this.minimap.width=120;this.minimap.height=72;this.minimap.setAttribute("aria-label","แผนที่ย่อและตำแหน่งของคุณ");
@@ -183,7 +187,7 @@ export class WorldUI {
     if(!this.node){this.body.append(this.text("กลับไปใกล้จุดกิจกรรมเพื่อใช้งาน"));return;}
     this.title.textContent=this.node.name;
     if(this.page==='cooking'){this.title.textContent='ครัวส่วนตัว · ปรุงอาหาร';this.body.append(this.button('กลับไปครัวทีม',()=>this.open('cafe')));}
-    if(['home','community','cooking'].includes(this.page)){this.cozyUI.render(this.page,this.view,this.fish,this.body,this.player()?.playerId,this.pending,(verb,payload)=>this.send(verb,payload),()=>this.render(true),id=>{let player:any;this.room.state?.players?.forEach((p:any)=>{if(p.playerId===id)player=p;});if(!player||typeof player.color!=='number')return;const person=document.createElement('div');person.append(renderCharacterCanvas(playerToLook(player),'down',0,'seated'),this.text(player.name??'เพื่อน'));return person;});return;}
+    if(['home','community','cooking'].includes(this.page)){this.cozyUI.render(this.page,this.view,this.fish,this.body,this.player()?.playerId,this.pending,(verb,payload)=>this.send(verb,payload),()=>this.render(true),id=>{let player:any;this.room.state?.players?.forEach((p:any)=>{if(p.playerId===id)player=p;});if(!player||typeof player.color!=='number')return;const person=document.createElement('div'),avatar=renderCharacterCanvas(playerToLook(player),'down',0,'seated');avatar.getContext('2d')!.drawImage(equipmentCanvas(wireEquipment(player),'down','seated'),0,0);person.append(avatar,this.text(player.name??'เพื่อน'));return person;});return;}
     if(this.page==='orders'||this.page==='museum'){this.villagePage();return;}
     if(this.page==="cafe"){this.cafePage();return;}
     if(this.page==="shop"){this.shopPage();return;}
@@ -238,6 +242,8 @@ export class WorldUI {
   }
   private inventoryPage(){
     const progress=this.view!.progress,owned=bagEntries(progress,this.fish),total=bagQuantity(progress,this.fish);
+    const player=this.player(),look=typeof player?.color==='number'?playerToLook(player):appearanceToLook(loadAppearance());
+    this.wardrobe.render(this.body,progress,look,player?.name??'ตัวละครของฉัน',this.pending,(verb,payload)=>this.send(verb,payload),()=>this.render(true));
     const summary=document.createElement('div');summary.className='inventory-summary';summary.append(bagCanvas(),this.text('ของที่มีจริง','collection-plaque'),this.text(owned.length+' ชนิด · '+total+' ชิ้น'));
     this.body.append(summary,this.text('ของหมดจะหายจากกระเป๋า แต่ประวัติยังอยู่ในสมุดสะสม','inventory-explainer'));
     const tools=document.createElement('div');tools.className='inventory-tools';
@@ -266,11 +272,6 @@ export class WorldUI {
       if(owned.length)empty.append(this.button('ล้างตัวกรอง',()=>{this.inventoryCategory='ทั้งหมด';this.inventoryQuery='';this.render(true);}));else empty.append(this.button('ดูสมุดสะสม',()=>this.open('collection')));
       content.append(empty);book.append(content);this.body.append(book);}
     const resources=document.createElement('div');resources.className='inventory-resources';resources.append(this.text('💧 น้ำส่วนตัว '+(progress.water??2)+' หน่วย'),this.button('เปิดสมุดสะสม',()=>this.open('collection')));this.body.append(resources);
-    const equipment=document.createElement('details');equipment.className='inventory-equipment';const label=document.createElement('summary');label.textContent='ชุดและเครื่องประดับของฉัน · '+progress.unlocks.filter(id=>id!=='none').length+' ชิ้น';equipment.append(label);
-    const outfits=document.createElement('div');outfits.className='world-actions';
-    for(const cosmetic of COSMETICS)if(cosmetic.id!=='none'&&progress.unlocks.includes(cosmetic.id)){const b=this.button(cosmetic.name+(progress.equipped===cosmetic.id?' ✓':''),()=>this.send('equip',{cosmeticId:cosmetic.id}),this.pending);b.prepend(itemCanvas(cosmetic.id));outfits.append(b);}
-    if(progress.equipped!=='none')outfits.append(this.button('ถอดเครื่องประดับ',()=>this.send('equip',{cosmeticId:'none'}),this.pending));
-    equipment.append(outfits,this.text('เป็นของที่ปลดล็อกแล้ว ไม่ปนกับจำนวนวัตถุดิบ · แลกเพิ่มได้ที่ตลาด'));this.body.append(equipment);
   }
   private collectionPage() {
     const progress=this.view!.progress,layout=document.createElement('div');layout.className='collection-book';
@@ -319,6 +320,7 @@ export class WorldUI {
       for(const order of VILLAGE_ORDERS){const card=document.createElement('article');card.dataset.order=order.id;const cost=order.cost as Record<string,number>,ready=Object.entries(cost).every(([id,n])=>stock(id)>=n),cooldown=p.cooldowns['order:'+order.id]??0;
         card.append(this.text(order.npc,'village-npc'),this.text(order.name,'world-card-title'),ingredients(cost),this.text(SKILL_NAMES[order.skill]+' +'+order.xp+' XP'));
         if(order.reward){const cosmetic=COSMETICS.find(c=>c.id===order.reward)!;const reward=document.createElement('div');reward.className='village-reward';reward.append(itemCanvas(cosmetic.id),this.text((v.completed.includes(order.id)?'รับรางวัลครั้งแรกแล้ว: ':p.unlocks.includes(cosmetic.id)?'มีชุดนี้แล้ว · ยังรับ XP ได้: ':'ครั้งแรกปลดล็อก: ')+cosmetic.name));card.append(reward);}
+        const gear=NEW_GEAR.find(g=>g.quest===order.id);if(gear){const reward=document.createElement('div');reward.className='village-reward';reward.append(itemCanvas(gear.id),this.text(p.unlocks.includes(gear.id)?'รับอุปกรณ์แล้ว: '+gear.name:'รางวัลอุปกรณ์ครั้งแรก: '+gear.name));if(v.completed.includes(order.id)&&!p.unlocks.includes(gear.id))reward.append(this.button('รับอุปกรณ์เพิ่มเติม',()=>this.send('quest-gear-claim',{orderId:order.id}),this.pending));card.append(reward);}
         if(cooldown>Date.now())card.append(this.text('พักอีก '+Math.ceil((cooldown-Date.now())/3600000)+' ชั่วโมง'));
         card.append(this.button(cooldown>Date.now()?'ส่งแล้ว รอรอบใหม่':ready?'ตรวจรายการส่งของ':'วัตถุดิบยังไม่ครบ',()=>{this.villageConfirmation={verb:'order-submit',id:order.id};this.render(true);},this.pending||!ready||cooldown>Date.now()));grid.append(card);
       }this.body.append(grid);
@@ -339,7 +341,7 @@ export class WorldUI {
     for(let index=0;index<4;index++){
       const station=document.createElement('div');station.className='world-cafe-worker';const m=c.members[index];
       if(m){let player:any;this.room.state?.players?.forEach((p:any)=>{if(p.playerId===m.id)player=p;});
-        if(player){const pose:CharacterPose=(['standing','prepare','cook','serve'] as const)[index];const avatar=renderCharacterCanvas(playerToLook(player),'down',0,pose);avatar.getContext('2d')!.drawImage(cosmeticCanvas(player.cosmetic||'none'),0,0);station.append(avatar);}
+        if(player){const pose:CharacterPose=(['standing','prepare','cook','serve'] as const)[index];const avatar=renderCharacterCanvas(playerToLook(player),'down',0,pose);avatar.getContext('2d')!.drawImage(equipmentCanvas(wireEquipment(player),'down',pose),0,0);station.append(avatar);}
         station.append(this.text(m.name,'cafe-worker-name'));
       }else station.append(this.text('ว่าง','cafe-worker-name'));
       actors.append(station);

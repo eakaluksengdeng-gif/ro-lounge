@@ -67,6 +67,7 @@ export const COSMETICS = [
 export interface Crop { seed: SeedId; plantedAt: number; readyAt: number; watered: boolean; }
 export interface Progress { map: MapId; inventory: Record<string,number>; discovered: string[]; plots:(Crop|null)[];
   water?:number;
+  equipment?:import('./equipment').Equipment;
   cozy?:import('./cozy').CozyProgress;
   cozyContributions?:Record<string,number>;
   village?:import('./village').VillageProgress;

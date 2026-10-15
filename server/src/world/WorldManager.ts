@@ -10,6 +10,7 @@ import type {FishingManager} from '../nature/FishingManager';
 import {CozyManager} from './CozyManager';
 import {cozyFresh} from '../../../shared/cozy';
 import {FARM_PLOTS} from '../../../shared/regions';
+import {GEAR_CATALOGUE,GEAR_SLOTS,NEW_GEAR,equipmentFor,legacyCosmetic,type GearSlot} from '../../../shared/equipment';
 export interface WorldActor { id:string; name:string; map:MapId; x:number; y:number; inCasino?:boolean; }
 const fresh = ():Progress => ({map:"town",water:2,inventory:{},discovered:[],plots:Array(6).fill(null),allowHelp:false,unlocks:["none"],equipped:"none",cooldowns:{}});
 const cafeFresh = ():CafeView => ({phase:"lobby",members:[],host:null,deadline:null,order:0,served:0,recipe:"สลัดสวน",roundId:null});
@@ -30,7 +31,7 @@ export class WorldManager {
     this.cleanup = store?.get<number>("cleanup",0) ?? 0;
   }
   connect(id:string,name:string) { this.names.set(id,name); if(!this.profiles.has(id)) this.commit(id,fresh()); return this.profile(id); }
-  profile(id:string):Progress { const profile=this.profiles.get(id); requireGame(profile,"UNKNOWN_PROFILE","เข้าเมืองก่อน"); return {...structuredClone(profile),water:profile.water??2,cozy:structuredClone(profile.cozy??cozyFresh()),village:structuredClone(profile.village??{xp:{},completed:[],museum:[]})}; }
+  profile(id:string):Progress { const profile=this.profiles.get(id); requireGame(profile,"UNKNOWN_PROFILE","เข้าเมืองก่อน"); return {...structuredClone(profile),equipment:equipmentFor(profile),water:profile.water??2,cozy:structuredClone(profile.cozy??cozyFresh()),village:structuredClone(profile.village??{xp:{},completed:[],museum:[]})}; }
   private commit(id:string,p:Progress) {
     if(this.activeReceipt?.id===id){p.receipts??={};p.receipts[this.activeReceipt.request]="คำสั่งนี้ยืนยันแล้ว";while(Object.keys(p.receipts).length>100)delete p.receipts[Object.keys(p.receipts)[0]];}
     const next=new Map(this.profiles); next.set(id,structuredClone(p)); this.store?.set("progress",Object.fromEntries(next)); this.profiles=next;
@@ -55,9 +56,14 @@ export class WorldManager {
     this.activeReceipt={id:actor.id,request};
     const p=this.profile(actor.id); let notice="",activity: string|undefined,note:number|undefined;
     const verb=String(msg.verb??"");
-    if(verb==="equip") {
+    if(verb==='equip-slot'){
+      const slot=msg.slot as GearSlot;requireGame(GEAR_SLOTS.includes(slot),'BAD_SLOT','ช่องอุปกรณ์ไม่ถูกต้อง');
+      if(msg.itemId==='none')delete p.equipment![slot];else{const item=GEAR_CATALOGUE.find(g=>g.id===msg.itemId);requireGame(item&&item.slot===slot,'WRONG_SLOT','อุปกรณ์ไม่ตรงกับช่องนี้');requireGame(p.unlocks.includes(item.id),'LOCKED_ITEM','คุณยังไม่มีอุปกรณ์ชิ้นนี้');p.equipment![slot]=item.id;}
+      p.equipped=legacyCosmetic(p.equipment!);this.commit(actor.id,p);notice='บันทึกอุปกรณ์ที่สวมใส่แล้ว';
+    }else if(verb==="equip") {
       const cosmetic=String(msg.cosmeticId); requireGame(p.unlocks.includes(cosmetic),"LOCKED_ITEM","ยังไม่ได้ปลดล็อกชุดนี้");
-      p.equipped=cosmetic; this.commit(actor.id,p); notice="เปลี่ยนชุดตกแต่งแล้ว";
+      if(cosmetic==='none')p.equipment={};else{const item=GEAR_CATALOGUE.find(g=>g.id===cosmetic);requireGame(item,'BAD_ITEM','ไม่มีอุปกรณ์นี้');p.equipment![item.slot]=item.id;}
+      p.equipped=legacyCosmetic(p.equipment!); this.commit(actor.id,p); notice="เปลี่ยนชุดตกแต่งแล้ว";
     } else {
       let node:WorldNode|undefined;
       if(verb==='catch'){
@@ -70,7 +76,9 @@ export class WorldManager {
       requireGame(node&&node.map===actor.map,"WRONG_MAP","กิจกรรมนี้อยู่ในแมพอื่น");
       const plot=verb==='allow-help'?FARM_PLOTS.find(p=>p.nodeId===node!.id&&Math.hypot(actor.x-p.x,actor.y-p.y)<=100):['plant','water','harvest'].includes(verb)?FARM_PLOTS.find(p=>p.slot===msg.slot&&p.nodeId===node!.id):undefined;
       requireGame(Math.hypot(actor.x-node.x,actor.y-node.y)<=100||!!plot&&Math.hypot(actor.x-plot.x,actor.y-plot.y)<=100,"TOO_FAR","เดินเข้าใกล้จุดกิจกรรมก่อน");
-      if(verb==='cook'||verb.startsWith('home-')||verb==='project-contribute'||verb.startsWith('picnic-')||verb==='festival-claim'){
+      if(verb==='quest-gear-claim'){
+        requireGame(node.kind==='orders','BAD_ACTION','รับของที่กระดานออร์เดอร์');const reward=NEW_GEAR.find(g=>g.quest===msg.orderId);requireGame(reward&&p.village!.completed.includes(reward.quest),'QUEST_INCOMPLETE','ทำออร์เดอร์นี้ให้สำเร็จก่อน');requireGame(!p.unlocks.includes(reward.id),'ALREADY_OWNED','รับอุปกรณ์นี้แล้ว');p.unlocks.push(reward.id);this.commit(actor.id,p);notice='ได้รับ '+reward.name+' · เปิดกระเป๋าเพื่อสวมใส่';
+      }else if(verb==='cook'||verb.startsWith('home-')||verb==='project-contribute'||verb.startsWith('picnic-')||verb==='festival-claim'){
         notice=this.cozy.action(actor.id,p,node,verb,msg,cost=>this.consumeMaterials(actor.id,p,cost),(item,n)=>this.add(p,item,n));this.commit(actor.id,p);
       }else if(verb==='order-submit'||verb==='museum-donate'){
         requireGame(msg.confirmed===true,'CONFIRM_REQUIRED','ตรวจรายการและยืนยันก่อนส่งของ');
@@ -81,7 +89,8 @@ export class WorldManager {
           this.consumeMaterials(actor.id,p,order.cost as Record<string,number>);
           p.village!.xp[order.skill]=Math.min(1000000,(p.village!.xp[order.skill]??0)+order.xp);
           if(!p.village!.completed.includes(order.id)){p.village!.completed.push(order.id);if(order.reward&&!p.unlocks.includes(order.reward))p.unlocks.push(order.reward);}
-          p.cooldowns['order:'+order.id]=this.now()+ORDER_COOLDOWN;this.commit(actor.id,p);notice='ส่งออร์เดอร์สำเร็จ · ความชำนาญ +'+order.xp;
+          const gear=NEW_GEAR.find(g=>g.quest===order.id),granted=gear&&!p.unlocks.includes(gear.id);if(granted)p.unlocks.push(gear!.id);
+          p.cooldowns['order:'+order.id]=this.now()+ORDER_COOLDOWN;this.commit(actor.id,p);notice='ส่งออร์เดอร์สำเร็จ · ความชำนาญ +'+order.xp+(granted?' · ได้รับ '+gear!.name:'');
         }else{
           requireGame(node.kind==='museum','BAD_ACTION','ไปที่หอสะสมธรรมชาติก่อน');
           const item=String(msg.itemId),fish=FISH_SPECIES.some(f=>f.id===item);
@@ -149,7 +158,7 @@ export class WorldManager {
         requireGame(cosmetic&&!p.unlocks.includes(cosmetic.id),"BAD_ITEM","ชุดนี้ปลดล็อกแล้วหรือไม่มีในร้าน");
         for(const [item,count] of Object.entries(cosmetic.cost)) requireGame((p.inventory[item]??0)>=(count as number),"MISSING_ITEMS","ของสะสมสำหรับแลกยังไม่พอ");
         for(const [item,count] of Object.entries(cosmetic.cost)) p.inventory[item]-=count as number;
-        p.unlocks.push(cosmetic.id); p.equipped=cosmetic.id; this.commit(actor.id,p);notice="ปลดล็อก "+cosmetic.name+" แล้ว!";
+        p.unlocks.push(cosmetic.id);p.equipment![cosmetic.id==='cafe-apron'?'body':'head']=cosmetic.id; p.equipped=legacyCosmetic(p.equipment!); this.commit(actor.id,p);notice="ปลดล็อก "+cosmetic.name+" แล้ว!";
       } else if(verb.startsWith("cafe-")) {
         requireGame(node.kind==="cafe","BAD_ACTION","ไปหน้าคาเฟ่ก่อน"); notice=this.cafeAction(actor,verb,msg);
       } else if(verb==="boat") {

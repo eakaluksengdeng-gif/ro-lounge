@@ -1,6 +1,7 @@
 import type Phaser from "phaser";
 import { COSMETICS } from "../../../shared/regions";
 import { artImage, artCanvas } from "../reference/Assets";
+import {NEW_GEAR} from '../../../shared/equipment';
 /** Generated gear shares the exact 48x64 canvas/foot anchor with live avatars. */
 export function cosmeticCanvas(id:string) {
   const canvas=document.createElement('canvas');canvas.width=48;canvas.height=64;
@@ -11,4 +12,4 @@ export function cosmeticCanvas(id:string) {
   return canvas;
 }
 export function ensureCosmetics(scene:Phaser.Scene){for(const item of COSMETICS)if(!scene.textures.exists('gear-'+item.id))scene.textures.addCanvas('gear-'+item.id,cosmeticCanvas(item.id));}
-export function itemCanvas(id:string){if(['garden-salad','forest-soup','fish-soup','picnic-bread'].includes(id))return artCanvas('meal-'+id,64);return artCanvas(id==='bee'||id==='ladybug'?'animal-'+id+'-0':'icon-'+id,64);}
+export function itemCanvas(id:string){if(NEW_GEAR.some(g=>g.id===id))return artCanvas('equipment-'+id,64);if(['garden-salad','forest-soup','fish-soup','picnic-bread'].includes(id))return artCanvas('meal-'+id,64);return artCanvas(id==='bee'||id==='ladybug'?'animal-'+id+'-0':'icon-'+id,64);}
