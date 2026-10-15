@@ -18,7 +18,10 @@ try{
   }assert.ok(near,'walk close to '+id);
   await page.waitForTimeout(160);
   const point=await page.evaluate(id=>{const s=window.qaScene,a=s.room.state.wildlife.get(id),c=s.cameras.main;return {x:(a.x-c.scrollX)*c.zoom,y:(a.y-16-c.scrollY)*c.zoom};},id);
-  await page.mouse.click(point.x,point.y);try{await page.waitForFunction(item=>(window.qaView.progress.inventory[item]??0)===1,item,{timeout:12000});}catch(error){console.log('catch diagnostics',id,point,await page.evaluate(id=>{const s=window.qaScene,p=s.room.state.players.get(s.room.sessionId),a=s.room.state.wildlife.get(id);return {me:{x:p.x,y:p.y,map:p.mapId},animal:{x:a.x,y:a.y},errors:window.qaErrors,notice:document.querySelector('#worldToast')?.textContent,progress:window.qaView.progress};},id));await page.screenshot({path:'/tmp/ro-catch-failure.png'});throw error;}
+  const unobstructed=await page.evaluate(({x,y})=>document.elementFromPoint(x,y)===window.qaScene.game.canvas,point);
+  if(unobstructed)await page.mouse.click(point.x,point.y);
+  else {await page.waitForFunction(item=>document.querySelector('#worldInteract')?.textContent.includes(item==='ladybug'?'เต่าทอง':item==='bee'?'ผึ้ง':'ผีเสื้อ'),item);await page.locator('#worldInteract').click();}
+  try{await page.waitForFunction(item=>(window.qaView.progress.inventory[item]??0)===1,item,{timeout:12000});}catch(error){console.log('catch diagnostics',id,point,await page.evaluate(id=>{const s=window.qaScene,p=s.room.state.players.get(s.room.sessionId),a=s.room.state.wildlife.get(id);return {me:{x:p.x,y:p.y,map:p.mapId},animal:{x:a.x,y:a.y},errors:window.qaErrors,notice:document.querySelector('#worldToast')?.textContent,progress:window.qaView.progress};},id));await page.screenshot({path:'/tmp/ro-catch-failure.png'});throw error;}
   assert.equal(await page.locator('#worldPanel').isVisible(),false);assert.equal(await page.evaluate(id=>window.qaScene.nature.animals.get(id).body.visible,id),false);
  }
  await page.getByRole('button',{name:'กระเป๋า',exact:true}).click();
@@ -30,5 +33,5 @@ try{
  await page.keyboard.press('KeyB');assert.equal(await page.locator('#worldPanel').isVisible(),false);await page.keyboard.press('KeyB');assert.equal(await page.locator('#worldPanel').isVisible(),true);
  await page.reload();await page.getByRole('button',{name:'เข้าเมือง',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#worldToolbar strong')?.textContent==='เมืองกลาง');
  await page.getByRole('button',{name:'กระเป๋า',exact:true}).click();await page.getByRole('button',{name:'แมลง',exact:true}).click();assert.equal(await page.getByRole('button',{name:'เต่าทอง จำนวน 1',exact:true}).count(),1);
- assert.deepEqual(errors,[]);console.log('PASS live walk/click butterfly+bee+ladybug, hidden caught insects, bag icon/B/filter/inspect/quantities, 1440/768/390/320, new alpha fountain and reload inventory');
+ assert.deepEqual(errors,[]);console.log('PASS live walk/native-click/nearby-tap butterfly+bee+ladybug (tap when chat obscures creature), hidden catches, bag/B/filter/details, 1440/768/390/320, alpha fountain and reload');
 }finally{await browser.close();}
