@@ -39,13 +39,16 @@ export class WorldUI {
   private pendingVerb="";
   private pendingTimer?:number;
   private previousMap:MapId="town";
+  private toast=document.createElement('div');
+  private toastTimer?:number;
   private controller=new AbortController();
   constructor(private room:Room,private scene:TownScene) {
     this.toolbar.id="worldToolbar";this.minimap.width=120;this.minimap.height=72;this.minimap.setAttribute("aria-label","แผนที่ย่อและตำแหน่งของคุณ");
     this.toolbar.append(this.mapLabel,this.minimap,this.button("🧭 แผนที่",()=>this.open("map")),this.button("สมุดสะสม",()=>this.open("collection")),this.button("กระเป๋า",()=>this.open("inventory")));
     document.body.append(this.toolbar);
     this.interact.id="worldInteract";this.interact.type="button";this.interact.hidden=true;
-    this.interact.addEventListener("click",()=>{if(this.node)this.open(this.node.kind);});document.body.append(this.interact);
+    this.interact.addEventListener("click",()=>this.activate());document.body.append(this.interact);
+    this.toast.id='worldToast';this.toast.hidden=true;this.toast.setAttribute('role','status');document.body.append(this.toast);
     this.panel.id="worldPanel";this.panel.hidden=true;this.panel.setAttribute("role","dialog");this.panel.setAttribute("aria-modal","true");this.panel.setAttribute("aria-label","สำรวจโลกและกิจกรรม");
     const frame=document.createElement("div");frame.className="world-frame";
     const header=document.createElement("header");header.append(this.title,this.button("ปิด",()=>this.close()));
@@ -54,6 +57,7 @@ export class WorldUI {
       this.view=view;this.scene.setWorldView(view);this.mapLabel.textContent=MAP_NAMES[view.map];
       if(view.map!==this.previousMap){this.close();this.previousMap=view.map;gameSounds.play("join");}
       if(view.notice){this.notice.textContent=view.notice;this.pending=false;window.clearTimeout(this.pendingTimer);
+        this.showToast(view.notice);
         if(this.pendingVerb!=="note")gameSounds.play(this.pendingVerb==="exchange"?"win":this.pendingVerb==="collect"?"catch":"select");
         if(this.pendingVerb==="boat"||this.pendingVerb==="sit")this.close();this.pendingVerb="";this.render(true);}
       else this.render();
@@ -63,22 +67,37 @@ export class WorldUI {
     this.room.onMessage("api:error",(error:{event:string;message:string})=>{
       if(!error.event.startsWith("world:"))return;this.pending=false;window.clearTimeout(this.pendingTimer);
       this.notice.textContent=error.message;gameSounds.play("error");this.render(true);
+      this.showToast(error.message);
     });
     document.addEventListener("keydown",event=>{
       if(event.key==="Escape"&&!this.panel.hidden){event.preventDefault();this.close();return;}
       if(event.code!=="KeyE"||event.repeat||this.scene.casinoOpen||!this.panel.hidden)return;
       if((event.target as HTMLElement)?.closest("input,textarea,select,button,[contenteditable]"))return;
-      if(this.node){event.preventDefault();this.open(this.node.kind);}
+      if(this.node){event.preventDefault();this.activate();}
     },{signal:this.controller.signal});
     const timer=window.setInterval(()=>this.update(),200);
-    this.room.onLeave(()=>{this.controller.abort();window.clearInterval(timer);window.clearTimeout(this.pendingTimer);this.close();this.toolbar.remove();this.interact.remove();this.panel.remove();});
+    this.room.onLeave(()=>{this.controller.abort();window.clearInterval(timer);window.clearTimeout(this.pendingTimer);window.clearTimeout(this.toastTimer);this.toast.remove();this.close();this.toolbar.remove();this.interact.remove();this.panel.remove();});
     this.room.send("world:sync",{});
+    const direct=(id:string)=>{const node=WORLD_NODES.find(n=>n.id===id);const p=this.player();if(node&&p&&node.map===p.mapId&&Math.hypot(p.x-node.x,p.y-node.y)<=100){this.node=node;this.activate();}};
+    this.scene.events?.on('world:interact',direct);
+    this.room.onLeave(()=>this.scene.events?.off('world:interact',direct));
   }
   private button(label:string,run:()=>void,disabled=false) {
     const b=document.createElement("button");b.type="button";b.textContent=label;b.disabled=disabled;b.addEventListener("click",run);return b;
   }
   private text(text:string,className="") {const p=document.createElement("p");p.textContent=text;p.className=className;return p;}
   private player(){return this.room.state?.players?.get(this.room.sessionId);}
+  private showToast(message:string){
+    this.toast.replaceChildren();if(this.pendingVerb==='collect'&&this.node?.item)this.toast.append(itemCanvas(this.node.item));
+    this.toast.append(document.createTextNode(message));this.toast.hidden=false;
+    window.clearTimeout(this.toastTimer);this.toastTimer=window.setTimeout(()=>this.toast.hidden=true,2600);
+  }
+  private activate(){
+    if(!this.node||this.scene.casinoOpen)return;
+    if(['bug','mushroom','rare','shell','treasure','cleanup','animal','water'].includes(this.node.kind)){
+      this.send(this.node.kind==='water'?'refill':this.node.kind==='animal'?'feed':'collect');
+    }else this.open(this.node.kind);
+  }
   private send(verb:string,payload:Record<string,unknown>={}) {
     if(this.pending)return;this.pending=true;this.pendingVerb=verb;this.scene.stopNavigation();
     this.notice.textContent="กำลังยืนยันและบันทึก…";
@@ -92,9 +111,17 @@ export class WorldUI {
     const p=this.player();if(!p)return;
     if(this.scene.casinoOpen&&!this.panel.hidden)this.close();
     this.toolbar.hidden=this.scene.casinoOpen;
-    if(this.panel.hidden)this.node=WORLD_NODES.filter(n=>n.map===(p.mapId??"town")).find(n=>Math.hypot(p.x-n.x,p.y-n.y)<=100);
+    if(this.panel.hidden)this.node=WORLD_NODES.filter(n=>n.map===(p.mapId??"town")&&Math.hypot(p.x-n.x,p.y-n.y)<=100).sort((a,b)=>Math.hypot(p.x-a.x,p.y-a.y)-Math.hypot(p.x-b.x,p.y-b.y))[0];
     this.interact.hidden=!this.node||this.scene.casinoOpen||!this.panel.hidden||p.activity==="boat";
     this.interact.textContent=this.node?this.node.name+" · E / แตะ":"";
+    const cooldown=this.view?.progress.cooldowns[this.node?.kind==='water'?'refill':this.node?.kind==='animal'?'feed':this.node?.id??'']??0;
+    this.interact.disabled=this.pending||cooldown>Date.now();
+    if(cooldown>Date.now())this.interact.textContent='กลับมาใน '+Math.ceil((cooldown-Date.now())/1000)+' วิ';
+    if(this.node&&this.scene.cameras){const camera=this.scene.cameras.main;
+      const canvas=this.scene.game.canvas.getBoundingClientRect();
+      this.interact.style.left=Math.max(90,Math.min(innerWidth-90,canvas.left+(this.node.x-camera.scrollX)*camera.zoom*canvas.width/this.scene.scale.width))+'px';
+      this.interact.style.top=Math.max(70,Math.min(innerHeight-70,canvas.top+(this.node.y-camera.scrollY-65)*camera.zoom*canvas.height/this.scene.scale.height))+'px';
+      this.interact.style.bottom='auto';}
     this.drawMinimap();this.render();
     this.body.querySelectorAll<HTMLElement>("[data-ready-at]").forEach(el=>{
       const remaining=Math.max(0,Math.ceil((Number(el.dataset.readyAt)-Date.now())/1000));
@@ -167,7 +194,8 @@ export class WorldUI {
     const tabs=document.createElement('div');tabs.className='collection-tabs';
     for(const category of ['ทั้งหมด','ปลา','แมลง','ของป่า','สัตว์','ผลผลิต','ชายหาด','กิจกรรม']){const button=this.button(category,()=>{this.category=category;this.render(true);});button.setAttribute('aria-pressed',String(this.category===category));tabs.append(button);}this.body.append(tabs);
     for(const entry of entries.filter(e=>this.category==='ทั้งหมด'||e.category===this.category)){const card=document.createElement("article");card.className=entry.found?"":"world-locked";
-      const icon=itemCanvas(entry.id);icon.setAttribute("aria-hidden","true");card.append(icon,this.text(entry.found?entry.name:"ยังไม่พบ","world-card-title"),this.text(entry.category+" · "+(this.page==="inventory"?entry.count:entry.found?"พบแล้ว":"สำรวจแมพต่าง ๆ")));
+      card.tabIndex=0;card.setAttribute('aria-label',entry.name+' จำนวน '+entry.count);
+      const icon=itemCanvas(entry.id);icon.setAttribute("aria-hidden","true");card.append(icon,this.text(entry.found?entry.name:"ยังไม่พบ","world-card-title"),this.text(this.page==="inventory"?'× '+entry.count:entry.found?'✓ พบแล้ว':'?'));
       const hint=COLLECTION_HINTS[entry.id]??(["mackerel","clownfish","seahorse"].includes(entry.id)?"หาดสายลม · ตกปลาริมทะเลหรือท่าเรือ":"เมืองกลาง · ตกปลารอบบ่อ");
       card.append(this.text(hint,"world-item-hint"));grid.append(card);
     }this.body.append(grid);
@@ -176,6 +204,8 @@ export class WorldUI {
     this.body.append(this.text("ชุดและเครื่องประดับที่มี"),outfits);
   }
   private farmPage() {
+    const water=document.createElement('div');water.className='water-supply';water.append(this.text('💧 น้ำของคุณ '+(this.view!.progress.water??2)+' หน่วย'));
+    water.append(this.button('＋ ไปตักน้ำ',()=>{this.close();this.scene.navigateTo([{x:800,y:520}]);}));this.body.append(water);
     const mine=this.player()?.playerId,farms=this.view!.farms;
     if(!this.owner||!farms.some(f=>f.id===this.owner))this.owner=mine;
     const select=document.createElement("select");select.setAttribute("aria-label","เลือกแปลงเจ้าของ");for(const farm of farms){const opt=document.createElement("option");opt.value=farm.id;opt.textContent=farm.name+(farm.id===mine?" (คุณ)":"");select.append(opt);}select.value=this.owner;
@@ -186,9 +216,10 @@ export class WorldUI {
     const grid=document.createElement("div");grid.className="world-collection";
     const slots=this.page==="greenhouse"?[4,5]:[0,1,2,3];
     for(const slot of slots){const crop=farm.plots[slot],card=document.createElement("article");card.append(this.text("แปลง "+(slot+1),"world-card-title"));
-      if(!crop){card.append(this.text("ว่าง"));for(const seed of SEEDS)card.append(this.button("ปลูก"+seed.name,()=>this.send("plant",{ownerId:this.owner,slot,seed:seed.id}),this.pending||this.owner!==mine));}
+      if(!crop){card.append(this.text("เลือกเมล็ด · ปลูกฟรี"));for(const seed of SEEDS){const button=this.button("ปลูก"+seed.name,()=>this.send("plant",{ownerId:this.owner,slot,seed:seed.id}),this.pending||this.owner!==mine);button.className='seed-choice';button.prepend(itemCanvas(seed.id));card.append(button);}}
       else {card.append(itemCanvas(crop.seed),this.text(SEEDS.find(s=>s.id===crop.seed)!.name));const timer=this.text("");timer.dataset.readyAt=String(crop.readyAt);card.append(timer,this.text(crop.watered?"รดน้ำแล้ว":"ต้องรดน้ำ"));
-        card.append(this.button("รดน้ำ",()=>this.send("water",{ownerId:this.owner,slot}),this.pending||crop.watered||(this.owner!==mine&&!farm.allowHelp)),this.button("เก็บเกี่ยว",()=>this.send("harvest",{ownerId:this.owner,slot}),this.pending||this.owner!==mine||!crop.watered||Date.now()<crop.readyAt));}
+        const growth=document.createElement('progress');growth.max=1;growth.value=Math.min(1,(Date.now()-crop.plantedAt)/(crop.readyAt-crop.plantedAt));growth.setAttribute('aria-label','การเติบโต');card.append(growth);
+        card.append(this.button("💧 รดน้ำ −1",()=>this.send("water",{ownerId:this.owner,slot}),this.pending||crop.watered||(this.view!.progress.water??2)<=0||(this.owner!==mine&&!farm.allowHelp)),this.button("เก็บเกี่ยว",()=>this.send("harvest",{ownerId:this.owner,slot}),this.pending||this.owner!==mine||!crop.watered||Date.now()<crop.readyAt));}
       grid.append(card);
     }this.body.append(grid,this.text("ผักเติบโตต่อเมื่อออกเกม · เมล็ดฟรี · แปลงและผลผลิตเก็บที่เซิร์ฟเวอร์"));
   }

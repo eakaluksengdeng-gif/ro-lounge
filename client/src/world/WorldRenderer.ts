@@ -53,6 +53,9 @@ export class WorldRenderer {
       for(let x=240;x<1250;x+=100)this.image('prop-lamp',x,240,28,60);
     }
     for(const node of WORLD_NODES.filter(n=>n.map===this.map)){
+      if(node.kind==='water'){
+        this.scene.add.ellipse(node.x,node.y,68,42,0x73d4ef).setStrokeStyle(7,0xb2a17d).setDepth(node.y-1);
+      }
       const sign=this.scene.add.text(node.x,node.y+34,node.name,{fontFamily:FONT,fontSize:'12px',color:'#fff0ca',backgroundColor:'#244a32dc',padding:{x:5,y:3}}).setOrigin(.5).setDepth(node.y+40);sign.setData('worldNode',node.id);
       if(['bug','rare'].includes(node.kind)){
         const kind=node.kind==='rare'?'rabbit-2':node.id==='bug-gold'?'ladybug-1':'butterfly-0';

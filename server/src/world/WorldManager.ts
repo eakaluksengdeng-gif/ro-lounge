@@ -3,7 +3,7 @@ import { MAP_IDS, WORLD_NODES, SEEDS, COSMETICS, type MapId, type Progress, type
 import { requireGame, objectPayload } from "../pokdeng/errors";
 import type { SnapshotStore } from "../storage/SnapshotStore";
 export interface WorldActor { id:string; name:string; map:MapId; x:number; y:number; inCasino?:boolean; }
-const fresh = ():Progress => ({map:"town",inventory:{},discovered:[],plots:Array(6).fill(null),allowHelp:false,unlocks:["none"],equipped:"none",cooldowns:{}});
+const fresh = ():Progress => ({map:"town",water:2,inventory:{},discovered:[],plots:Array(6).fill(null),allowHelp:false,unlocks:["none"],equipped:"none",cooldowns:{}});
 const cafeFresh = ():CafeView => ({phase:"lobby",members:[],host:null,deadline:null,order:0,served:0,recipe:"สลัดสวน",roundId:null});
 /** Profile changes are staged and persisted before installation; no client quantity/reward is trusted. */
 export class WorldManager {
@@ -20,7 +20,7 @@ export class WorldManager {
     this.cleanup = store?.get<number>("cleanup",0) ?? 0;
   }
   connect(id:string,name:string) { this.names.set(id,name); if(!this.profiles.has(id)) this.commit(id,fresh()); return this.profile(id); }
-  profile(id:string):Progress { const profile=this.profiles.get(id); requireGame(profile,"UNKNOWN_PROFILE","เข้าเมืองก่อน"); return structuredClone(profile); }
+  profile(id:string):Progress { const profile=this.profiles.get(id); requireGame(profile,"UNKNOWN_PROFILE","เข้าเมืองก่อน"); return {...structuredClone(profile),water:profile.water??2}; }
   private commit(id:string,p:Progress) {
     if(this.activeReceipt?.id===id){p.receipts??={};p.receipts[this.activeReceipt.request]="คำสั่งนี้ยืนยันแล้ว";while(Object.keys(p.receipts).length>100)delete p.receipts[Object.keys(p.receipts)[0]];}
     const next=new Map(this.profiles); next.set(id,structuredClone(p)); this.store?.set("progress",Object.fromEntries(next)); this.profiles=next;
@@ -52,7 +52,13 @@ export class WorldManager {
       const node=WORLD_NODES.find(node=>node.id===msg.nodeId);
       requireGame(node&&node.map===actor.map,"WRONG_MAP","กิจกรรมนี้อยู่ในแมพอื่น");
       requireGame(Math.hypot(actor.x-node.x,actor.y-node.y)<=100,"TOO_FAR","เดินเข้าใกล้จุดกิจกรรมก่อน");
-      if(verb==="collect") {
+      if(verb==="refill") {
+        requireGame(node.kind==="water","BAD_ACTION","ไปที่จุดตักน้ำก่อน");
+        requireGame(this.now()>=(p.cooldowns.refill??0),"COOLDOWN","รอตักน้ำสักครู่");
+        requireGame((p.water??2)<999999,"INVENTORY_FULL","น้ำเต็มแล้ว");
+        p.water=(p.water??2)+1;p.cooldowns.refill=this.now()+800;
+        this.commit(actor.id,p);notice="ตักน้ำ +1 · มีน้ำ "+p.water+" หน่วย";
+      } else if(verb==="collect") {
         requireGame(["bug","mushroom","rare","shell","treasure","cleanup"].includes(node.kind),"BAD_ACTION","จุดนี้เก็บไม่ได้");
         requireGame(this.now()>=(p.cooldowns[node.id]??0),"COOLDOWN","จุดนี้กำลังฟื้นตัว รอสักครู่");
         if(node.id==="bug-firefly") requireGame(Math.floor(this.now()/300000)%4>=2,"WRONG_TIME","หิ่งห้อยออกตอนเย็นและกลางคืน");
@@ -74,7 +80,11 @@ export class WorldManager {
           const crop=target.plots[slot];
           if(verb==="water") {
             requireGame(owner===actor.id||target.allowHelp,"NO_PERMISSION","เจ้าของยังไม่อนุญาตให้ช่วยรดน้ำ");
-            requireGame(crop&&!crop.watered,"NO_CROP","ไม่มีผักที่ต้องรดน้ำ"); crop.watered=true; notice="รดน้ำแล้ว ขอบคุณที่ช่วยกัน!";
+            requireGame(crop&&!crop.watered,"NO_CROP","ไม่มีผักที่ต้องรดน้ำ");
+            requireGame((p.water??2)>0,"NO_WATER","น้ำหมดแล้ว ไปตักน้ำที่บ่อน้ำในฟาร์ม");
+            p.water=(p.water??2)-1;crop.watered=true;
+            if(owner!==actor.id)this.commit(actor.id,p);
+            notice="รดน้ำแล้ว · น้ำคงเหลือ "+p.water+" หน่วย";
           } else {
             requireGame(owner===actor.id,"NOT_OWNER","เก็บเกี่ยวและปลูกได้เฉพาะเจ้าของ");
             if(verb==="plant") {

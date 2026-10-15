@@ -40,6 +40,8 @@ test("real transport world auth/proximity/replay, private inventories, farm owne
     const denied=next<ApiError>(helper,"api:error");helper.send("world:action",{requestId:"wire-forged-help",verb:"water",nodeId:"farm-plots",ownerId:a.playerId,slot:0});assert.equal((await denied).code,"NO_PERMISSION");
     await act(owner,"allow-help","farm-plots",{allow:true});
     const watered=await act(helper,"water","farm-plots",{ownerId:a.playerId,slot:0});assert.equal(watered.farms.find(f=>f.id===a.playerId)?.plots[0]?.watered,true);
+    assert.equal(watered.progress.water,1,'helper spends their own water');
+    const ownerView=next<WorldView>(owner,'world:state');owner.send('world:sync',{});assert.equal((await ownerView).progress.water,2,'owner water is not spent by helper');
     assert.ok(!JSON.stringify(watered).includes(a.sessionId)&&!JSON.stringify(watered).includes(b.sessionId));
     assert.equal("wallet" in watered,false);
     const far=next<ApiError>(owner,"api:error");owner.send("world:action",{requestId:"wire-distant-action",verb:"collect",nodeId:"mushroom-a",x:360,y:560,map:"forest"});assert.equal((await far).code,"WRONG_MAP");

@@ -32,6 +32,11 @@ async function close(page){if(await page.locator("#worldPanel").isVisible())awai
 async function saved(page,match){
   await page.waitForFunction(text=>document.querySelector("#worldNotice")?.textContent.includes(text),match);
 }
+async function gather(page,name){
+  await page.waitForFunction(text=>document.querySelector('#worldInteract')?.textContent.includes(text),name);
+  await page.locator('#worldInteract').click();await saved(page,'+1');
+  assert.equal(await page.locator('#worldPanel').isVisible(),false);
+}
 try{
   const a=await guest("World Owner"),b=await guest("World Friend");
   const ids=[(await me(a)).id,(await me(b)).id];assert.notEqual(ids[0],ids[1]);
@@ -39,8 +44,7 @@ try{
   await a.evaluate(()=>window.qaScene.room.send("world:travel",{map:"market",x:1400}));
   await a.waitForFunction(()=>window.qaErrors.some(e=>e.code==="NOT_AT_EXIT"));assert.equal((await me(a)).map,"town");
   await map(a,"ป่าน้ำตก");assert.equal((await me(a)).id,ids[0]);
-  await go(a,360,560);await activity(a,"เก็บเห็ด");
-  await a.locator("#worldPanel").getByRole("button",{name:"เก็บเห็ด",exact:true}).click();await saved(a,"สำเร็จ");
+  await go(a,360,560);await gather(a,"เก็บเห็ด");
   assert.equal(await a.evaluate(()=>window.qaWorld.progress.inventory.mushroom),1);await close(a);
   await a.screenshot({path:"/tmp/ro-world-forest.png"});
   await a.emulateMedia({reducedMotion:"reduce"});await a.waitForTimeout(100);
@@ -48,8 +52,7 @@ try{
   assert.ok(frozen.water.length>0);await a.waitForTimeout(300);
   assert.deepEqual(await a.evaluate(()=>({water:window.qaScene.worldRenderer.water.commandBuffer.slice(),bugs:window.qaScene.worldRenderer.movingSprites.map(m=>[m.sprite.x,m.sprite.y])})),frozen);
   await a.emulateMedia({reducedMotion:"no-preference"});
-  await go(a,420,350);await activity(a,"ผีเสื้อ");
-  await a.locator("#worldPanel").getByRole("button",{name:"จับผีเสื้อฟ้า",exact:true}).click();await saved(a,"สำเร็จ");await close(a);
+  await go(a,420,350);await gather(a,"ผีเสื้อ");
   await go(a,900,390);await activity(a,"แคมป์");await a.getByRole("button",{name:"นั่งข้างกองไฟ",exact:true}).click();
   await a.waitForFunction(()=>window.qaScene.room.state.players.get(window.qaScene.room.sessionId).activity==="camp");
   await map(a,"เมืองกลาง");
@@ -60,17 +63,17 @@ try{
   await a.getByRole("button",{name:"เปิดให้เพื่อนช่วยรดน้ำ",exact:true}).click();await saved(a,"เปิดให้");
   await activity(b,"แปลงผัก");await b.getByRole("combobox",{name:"เลือกแปลงเจ้าของ",exact:true}).selectOption(ids[0]);
   assert.equal(await b.getByRole("button",{name:"เก็บเกี่ยว",exact:true}).first().isDisabled(),true);
-  await b.getByRole("button",{name:"รดน้ำ",exact:true}).first().click();await saved(b,"รดน้ำแล้ว");
+  await b.getByRole("button",{name:"💧 รดน้ำ −1",exact:true}).first().click();await saved(b,"รดน้ำแล้ว");
   await a.waitForFunction(()=>window.qaWorld.progress.plots[0].watered===true);
   await a.screenshot({path:"/tmp/ro-world-farm-ui.png"});await close(a);await close(b);
   await go(a,1050,330);await activity(a,"โรงเรือน");
   await a.getByRole("button",{name:"ปลูกข้าวสาลี",exact:true}).first().click();await saved(a,"ปลูกข้าวสาลี");await close(a);
-  await go(a,1030,580);await activity(a,"ให้อาหาร");await a.locator("#worldPanel").getByRole("button",{name:"ให้อาหาร",exact:true}).click();await saved(a,"สัตว์ดีใจ");await close(a);
+  await go(a,1030,580);await gather(a,"ให้อาหาร");
   await a.screenshot({path:"/tmp/ro-world-farm.png"});
   await map(a,"เมืองกลาง");await map(a,"หาดสายลม");
-  await go(a,700,540);await activity(a,"หอยมุก");await a.locator("#worldPanel").getByRole("button",{name:"เก็บหอยมุก",exact:true}).click();await saved(a,"สำเร็จ");await close(a);
-  await go(a,420,340);await activity(a,"สมบัติ");await a.locator("#worldPanel").getByRole("button",{name:"ขุดสมบัติริมทะเล",exact:true}).click();await saved(a,"สำเร็จ");await close(a);
-  await go(a,800,320);await activity(a,"เก็บขยะ");await a.locator("#worldPanel").getByRole("button",{name:"ช่วยเก็บขยะชายหาด",exact:true}).click();await saved(a,"สำเร็จ");await close(a);
+  await go(a,700,540);await gather(a,"หอยมุก");
+  await go(a,420,340);await gather(a,"สมบัติ");
+  await go(a,800,320);await gather(a,"เก็บขยะ");
   await go(a,600,602);await a.waitForFunction(()=>document.querySelector("#fishingPanel")?.dataset.near==="true");
   assert.match(await a.locator("#fishingPanel strong").innerText(),/ทะเล/);
   await go(a,1080,570);await activity(a,"ล่องเรือ");await a.getByRole("button",{name:"ขึ้นเรือ",exact:true}).click();

@@ -45,8 +45,12 @@ export class NatureUI {
   private clockRequests = new Map<number, number>();
   private minRtt = Infinity;
   private soundState = "";
+  private continuous=false;
+  private castPending=false;
 
   constructor(private room: Room, private scene: TownScene) {
+    const stop=()=>{if(this.continuous){this.continuous=false;this.room.send('fish:cancel',{});}};
+    this.scene.events?.on('world:manual-move',stop);
     const toolbar = document.createElement("div");
     toolbar.id = "natureBar";
     this.weather.id = "townWeather";
@@ -83,6 +87,8 @@ export class NatureUI {
     this.cancel.textContent = "เก็บเบ็ด";
     this.cancel.id='fishCancel';
     this.cancel.addEventListener("click", () => {
+      this.continuous=false;
+      this.castPending=false;
       gameSounds.play("cancel");
       this.message.textContent = "เก็บเบ็ดแล้ว กดเริ่มตกปลาเพื่อลองใหม่";
       this.room.send("fish:cancel", {});
@@ -125,6 +131,7 @@ export class NatureUI {
       }
       this.soundState = soundState;
       this.state = state;
+      if(state.phase!=='idle')this.castPending=false;
       this.catchArt.hidden=state.result?.reason!=='caught';
       if(state.result?.fish&&state.result.reason==='caught')this.catchArt.replaceChildren(itemCanvas(state.result.fish.species),document.createTextNode('+ '),coinAmount(state.result.rewardChips??0,'suffix'));
       if (!this.clockReady) this.offset = state.serverTime - Date.now();
@@ -153,6 +160,7 @@ export class NatureUI {
     });
     room.onMessage<ApiError>("api:error", error => {
       if (!error.event.startsWith("fish:")) return;
+      this.continuous=false;this.castPending=false;
       gameSounds.play("error");
       this.message.textContent = ({
         NOT_AT_POND: "เดินใกล้ริมบ่อ ตกได้ทุกด้านของบ่อ", ALREADY_FISHING: "กำลังตกปลาอยู่ รอหรือเก็บเบ็ดก่อน",
@@ -181,6 +189,7 @@ export class NatureUI {
     };
     frame = requestAnimationFrame(animate);
     room.onLeave(() => {
+      this.scene.events?.off('world:manual-move',stop);
       this.closed = true;
       window.clearInterval(interval);
       window.clearInterval(clockInterval);
@@ -231,6 +240,8 @@ export class NatureUI {
       gameSounds.play("reel");
       this.room.send("fish:reel", { castId: this.state.castId });
     } else if (this.state?.phase !== "result" && this.near) {
+      if(this.castPending)return;
+      this.continuous=true;this.castPending=true;
       this.scene.stopNavigation();
       this.room.send("fish:cast", {});
     }
@@ -241,6 +252,10 @@ export class NatureUI {
     this.go.disabled=!!p?.mapId&&p.mapId!=="town"&&p.mapId!=="beach";
     this.near = !!p && !!((p.mapId??"town")==="town"?fishingLocationAt(p.x,p.y):p.mapId==="beach"?beachFishingLocation(p.x,p.y):null);
     const phase = this.state?.phase ?? "idle";
+    if(this.continuous&&(!this.near||this.scene.casinoOpen||this.scene.worldOpen)){
+      this.continuous=false;this.room.send("fish:cancel",{});
+    }
+    if(this.continuous&&phase==="idle"&&!this.castPending)this.interact();
     this.panel.hidden = this.scene.casinoOpen || (!this.near && phase === "idle");
     this.panel.dataset.phase = phase;
     this.panel.dataset.near = String(this.near);
@@ -259,7 +274,8 @@ export class NatureUI {
     this.action.textContent = phase === "bite" ? "SPACE / TAP" : phase === "waiting" ? "รอปลากินเหยื่อ…" : phase === "result" ? "รอสักครู่…" : "SPACE / TAP · ตกปลา";
     this.action.setAttribute('aria-label',phase==='bite'?'ดึงเบ็ด Space หรือแตะ':'เริ่มตกปลา Space หรือแตะ');
     this.action.disabled = phase === "waiting" || phase === "result" || this.scene.casinoOpen;
-    this.cancel.hidden = phase !== "waiting" && phase !== "bite";
+    this.cancel.textContent="หยุดตกต่อเนื่อง · เก็บเบ็ด";
+    this.cancel.hidden = !this.continuous && phase !== "waiting" && phase !== "bite";
     this.bar.hidden = phase !== "bite";
     this.gauge.hidden = this.countdown.hidden = phase !== "bite";
     const ratio = phase === "bite" ? Math.max(0, Math.min(1, ((this.state?.deadline ?? 0) - Date.now() - this.offset) / FISHING_BITE_MS)) : 0;

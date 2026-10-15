@@ -12,6 +12,30 @@ import { WORLD_NODES, destination, exitDirection, arrival, worldBlocked, beachFi
 let sequence=0;
 const request=(verb:string,nodeId:string,extra:Record<string,unknown>={})=>({requestId:"action-qa-"+(++sequence),verb,nodeId,...extra});
 const actor=(id:string,nodeId:string):WorldActor=> {const n=WORLD_NODES.find(n=>n.id===nodeId)!;return{id,name:id,map:n.map,x:n.x,y:n.y};};
+test('personal water is spent once, refill requires proximity, and zero survives reload',()=>{
+  let now=10000;const store=new SnapshotStore(),world=new WorldManager(store,()=>now);world.connect('water-user','W');
+  assert.equal(world.profile('water-user').water,2);
+  for(let slot=0;slot<3;slot++)world.action(actor('water-user','farm-plots'),request('plant','farm-plots',{slot,seed:'carrot'}),'sunny');
+  const action=request('water','farm-plots',{slot:0});
+  world.action(actor('water-user','farm-plots'),action,'sunny');world.action(actor('water-user','farm-plots'),action,'sunny');
+  assert.equal(world.profile('water-user').water,1);
+  world.action(actor('water-user','farm-plots'),request('water','farm-plots',{slot:1}),'sunny');
+  assert.throws(()=>world.action(actor('water-user','farm-plots'),request('water','farm-plots',{slot:2}),'sunny'),/น้ำหมด/);
+  assert.equal(new WorldManager(store).profile('water-user').water,0);
+  assert.throws(()=>world.action({...actor('water-user','farm-water'),x:0},request('refill','farm-water'),'sunny'),/เข้าใกล้/);
+  const refill=request('refill','farm-water');world.action(actor('water-user','farm-water'),refill,'sunny');world.action(actor('water-user','farm-water'),refill,'sunny');
+  assert.equal(world.profile('water-user').water,1);
+  assert.throws(()=>world.action(actor('water-user','farm-water'),request('refill','farm-water'),'sunny'),/รอตัก/);
+  now+=1000;world.action(actor('water-user','farm-water'),request('refill','farm-water'),'sunny');assert.equal(world.profile('water-user').water,2);
+});
+test('legacy profiles receive two water without replacing inventory or wallet',()=>{
+ const store=new SnapshotStore();store.set('progress',{legacy:{map:'farm',inventory:{carrot:8},discovered:['carrot'],plots:Array(6).fill(null),allowHelp:false,unlocks:['none'],equipped:'none',cooldowns:{}}});
+ const economy=new EconomyManager(store);const guest=new GuestManager(economy,store).connect(undefined,'qa');
+ const balance=economy.view(guest.playerId).balance;
+ const world=new WorldManager(store);assert.equal(world.profile('legacy').water,2);assert.equal(world.profile('legacy').inventory.carrot,8);
+ world.action(actor('legacy','farm-water'),request('refill','farm-water'),'sunny');
+ assert.equal(new WorldManager(store).profile('legacy').water,3);assert.equal(economy.view(guest.playerId).balance,balance);
+});
 test("Guest, settled balances, one-time catch ledgers and world inventory survive a full process reconstruction",()=>{
   const dir=mkdtempSync(join(tmpdir(),"ro-world-save-")),file=join(dir,"snapshot.json");
   let store=new SnapshotStore(file),economy=new EconomyManager(store),guests=new GuestManager(economy,store),world=new WorldManager(store);

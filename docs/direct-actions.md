@@ -1,0 +1,9 @@
+# Direct interactions and personal water
+
+- Nearby bug/gathering/feeding/refill actions now execute directly from the map. Click the object within reach or use the nearby E/tap button; the server still validates map, distance, conditions, cooldown and request receipts. Feedback is a compact icon toast rather than a blocking parchment dialog.
+- Inventory/collection/farm panels use compact responsive cards, readable quantities, category filters, keyboard-focusable item hints, crop progress and visual seed buttons. Boardgame and cafe scene layouts are preserved.
+- Starting fishing enables continuous **casting**, not automatic catching. Each bite still requires a real manual Space/tap at the server-validated gauge. Stop, a manual ground click, leaving shore, conflicting activity UI, server error or disconnect stops the loop. Idle sync messages cannot enqueue duplicate casts while awaiting acknowledgement.
+- Personal water starts at 2, including legacy profiles whose snapshot lacks the field. Existing zero remains zero. Watering spends exactly one of the requester's own units after crop/permission validation. Helping never spends the owner's water. A visible farm well at (800,520) supplies +1 per scoop, with an 800ms server cooldown and a defensive 999999-unit inventory bound. No chips are charged or reset.
+- Water uses the existing private server-owned JSON snapshot and durable save barrier. No public Supabase table grants, keys, schema changes or new cloud services are needed.
+
+Verification: server unit/real-WebSocket suite covers water spending, ownership, replay, refill proximity/cooldown, snapshot reconstruction, legacy defaults and unchanged balances. `client/test/direct-actions.e2e.mjs` covers non-modal catches, responsive visual inventory, continuous recasting, manual-only reeling and stop. Existing world/nature tests follow the new direct/continuous flow.
