@@ -70,6 +70,7 @@ export class WorldUI {
     this.toolbar.id="worldToolbar";this.minimap.width=120;this.minimap.height=72;this.minimap.setAttribute("aria-label","แผนที่ย่อและตำแหน่งของคุณ");
     const bag=this.button('กระเป๋า',()=>this.open('inventory'));bag.id='worldBagButton';bag.setAttribute('aria-label','กระเป๋า');bag.title='กระเป๋า · B';this.bagCount.className='bag-count';this.bagCount.setAttribute('aria-hidden','true');bag.prepend(bagCanvas());bag.append(this.bagCount);
     this.toolbar.append(this.mapLabel,this.minimap,this.button("🧭 แผนที่",()=>this.open("map")),this.button("สมุดสะสม",()=>this.open("collection")),bag);
+    this.toolbar.setAttribute('aria-busy','true');this.toolbar.querySelectorAll('button').forEach(button=>button.disabled=true);
     document.body.append(this.toolbar);
     this.interact.id="worldInteract";this.interact.type="button";this.interact.hidden=true;
     this.interact.addEventListener("click",()=>this.activate());document.body.append(this.interact);
@@ -79,6 +80,7 @@ export class WorldUI {
     const header=document.createElement("header");header.append(this.title,this.button("ปิด",()=>this.close()));
     this.notice.id="worldNotice";this.notice.setAttribute("role","status");frame.append(header,this.notice,this.body);this.panel.append(frame);document.body.append(this.panel);
     this.room.onMessage<WorldView>("world:state",view=>{
+      if(!this.view){this.toolbar.setAttribute('aria-busy','false');this.toolbar.querySelectorAll('button').forEach(button=>button.disabled=false);}
       this.view=view;this.scene.setWorldView(view);this.mapLabel.textContent=MAP_NAMES[view.map];
       if(view.map!==this.previousMap){this.close();this.previousMap=view.map;gameSounds.play("join");}
       if(view.notice){this.notice.textContent=view.notice;this.pending=false;window.clearTimeout(this.pendingTimer);
