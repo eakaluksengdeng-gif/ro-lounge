@@ -10,7 +10,7 @@ import type {FishingManager} from '../nature/FishingManager';
 import {CozyManager} from './CozyManager';
 import {cozyFresh} from '../../../shared/cozy';
 import {FARM_PLOTS} from '../../../shared/regions';
-import {GEAR_CATALOGUE,GEAR_SLOTS,NEW_GEAR,equipmentFor,legacyCosmetic,type GearSlot} from '../../../shared/equipment';
+import {GEAR_CATALOGUE,GEAR_SLOTS,NEW_GEAR,SEASON_GEAR,equipmentFor,legacyCosmetic,type GearSlot} from '../../../shared/equipment';
 export interface WorldActor { id:string; name:string; map:MapId; x:number; y:number; inCasino?:boolean; }
 const fresh = ():Progress => ({map:"town",water:2,inventory:{},discovered:[],plots:Array(6).fill(null),allowHelp:false,unlocks:["none"],equipped:"none",cooldowns:{}});
 const cafeFresh = ():CafeView => ({phase:"lobby",members:[],host:null,deadline:null,order:0,served:0,recipe:"สลัดสวน",roundId:null});
@@ -76,7 +76,14 @@ export class WorldManager {
       requireGame(node&&node.map===actor.map,"WRONG_MAP","กิจกรรมนี้อยู่ในแมพอื่น");
       const plot=verb==='allow-help'?FARM_PLOTS.find(p=>p.nodeId===node!.id&&Math.hypot(actor.x-p.x,actor.y-p.y)<=100):['plant','water','harvest'].includes(verb)?FARM_PLOTS.find(p=>p.slot===msg.slot&&p.nodeId===node!.id):undefined;
       requireGame(Math.hypot(actor.x-node.x,actor.y-node.y)<=100||!!plot&&Math.hypot(actor.x-plot.x,actor.y-plot.y)<=100,"TOO_FAR","เดินเข้าใกล้จุดกิจกรรมก่อน");
-      if(verb==='quest-gear-claim'){
+      if(verb==='tailor-exchange'){
+        requireGame(node.kind==='shop','BAD_ACTION','ไปที่ร้านแลกชุดก่อน');
+        const item=SEASON_GEAR.find(g=>g.id===msg.itemId);requireGame(item,'BAD_ITEM','ไม่มีชุดนี้ในร้าน');
+        requireGame(!p.unlocks.includes(item.id),'ALREADY_OWNED','คุณมีชุดนี้แล้ว');
+        requireGame(msg.confirmed===true,'CONFIRM_REQUIRED','ยืนยันรายการก่อนแลกชุด');
+        this.consumeMaterials(actor.id,p,item.cost as Record<string,number>);
+        p.unlocks.push(item.id);this.commit(actor.id,p);notice='ได้รับ '+item.name+' · เปิดกระเป๋าเพื่อสวมใส่';
+      }else if(verb==='quest-gear-claim'){
         requireGame(node.kind==='orders','BAD_ACTION','รับของที่กระดานออร์เดอร์');const reward=NEW_GEAR.find(g=>g.quest===msg.orderId);requireGame(reward&&p.village!.completed.includes(reward.quest),'QUEST_INCOMPLETE','ทำออร์เดอร์นี้ให้สำเร็จก่อน');requireGame(!p.unlocks.includes(reward.id),'ALREADY_OWNED','รับอุปกรณ์นี้แล้ว');p.unlocks.push(reward.id);this.commit(actor.id,p);notice='ได้รับ '+reward.name+' · เปิดกระเป๋าเพื่อสวมใส่';
       }else if(verb==='cook'||verb.startsWith('home-')||verb==='project-contribute'||verb.startsWith('picnic-')||verb==='festival-claim'){
         notice=this.cozy.action(actor.id,p,node,verb,msg,cost=>this.consumeMaterials(actor.id,p,cost),(item,n)=>this.add(p,item,n));this.commit(actor.id,p);

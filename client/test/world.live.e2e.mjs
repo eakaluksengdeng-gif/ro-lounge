@@ -62,7 +62,7 @@ try{
   await map(a,"เมืองกลาง");await map(a,"ฟาร์มเพื่อนรัก");
   await a.mouse.click(410,379);await a.locator('#directFarm:not([hidden])').waitFor();await a.getByRole("button",{name:"ปลูกแครอท",exact:true}).click();
   await a.waitForFunction(()=>document.querySelector("#worldNotice")?.textContent.includes("ปลูกแครอท"));
-  await a.getByRole("button",{name:"💧 รดน้ำ −1 · E",exact:true}).click();await a.waitForFunction(()=>document.querySelector("#worldNotice")?.textContent.includes("รดน้ำแล้ว"));
+  await a.getByRole("button",{name:"รดน้ำ −1 · E",exact:true}).click();await a.waitForFunction(()=>document.querySelector("#worldNotice")?.textContent.includes("รดน้ำแล้ว"));
   await map(a,"เมืองกลาง");await map(a,"หาดสายลม");await activity(a,700,540,"หอยมุก");await action(a,"เก็บหอยมุก","สำเร็จ");
   await map(a,"เมืองกลาง");await map(a,"ตลาดโคมไฟ");await map(b,"ตลาดโคมไฟ");
   await Promise.all([activity(a,430,540,"คาเฟ่"),activity(b,430,540,"คาเฟ่")]);

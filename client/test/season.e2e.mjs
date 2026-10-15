@@ -1,0 +1,21 @@
+import {chromium} from 'playwright';import assert from 'node:assert/strict';
+const browser=await chromium.launch({channel:'chrome',headless:true});
+try{
+ const page=await browser.newPage({viewport:{width:1200,height:900}}),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('http://127.0.0.1:5173',{waitUntil:'networkidle'});
+ await page.evaluate(async()=>{
+  const {loadReferenceArt,artCanvas}=await import('/src/reference/Assets.ts');await loadReferenceArt();const {renderCharacterCanvas}=await import('/src/art.ts'),{equipmentCanvas}=await import('/src/world/EquipmentArt.ts');
+  document.body.replaceChildren();document.body.style.cssText='margin:0;background:#f6ecd0;color:#36523d;font:16px sans-serif;overflow:auto';
+  const title=document.createElement('h2');title.textContent='RO LOUNGE · SEASON UPDATE';document.body.append(title);const look={id:'qa',shirt:'#78d9ec',hair:'#78502f',skin:'#ffdcc0',pants:'#1a377e',style:0};
+  for(const id of ['cream-knit','moss-hoodie','amber-raincoat','berry-cardigan']){const row=document.createElement('div');row.style.cssText='display:inline-flex;flex-direction:column;align-items:center;padding:12px';for(const dir of ['down','side','up']){const c=renderCharacterCanvas(look,dir);c.getContext('2d').drawImage(equipmentCanvas({head:'straw-hat',body:id},dir),0,0);c.style.cssText='width:96px;height:128px;image-rendering:pixelated';row.append(c);}row.append(id);document.body.append(row);}
+  const grid=document.createElement('div');grid.id='season-grid';grid.style.cssText='display:grid;grid-template-columns:repeat(8,96px);gap:12px';for(const crop of ['eggplant','strawberry','corn','pumpkin'])for(let i=0;i<4;i++){const c=artCanvas('crop-'+crop+'-'+i,96);c.dataset.crop=crop;grid.append(c);}for(const name of ['happy','sad','love','wave','angry','sleepy'])grid.append(artCanvas('emote-'+name,48));for(const pose of ['sit','groom','stretch','sleep'])grid.append(artCanvas('cat-'+pose,96));document.body.append(grid);
+ });
+ assert.equal(await page.locator('[data-crop]').count(),16);const unique=await page.locator('[data-crop]').evaluateAll(cs=>new Set(cs.map(c=>c.toDataURL())).size);assert.equal(unique,16);await page.screenshot({path:'/tmp/ro-season-art.png',fullPage:true});
+ await page.evaluate(async()=>{
+  const {WorldUI}=await import('/src/world/WorldUI.ts');document.body.replaceChildren();const callbacks=new Map(),sent=[],p={playerId:'a',name:'A',mapId:'market',x:1020,y:500,color:0x78d9ec,hair:0,skin:0,pants:0,style:0,gender:0};const room={sessionId:'s',state:{players:new Map([['s',p]])},onLeave(){},send(type,body){sent.push({type,body});},onMessage(type,fn){callbacks.set(type,fn);}};
+  const ui=new WorldUI(room,{casinoOpen:false,worldOpen:false,setWorldView(){},stopNavigation(){}}),view={map:'market',serverTime:Date.now(),progress:{map:'market',inventory:{wheat:2,corn:2},discovered:['wheat','corn'],water:2,plots:[],unlocks:['none'],equipped:'none',cooldowns:{}},farms:[],cafe:{phase:'lobby',members:[]},boat:null,cleanup:0};callbacks.get('world:state')(view);window.qa={ui,view,callbacks,sent};ui.update();
+ });
+ await page.locator('#worldInteract').click();assert.equal(await page.locator('[data-tailor]').count(),4);assert.equal(await page.locator('[data-tailor=moss-hoodie] button').isDisabled(),true);await page.locator('[data-tailor=cream-knit] button').click();assert.deepEqual(await page.evaluate(()=>{const b=window.qa.sent.at(-1).body;return{verb:b.verb,itemId:b.itemId,confirmed:b.confirmed};}),{verb:'tailor-exchange',itemId:'cream-knit',confirmed:true});
+ await page.evaluate(()=>{const q=window.qa;q.view.progress.unlocks.push('cream-knit');q.callbacks.get('world:state')({...q.view,notice:'ได้รับชุดแล้ว'});});await page.locator('[data-tailor=cream-knit] button').click();assert.equal(await page.evaluate(()=>window.qa.sent.at(-1).body.verb),'equip-slot');
+ for(const width of [1200,390,320]){await page.setViewportSize({width,height:864});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}
+ assert.deepEqual(errors,[]);console.log('PASS 16 unique growth images, four wardrobe outfits/hat rotations, six emotes/four cat poses, real-price tailor UI and 320px layout');
+}finally{await browser.close();}

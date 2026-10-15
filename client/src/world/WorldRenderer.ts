@@ -6,6 +6,7 @@ import { buildNatureTextures } from "../nature/art";
 import { artImage } from "../reference/Assets";
 import { groundCanvas } from "../reference/WorldArt";
 import {FARM_PLOTS} from '../../../shared/regions';
+import {growthStage} from '../../../shared/growth';
 const FONT='"Noto Sans Thai",Arial,sans-serif';
 export class WorldRenderer {
   private motion=window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -14,6 +15,8 @@ export class WorldRenderer {
   private boat?:Phaser.GameObjects.Image;
   private fire?:Phaser.GameObjects.Image;
   private water?:Phaser.GameObjects.Graphics;
+  private watered=new Map<string,boolean>();private hasFarmView=false;private clockView?:WorldView;private receivedAt=0;
+  private farmCat?:Phaser.GameObjects.Image;
   constructor(private scene:Phaser.Scene,private map:MapId){}
   private image(asset:string,x:number,y:number,w:number,h=w,foot=true){
     const key='ref-'+asset;if(!this.scene.textures.exists(key))this.scene.textures.addImage(key,artImage(asset));
@@ -40,7 +43,7 @@ export class WorldRenderer {
     if(this.map==='farm'){
       this.image('prop-greenhouse',1035,280,240,204);this.house(160,180,195,150,'ฟาร์มเพื่อนรัก');
       for(let x=950;x<1180;x+=72){this.image('prop-fence',x+32,560,78,50);this.image('prop-fence',x+32,678,78,50);}
-      this.scene.add.image(1020,610,'nature-cat-0-0').setDisplaySize(48,48).setDepth(610);
+      this.farmCat=this.scene.add.image(1020,610,'nature-cat-sit').setDisplaySize(48,48).setDepth(610);
       this.scene.add.image(1120,625,'nature-rabbit-0-0').setDisplaySize(44,44).setDepth(625);
     }
     if(this.map==='beach'){
@@ -87,6 +90,9 @@ export class WorldRenderer {
   }
   update(view:WorldView|undefined,weather='sunny',owner?:string){
     const t=this.motion.matches?0:this.scene.time.now;
+    if(view!==this.clockView){this.clockView=view;this.receivedAt=Date.now();}
+    const now=(view?.serverTime??this.receivedAt)+Date.now()-this.receivedAt;
+    this.farmCat?.setTexture('nature-cat-'+(['sit','groom','stretch','sleep'][Math.floor(t/6500)%4]));
     for(const moving of this.movingSprites){moving.sprite.setVisible((view?.progress.cooldowns[moving.id]??0)<=Date.now()&&(moving.id!=='forest-rare'||weather==='snow')&&(moving.id!=='bug-firefly'||Math.floor(Date.now()/300000)%4>=2));moving.sprite.setPosition(moving.x+Math.round(Math.sin(t/1300+moving.x)*9),moving.y+Math.round(Math.cos(t/850+moving.x)*5));moving.sprite.setTexture('nature-'+moving.kind+'-'+Math.floor(t/220)%2);}
     this.fire?.setScale(.84+Math.sin(t/180)*.015);
     this.water?.clear();
@@ -94,12 +100,21 @@ export class WorldRenderer {
     if(this.map==='beach')for(let i=0;i<8;i++)this.water?.fillStyle(0xe4ffff,.5).fillRect(i*180+(Math.floor(t/110)%20)*3,626+Math.floor(Math.sin(t/800+i)*3),48,3);
     if(this.map==='farm')this.crops.forEach((sprite,i)=>{
       const crop=(owner?view?.farms.find(f=>f.id===owner)?.plots:view?.progress.plots)?.[i];sprite.setVisible(!!crop);if(!crop)return;
-      const age=Math.max(0,(Date.now()-crop.plantedAt)/Math.max(1,crop.readyAt-crop.plantedAt));
-      const stage=Math.min(crop.watered?3:2,Math.floor(age*4));
-      const key='ref-icon-'+crop.seed;if(!this.scene.textures.exists(key))this.scene.textures.addImage(key,artImage('icon-'+crop.seed));
-      sprite.setTexture(key).setDisplaySize(18+stage*8,18+stage*8).setAlpha(stage===3?1:.75);
+      const stage=growthStage(crop,now),newCrop=['eggplant','strawberry','corn','pumpkin'].includes(crop.seed);
+      const asset=newCrop?'crop-'+crop.seed+'-'+stage:stage===3?'icon-'+crop.seed:'crop-'+(crop.seed==='wheat'?'corn':'strawberry')+'-'+stage;
+      const key='ref-'+asset;if(!this.scene.textures.exists(key))this.scene.textures.addImage(key,artImage(asset));
+      sprite.setTexture(key).setDisplaySize(stage===0?25:stage===1?33:stage===2?40:46,stage===0?25:stage===1?33:stage===2?40:46).setAlpha(1);
     });
+    if(this.map==='farm'&&view){
+      const next=new Map<string,boolean>();for(const farm of view.farms)farm.plots.forEach((crop,i)=>{if(!crop)return;const id=farm.id+':'+i+':'+crop.plantedAt;next.set(id,crop.watered);if(this.hasFarmView&&crop.watered&&this.watered.get(id)===false&&(owner??view.farms[0]?.id)===farm.id)this.watering(FARM_PLOTS[i].x,FARM_PLOTS[i].y);});this.watered=next;this.hasFarmView=true;
+    }
     this.boat?.setVisible(this.map==='beach'&&!!view?.boat&&Date.now()>=view.boat.departAt);
     if(this.boat&&view?.boat){const p=boatPosition(view.boat.departAt,Date.now());this.boat.setPosition(p.x,p.y).setDepth(p.y-1);}
+  }
+  private watering(x:number,y:number){
+    const can=this.image('tool-watering-can',x+24,y-18,38).setDepth(y+100);
+    if(this.motion.matches){this.scene.time.delayedCall(700,()=>can.destroy());return;}
+    can.setAngle(-8);this.scene.tweens.add({targets:can,angle:8,y:y-22,yoyo:true,repeat:1,duration:220,onComplete:()=>can.destroy()});
+    for(let i=0;i<8;i++){const drop=this.image('tool-water',x+6,y-27,6,9).setDepth(y+101);this.scene.tweens.add({targets:drop,x:x-14+(i%4)*8,y:y+4,alpha:0,delay:i*65,duration:420,onComplete:()=>drop.destroy()});}
   }
 }

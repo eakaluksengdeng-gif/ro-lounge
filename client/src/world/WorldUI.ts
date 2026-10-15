@@ -13,6 +13,7 @@ import {catalogue,bagEntries,bagQuantity} from './inventory';
 import {VILLAGE_ORDERS,SKILL_NAMES,villageLevel} from '../../../shared/village';
 import {CozyUI} from './CozyUI';
 import {RECIPES,FURNITURE} from '../../../shared/cozy';
+import {SEASON_GEAR} from '../../../shared/equipment';
 import {DirectFarmUI} from './DirectFarmUI';
 import {WardrobeUI} from './WardrobeUI';
 import {NEW_GEAR} from '../../../shared/equipment';
@@ -258,7 +259,7 @@ export class WorldUI {
     const entries=owned.filter(e=>(this.inventoryCategory==='ทั้งหมด'||e.category===this.inventoryCategory||(this.inventoryCategory==='วัตถุดิบ'&&!['ปลา','แมลง','อาหาร'].includes(e.category)))&&e.name.includes(this.inventoryQuery.trim())).sort((a,b)=>this.inventorySort==='quantity'?b.count-a.count||a.name.localeCompare(b.name,'th'):a.name.localeCompare(b.name,'th'));
     const inspect=(entry:typeof entries[number])=>{this.selectedItem=entry.id;grid.querySelectorAll<HTMLElement>('[data-item]').forEach(card=>card.dataset.selected=String(card.dataset.item===entry.id));
       detail.replaceChildren(itemCanvas(entry.id),this.text(entry.name,'world-card-title'),this.text('ในกระเป๋า × '+entry.count,'collection-quantity'),this.text(entry.category,'collection-hint'));
-      const uses=COSMETICS.filter(c=>Object.prototype.hasOwnProperty.call(c.cost,entry.id)&&!progress.unlocks.includes(c.id));
+      const uses=[...COSMETICS,...SEASON_GEAR].filter(c=>Object.prototype.hasOwnProperty.call(c.cost,entry.id)&&!progress.unlocks.includes(c.id));
       if(uses.length){const recipes=document.createElement('div');recipes.className='inventory-uses';for(const cosmetic of uses){const cost=Object.entries(cosmetic.cost) as [string,number][];const ready=cost.every(([id,n])=>(progress.inventory[id]??0)>=n);recipes.append(this.text((ready?'✓ พร้อมแลก ':'ใช้แลก ')+cosmetic.name+' · '+cost.map(([id,n])=>(ITEMS[id]?.name??id)+' '+Math.min(progress.inventory[id]??0,n)+'/'+n).join(' · ')));}recipes.append(this.text('ยืนยันแลกได้เมื่อเดินไปถึงร้านในตลาด'));detail.append(recipes);}
       else detail.append(this.text(entry.category==='ปลา'?'ปลาที่จับได้จะเก็บไว้ที่นี่ · ชิปจากการตกปลาเข้ากระเป๋าเงินแล้ว':'เก็บไว้ใช้แลกของหรือสะสมต่อได้','collection-hint'));
       const jobs=VILLAGE_ORDERS.filter(o=>Object.prototype.hasOwnProperty.call(o.cost,entry.id));
@@ -391,6 +392,12 @@ export class WorldUI {
       const owned=this.view!.progress.unlocks.includes(cosmetic.id);
       card.append(this.button(owned?"ใส่ชุดนี้":"ยืนยันแลก",()=>this.send(owned?"equip":"exchange",{cosmeticId:cosmetic.id}),this.pending));
       grid.append(card);
+    }
+    for(const item of SEASON_GEAR){
+      const card=document.createElement('article'),preview=renderCharacterCanvas(appearanceToLook(loadAppearance()));preview.getContext('2d')!.drawImage(equipmentCanvas({body:item.id}),0,0);
+      card.dataset.tailor=item.id;card.append(preview,this.text(item.name,'world-card-title'),this.text(Object.entries(item.cost).map(([id,n])=>(ITEMS[id]?.name??id)+' × '+n).join(' · ')));
+      const owned=this.view!.progress.unlocks.includes(item.id),enough=Object.entries(item.cost).every(([id,n])=>(this.view!.progress.inventory[id]??0)>=n);
+      card.append(this.button(owned?'สวมใส่':enough?'ยืนยันแลกชุด':'วัตถุดิบยังไม่ครบ',()=>this.send(owned?'equip-slot':'tailor-exchange',owned?{slot:'body',itemId:item.id}:{itemId:item.id,confirmed:true}),this.pending||!owned&&!enough));grid.append(card);
     }this.body.append(grid);
   }
   private drawMinimap(){

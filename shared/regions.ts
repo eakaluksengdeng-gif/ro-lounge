@@ -36,6 +36,10 @@ export const SEEDS = [
   { id:"carrot",name:"แครอท",growMs:60000,color:0xe4a15d },
   { id:"tomato",name:"มะเขือเทศ",growMs:90000,color:0xc97070 },
   { id:"wheat",name:"ข้าวสาลี",growMs:120000,color:0xe0c570 },
+  { id:"eggplant",name:"มะเขือม่วง",growMs:105000,color:0x9169b5 },
+  { id:"strawberry",name:"สตรอว์เบอร์รี",growMs:75000,color:0xec7c91 },
+  { id:"corn",name:"ข้าวโพด",growMs:110000,color:0xeac650 },
+  { id:"pumpkin",name:"ฟักทอง",growMs:150000,color:0xe99a43 },
 ] as const;
 export type SeedId = typeof SEEDS[number]["id"];
 /** Same plot anchors for world crops, inline controls and authoritative range validation. */
@@ -52,6 +56,7 @@ export const ITEMS: Record<string, { name: string; icon: string; category: strin
   shell:{name:"เปลือกหอย",icon:"🐚",category:"ชายหาด"},pearl:{name:"หอยมุก",icon:"🦪",category:"ชายหาด"},
   treasure:{name:"ของจากสมบัติ",icon:"💎",category:"ชายหาด"},cleanup:{name:"ช่วยชายหาด",icon:"🌱",category:"ชายหาด"},
   carrot:{name:"แครอท",icon:"🥕",category:"ผลผลิต"},tomato:{name:"มะเขือเทศ",icon:"🍅",category:"ผลผลิต"},wheat:{name:"ข้าวสาลี",icon:"🌾",category:"ผลผลิต"},
+  eggplant:{name:'มะเขือม่วง',icon:'',category:'ผลผลิต'},strawberry:{name:'สตรอว์เบอร์รี',icon:'',category:'ผลผลิต'},corn:{name:'ข้าวโพด',icon:'',category:'ผลผลิต'},pumpkin:{name:'ฟักทอง',icon:'',category:'ผลผลิต'},
   chef:{name:"ร่วมเสิร์ฟสำเร็จ",icon:"🍽️",category:"กิจกรรม"},musician:{name:"เล่นเวทีดนตรี",icon:"🎵",category:"กิจกรรม"},
   voyager:{name:"ล่องเรือ",icon:"⛵",category:"กิจกรรม"},camper:{name:"นั่งแคมป์",icon:"🏕️",category:"กิจกรรม"},
 };

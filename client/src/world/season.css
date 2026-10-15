@@ -1,0 +1,6 @@
+#directFarm header strong{display:flex;align-items:center;gap:3px;white-space:nowrap}
+#directFarm canvas{image-rendering:pixelated;vertical-align:middle}
+#directFarm .farm-seeds{max-height:180px;overflow-y:auto;scrollbar-width:thin;overscroll-behavior:contain}
+#directFarm [data-primary] canvas{margin-right:5px}
+#emotes button canvas{display:block;width:28px;height:28px;image-rendering:pixelated}
+@media(max-height:600px){#directFarm .farm-seeds{max-height:115px}}
