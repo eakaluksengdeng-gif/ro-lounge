@@ -100,8 +100,7 @@ export class WorldRenderer {
     if(this.map==='beach')for(let i=0;i<8;i++)this.water?.fillStyle(0xe4ffff,.5).fillRect(i*180+(Math.floor(t/110)%20)*3,626+Math.floor(Math.sin(t/800+i)*3),48,3);
     if(this.map==='farm')this.crops.forEach((sprite,i)=>{
       const crop=(owner?view?.farms.find(f=>f.id===owner)?.plots:view?.progress.plots)?.[i];sprite.setVisible(!!crop);if(!crop)return;
-      const stage=growthStage(crop,now),newCrop=['eggplant','strawberry','corn','pumpkin'].includes(crop.seed);
-      const asset=newCrop?'crop-'+crop.seed+'-'+stage:stage===3?'icon-'+crop.seed:'crop-'+(crop.seed==='wheat'?'corn':'strawberry')+'-'+stage;
+      const stage=growthStage(crop,now),asset='crop-'+crop.seed+'-'+stage;
       const key='ref-'+asset;if(!this.scene.textures.exists(key))this.scene.textures.addImage(key,artImage(asset));
       sprite.setTexture(key).setDisplaySize(stage===0?25:stage===1?33:stage===2?40:46,stage===0?25:stage===1?33:stage===2?40:46).setAlpha(1);
     });
