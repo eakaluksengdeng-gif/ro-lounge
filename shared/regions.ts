@@ -5,8 +5,9 @@ export type Direction = "north" | "south" | "west" | "east";
 export const WORLD_W = 1440, WORLD_H = 864;
 export const MAP_NAMES: Record<MapId, string> = { town: "เมืองกลาง", forest: "ป่าน้ำตก", farm: "ฟาร์มเพื่อนรัก", beach: "หาดสายลม", market: "ตลาดโคมไฟ" };
 export const MAP_COLORS: Record<MapId, number> = { town: 0x86b96c, forest: 0x577e54, farm: 0x9ab67c, beach: 0xe7ce93, market: 0x485451 };
-export interface WorldNode { id: string; map: MapId; x: number; y: number; kind: "bug" | "mushroom" | "rare" | "camp" | "farm" | "greenhouse" | "animal" | "shell" | "treasure" | "cleanup" | "boat" | "cafe" | "shop" | "stage"; name: string; item?: string; }
+export interface WorldNode { id: string; map: MapId; x: number; y: number; kind: "water" | "bug" | "mushroom" | "rare" | "camp" | "farm" | "greenhouse" | "animal" | "shell" | "treasure" | "cleanup" | "boat" | "cafe" | "shop" | "stage"; name: string; item?: string; }
 export const WORLD_NODES: WorldNode[] = [
+  { id:"farm-water",map:"farm",x:800,y:520,kind:"water",name:"ตักน้ำ +1" },
   { id:"bug-blue",map:"forest",x:420,y:350,kind:"bug",name:"จับผีเสื้อฟ้า",item:"butterfly" },
   { id:"bug-gold",map:"forest",x:1080,y:550,kind:"bug",name:"จับด้วงทอง",item:"beetle" },
   { id:"bug-firefly",map:"forest",x:1100,y:300,kind:"bug",name:"ตามหาหิ่งห้อย",item:"firefly" },
@@ -54,6 +55,7 @@ export const COSMETICS = [
 ] as const;
 export interface Crop { seed: SeedId; plantedAt: number; readyAt: number; watered: boolean; }
 export interface Progress { map: MapId; inventory: Record<string,number>; discovered: string[]; plots:(Crop|null)[];
+  water?:number;
   allowHelp:boolean; unlocks:string[]; equipped:string; cooldowns:Record<string,number>; receipts?:Record<string,string>; }
 export interface CafeMember { id:string;name:string;actions:number; }
 export interface CafeView { phase:"lobby"|"running"|"result"; members:CafeMember[]; host:string|null; deadline:number|null; order:number; served:number; recipe:string; roundId:string|null; }

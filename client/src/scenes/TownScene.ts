@@ -7,7 +7,7 @@ import { gameSounds } from "../audio/GameSounds";
 import { WorldRenderer } from "../world/WorldRenderer";
 import { planRoute } from "../world/PathPlanner";
 import { ensureCosmetics } from "../world/Cosmetics";
-import type { MapId, WorldView } from "../../../shared/regions";
+import { WORLD_NODES, type MapId, type WorldView } from "../../../shared/regions";
 import { CASINO_BUILDING, CASINO_DOOR } from "../../../shared/casinoWorld";
 import { HAIR_COLORS as HAIR, SKIN_COLORS as SKIN, PANTS_COLORS as PANTS } from "../character/appearance";
 import type { Room } from "colyseus.js";
@@ -107,7 +107,11 @@ export class TownScene extends Phaser.Scene {
       // Phaser can receive document-level pointer events over HTML overlays.
       if (!(p.event?.target instanceof HTMLCanvasElement)) return;
       if (this.casinoOpen || this.worldOpen) return;
+      const me=this.room.state.players.get(this.room.sessionId);
+      const node=me&&WORLD_NODES.find(n=>n.map===me.mapId&&['bug','mushroom','rare','shell','treasure','cleanup','water'].includes(n.kind)&&Math.hypot(p.worldX-n.x,p.worldY-n.y)<42&&Math.hypot(me.x-n.x,me.y-n.y)<=100);
+      if(node){this.events.emit('world:interact',node.id);return;}
       this.onManualMove?.();
+      this.events.emit('world:manual-move');
       this.stopNavigation();
       const x = Math.round(p.worldX);
       const y = Math.round(p.worldY);

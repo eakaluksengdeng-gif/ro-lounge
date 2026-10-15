@@ -1,0 +1,22 @@
+#worldToast{position:fixed;left:50%;top:24%;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:12px;max-width:90vw;padding:14px 22px;border:1px solid #a9e9c16b;border-radius:18px;background:#153d35ed;color:#f3fff6;box-shadow:0 12px 40px #0005;font:600 16px 'Noto Sans Thai',sans-serif;pointer-events:none;animation:pickup-in .25s ease-out}
+#worldToast[hidden]{display:none}#worldToast canvas{width:42px;height:42px;image-rendering:pixelated}
+#worldInteract{border:1px solid #d3f4d7!important;border-radius:18px!important;background:#183f36f2!important;background-image:none!important;color:#f1ffe8!important;box-shadow:0 6px 20px #001c2470!important;padding:10px 16px!important;font-size:13px!important;white-space:nowrap;max-width:90vw;min-height:42px}
+#worldInteract:disabled{opacity:.65}
+#worldPanel:is([data-page=inventory],[data-page=collection],[data-page=farm],[data-page=greenhouse]){place-items:center;padding:16px;background:#081f2370;backdrop-filter:blur(8px)}
+#worldPanel:is([data-page=inventory],[data-page=collection],[data-page=farm],[data-page=greenhouse]) .world-frame{width:min(820px,100%);max-height:86dvh;overflow:auto;border:1px solid #8bceac65;border-radius:24px;background:#15352ff5!important;background-image:none!important;color:#e9fff1;padding:22px;box-shadow:0 24px 80px #0007;font:14px/1.5 'Noto Sans Thai',sans-serif}
+#worldPanel:is([data-page=inventory],[data-page=collection],[data-page=farm],[data-page=greenhouse]) .world-frame h2{font-size:22px;color:#fff4bf}
+#worldPanel:is([data-page=inventory],[data-page=collection],[data-page=farm],[data-page=greenhouse]) button{background:#dcebc4!important;background-image:none!important;color:#19382c;border:0!important;border-radius:12px!important;box-shadow:none!important;min-height:42px;font:600 13px 'Noto Sans Thai',sans-serif;padding:8px 12px}
+#worldPanel:is([data-page=inventory],[data-page=collection],[data-page=farm],[data-page=greenhouse]) button:disabled{opacity:.38}
+#worldPanel:is([data-page=inventory],[data-page=collection]) .world-collection{grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:10px}
+#worldPanel:is([data-page=inventory],[data-page=collection],[data-page=farm],[data-page=greenhouse]) .world-collection article{border:1px solid #92c7a242!important;border-radius:16px;background:#244b40!important;background-image:none!important;color:#e9fff1;padding:14px;box-shadow:none!important;position:relative}
+#worldPanel:is([data-page=inventory],[data-page=collection]) .world-item-hint{display:none}
+#worldPanel:is([data-page=inventory],[data-page=collection]) article:focus-within .world-item-hint,#worldPanel:is([data-page=inventory],[data-page=collection]) article:hover .world-item-hint{display:block;font-size:11px}
+#worldPanel .collection-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0}#worldPanel .collection-tabs button[aria-pressed=true]{background:#ffda7b!important;color:#243728}
+.water-supply{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#28524a;border-radius:16px;padding:12px 16px;margin:12px 0}.water-supply p{font-weight:700;color:#9ee8ff}
+#worldPanel:is([data-page=farm],[data-page=greenhouse]) .world-collection{grid-template-columns:repeat(2,minmax(0,1fr))}
+#worldPanel:is([data-page=farm],[data-page=greenhouse]) .world-collection canvas{width:76px;height:76px}
+#worldPanel progress{width:100%;height:10px;accent-color:#96d783;border:0;border-radius:10px}
+#worldPanel .seed-choice{display:flex;align-items:center;justify-content:center;gap:8px}#worldPanel .seed-choice canvas{width:30px!important;height:30px!important}
+@keyframes pickup-in{from{opacity:0;translate:0 12px}to{opacity:1;translate:0 0}}
+@media(max-width:480px){#worldPanel:is([data-page=inventory],[data-page=collection],[data-page=farm],[data-page=greenhouse]) .world-frame{padding:14px;border-radius:18px}#worldPanel:is([data-page=inventory],[data-page=collection]) .world-collection{grid-template-columns:repeat(3,minmax(0,1fr))}#worldPanel .world-card-title{font-size:12px}.water-supply{padding:8px;font-size:12px}}
+@media(prefers-reduced-motion:reduce){#worldToast{animation:none}}

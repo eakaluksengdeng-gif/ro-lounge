@@ -27,10 +27,10 @@ const aim = page => page.waitForFunction(() => {
   return document.querySelector("#fishingPanel")?.dataset.phase === "bite" && position > .46 && position < .54;
 }, {}, { timeout: 8000 });
 const chips = async page => Number((await page.locator("#fishingPanel p").innerText()).match(/\+(\d+) ชิป/)?.[1]);
-const balance = (page, value) => page.waitForFunction(amount => document.querySelector("#casinoToolbar")?.textContent.includes("ชิป " + amount + " ·"), value);
+const balance = (page, value) => page.waitForFunction(amount => document.querySelector("#casinoToolbar .gold-balance")?.dataset.balance===String(amount), value);
 try {
   const page = await join("Fishing QA");
-  await page.waitForFunction(() => document.querySelector("#casinoToolbar")?.textContent.includes("ชิป 100"));
+  await balance(page,100);
   const spectator = await join("Nature QA");
   await page.bringToFront();
   if (!process.env.E2E_URL) {
@@ -65,31 +65,26 @@ try {
   await page.keyboard.press("Space");
   assert.match(await page.locator("#fishBag summary").innerText(), /ปลา 1/); // No duplicate award.
   await balance(page, 100 + reward);
-  await phase(page, "idle");
-  await page.keyboard.press("Space");
   await phase(page, "waiting");
   await page.keyboard.press("Space");
   await phase(page, "result");
   assert.match(await page.locator("#fishingPanel p").innerText(), /เร็วไป/);
   assert.match(await page.locator("#fishBag summary").innerText(), /ปลา 1/);
-  await phase(page, "idle");
-  await page.keyboard.press("Space");
+  await phase(page, "waiting");
   await phase(page, "bite");
   await page.waitForFunction(() => Number(document.querySelector("#fishSkillGauge")?.dataset.position) > .88);
   await page.keyboard.press("Space");
   await phase(page, "result");
   assert.match(await page.locator("#fishingPanel p").innerText(), /ไม่ตรงแถบแดง/);
   await balance(page, 100 + reward);
-  await phase(page, "idle");
-  await page.keyboard.press("Space");
+  await phase(page, "waiting");
   await phase(page, "bite");
   await phase(page, "result"); // Let the reaction timer expire.
   assert.match(await page.locator("#fishingPanel p").innerText(), /ปลาหลุด/);
   await balance(page, 100 + reward);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(700); // Let Phaser resize and smoothly recenter its follow camera.
-  await phase(page, "idle");
-  await page.locator("#fishAction").click();
+  await phase(page, "waiting");
   await phase(page, "bite");
   await page.screenshot({ path: "/tmp/ro-lounge-fishing-mobile.png" });
   await aim(page);
