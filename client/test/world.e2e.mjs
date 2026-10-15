@@ -85,7 +85,7 @@ try{
   await b.getByRole("button",{name:"เข้าทีม",exact:true}).click();await saved(b,"เข้าทีม");
   await a.waitForFunction(()=>window.qaWorld.cafe.members.length===2);
   await a.getByRole("button",{name:"เริ่มครัว",exact:true}).click();await saved(a,"เริ่มครัว");
-  assert.equal(await a.locator(".world-cafe-stations canvas").count(),4);
+  assert.equal(await a.locator(".cafe-orders canvas").count(),4);
   assert.equal(await a.locator('.world-cafe-stations article[data-active="true"]').count(),1);
   assert.match(await a.locator(".world-cafe-order").innerText(),/สลัดสวน/);
   await a.screenshot({path:"/tmp/ro-world-cafe-running.png"});

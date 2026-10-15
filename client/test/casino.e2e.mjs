@@ -56,12 +56,13 @@ try {
   await enter(player.page, 1);
   await player.page.locator('[data-seat="1"]').click();
   await player.page.locator("#pokBetAmount").waitFor();
+  await dealer.page.locator('.pok-sidebar summary').click();
   assert.equal(await player.page.locator("#pokWallet .gold-balance").getAttribute("data-balance"), "100");
   assert.equal(await player.page.locator("#casinoToolbar .pixel-coin").count(), 1);
   assert.match(await dealer.page.locator("#pokBetSummary").innerText(), /เจ้ามือไม่ต้องลงเดิมพันเอง/);
   const betPosition = await player.page.locator("#pokBetAmount").boundingBox();
   const seatPosition = await player.page.locator("#pokSeats").boundingBox();
-  assert.ok(betPosition.x >= seatPosition.x + seatPosition.width, "desktop betting controls must remain prominent beside the table");
+  assert.ok(betPosition.y >= seatPosition.y + seatPosition.height, "stake controls belong in the visible bottom dock, below the table");
   await player.page.getByRole("button", { name: "ลงเดิมพัน", exact: true }).click();
   await player.page.waitForFunction(() => document.querySelector("#casinoToolbar")?.textContent.includes("สำรอง 50"));
   await dealer.page.getByRole("button", { name: "เริ่มเกม", exact: true }).click();
@@ -77,7 +78,9 @@ try {
     await page.locator("#pokHandCards").evaluate(async hand => {
       await Promise.allSettled(hand.getAnimations({ subtree: true }).map(animation => animation.finished));
     });
-    assert.ok((await page.locator("#pokHandCards .pok-card").first().boundingBox()).width >= 100);
+    const ownWidth=await page.locator('#pokHandCards .pok-card').first().evaluate(el=>parseFloat(getComputedStyle(el).width));
+    const otherWidth=await page.locator('.pok-seat:not(.mine) .pok-card').first().evaluate(el=>parseFloat(getComputedStyle(el).width));
+    assert.ok(ownWidth>=otherWidth*1.5,'featured private cards stay substantially larger than cards at other seats');
   }
   await dealer.page.screenshot({ path: "/tmp/ro-lounge-table.png" });
   const firstRound = await dealer.page.locator("#pokPhase").innerText();
@@ -100,8 +103,9 @@ try {
   const mobileHand = await player.page.locator("#pokHandCards").boundingBox();
   assert.ok(mobileHand.x >= 0 && mobileHand.x + mobileHand.width <= 390, "two/three large cards must fit mobile");
   await player.page.waitForFunction(() => document.querySelector("#pokPhase")?.textContent.includes("เลือกที่นั่ง"), null, { timeout: 12000 });
+  await player.page.locator('.pok-sidebar summary').click();
   assert.match(await player.page.locator("#pokBetSummary").innerText(), /เดิมพันที่ยืนยัน: 10 ชิป/);
-  assert.match(await player.page.locator("#pokWallet").innerText(), /ตาล่าสุด/);
+  assert.match(await player.page.locator("#pokWalletDetails").innerText(), /ตาล่าสุด/);
   // No second click on Start: the next hand must be dealt after the betting countdown.
   await dealer.page.waitForFunction(first => {
     const phase = document.querySelector("#pokPhase")?.textContent ?? "";

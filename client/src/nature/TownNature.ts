@@ -6,6 +6,7 @@ import { FISHING_SPOTS } from "../../../shared/nature";
 import { MAP_H, POND, TILE_PX } from "../world";
 import { buildNatureTextures } from "./art";
 import { gameSounds } from "../audio/GameSounds";
+import { artImage } from '../reference/Assets';
 import { worldBlocked, type MapId } from "../../../shared/regions";
 
 interface AnimalSprite { body: Phaser.GameObjects.Container; sprite: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Ellipse }
@@ -27,8 +28,8 @@ export class TownNature {
     for (const [index, spot] of FISHING_SPOTS.entries()) {
       const g = scene.add.graphics().setDepth(spot.y - 5);
       if (index === 0) {
-        g.fillStyle(0x67472f).fillRect(spot.x - 35, spot.y - 30, 48, 60);
-        for (let row = -27; row < 30; row += 9) g.fillStyle(0xc19159).fillRect(spot.x - 32, spot.y + row, 42, 6);
+        if(!scene.textures.exists('fishing-dock'))scene.textures.addImage('fishing-dock',artImage('activity-dock'));
+        scene.add.image(spot.x-12,spot.y+7,'fishing-dock').setDisplaySize(98,79).setDepth(spot.y-5);
       }
       const x = spot.x + (index === 0 ? 34 : 40);
       g.fillStyle(0x754c37).fillRect(x - 3, spot.y - 45, 6, 45);

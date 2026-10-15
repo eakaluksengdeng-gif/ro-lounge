@@ -14,6 +14,10 @@ export function groundCanvas(map:MapId){
   const pond=(x:number,y:number,rx:number,ry:number)=>{
     c.save();c.beginPath();c.ellipse(x,y,rx+12,ry+12,0,0,Math.PI*2);c.clip();tile('sand',x-rx-12,y-ry-12,rx*2+24,ry*2+24);c.restore();
     c.save();c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.clip();tile('pond',x-rx,y-ry,rx*2,ry*2);c.restore();
+    // Natural moss banks/rocks stay inside the existing water collision, preserving every fishing angle.
+    for(const angle of [-2.65,-2.05,-.8,.9,1.65,2.45]){const px=x+Math.cos(angle)*(rx-15),py=y+Math.sin(angle)*(ry-10);c.drawImage(artImage('activity-rocks'),px-26,py-25,52,42);}
+    for(const angle of [-2.4,-1.3,.65,2]){const px=x+Math.cos(angle)*(rx+9),py=y+Math.sin(angle)*(ry+9);c.drawImage(artImage('activity-reeds'),px-17,py-24,34,34);}
+    c.strokeStyle='#cffff8';c.lineWidth=3;c.beginPath();c.ellipse(x,y,rx-2,ry-2,0,0,Math.PI*2);c.stroke();
   };
   if(map==='town')pond(POND.cx*TILE_PX,POND.cy*TILE_PX,POND.rx*TILE_PX,POND.ry*TILE_PX);
   if(map==='forest'){

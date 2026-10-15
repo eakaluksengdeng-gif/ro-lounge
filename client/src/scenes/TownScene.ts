@@ -257,7 +257,9 @@ export class TownScene extends Phaser.Scene {
     // which repeatedly triggered walking/facing changes on an otherwise idle avatar.
     c.setPosition(nx, ny);
     c.setDepth(c.y);
-    av.gear.setTexture("gear-"+(p.cosmetic||"none"));
+    const fishing=!!p.fishing;
+    const cosmetic=fishing&&(!p.cosmetic||p.cosmetic==='none')?'straw-hat':p.cosmetic||'none';
+    av.gear.setTexture("gear-"+cosmetic);
     av.gear.setFlipX(av.dir==="side"&&av.flip);
     av.sprite.setAlpha(p.activity==="camp"?.9:1);
     av.sprite.y = av.gear.y = p.activity === "camp" ? 6 : 0;
@@ -279,7 +281,9 @@ export class TownScene extends Phaser.Scene {
       if (own && !this.casinoOpen && Math.floor(av.walk / WALK_STEP_PX) !== previousStep) gameSounds.play("footstep");
       frame = WALK_SEQ[Math.floor(av.walk / WALK_STEP_PX) % WALK_SEQ.length];
     }
-    const key = `ch-${av.look.id}-${av.dir}-${frame}`;
+    if(fishing){const vx=p.fishingBobberX-p.x,vy=p.fishingBobberY-p.y;if(Math.abs(vx)>Math.abs(vy)){av.dir='side';av.flip=vx<0;}else{av.dir=vy<0?'up':'down';av.flip=false;}av.gear.setFlipX(av.dir==='side'&&av.flip);}
+    const pose=fishing?'fishing':p.activity==='camp'?'seated':undefined;
+    const key = pose?`ch-${av.look.id}-${pose}-${av.dir}-0`:`ch-${av.look.id}-${av.dir}-${frame}`;
     if (key !== av.texKey) {
       av.sprite.setTexture(key);
       av.texKey = key;

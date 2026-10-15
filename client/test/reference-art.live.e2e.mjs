@@ -8,9 +8,10 @@ const browser=await chromium.launch({channel:'chrome',headless:true});
 const report={url,startedAt:new Date().toISOString(),phase:'running',checks:[],errors:[],missing:[]};
 try{
   const page=await browser.newPage({viewport:{width:1440,height:864}});
-  page.on('pageerror',e=>report.errors.push(e.message));page.on('response',r=>{if(r.url().includes('/art/reference-v1/')&&r.status()!==200)report.missing.push(r.url());});
+  page.on('pageerror',e=>report.errors.push(e.message));page.on('response',r=>{if(/\/art\/(reference-v1|activity-v2)\//.test(r.url())&&r.status()!==200)report.missing.push(r.url());});
   const versionBefore=await page.request.get('https://ro-lounge.onrender.com/version').then(r=>r.json());
   await page.goto(url,{waitUntil:'networkidle'});await page.waitForFunction(()=>document.documentElement.dataset.artVersion==='reference-v1');
+  await page.waitForFunction(()=>document.documentElement.dataset.activityArtVersion==='activity-v2');
   const manifest=await page.request.get(new URL('/art/reference-v1/manifest.json',url).href).then(r=>r.json());assert.equal(Object.values(manifest).filter(Array.isArray).flat().length,140);
   await page.screenshot({path:join(output,'creator.png'),fullPage:true});
   await page.locator('#nameInput').fill('Reference Art QA');await page.getByRole('button',{name:'เข้าเมือง',exact:true}).click();
@@ -20,7 +21,20 @@ try{
   for(const [name,id]of maps){await page.getByRole('button',{name:'🧭 แผนที่',exact:true}).click();await page.getByRole('button',{name:new RegExp('เดินไป'+name)}).click();
     await page.waitForFunction(text=>document.querySelector('#worldToolbar strong')?.textContent===text,name,{timeout:45000});await page.waitForTimeout(500);
     await page.screenshot({path:join(output,id+'.png')});report.checks.push('actual navigation and rendered '+id);
+    if(id==='market'){
+      await page.mouse.click(430,540);await page.waitForFunction(()=>{const button=document.querySelector('#worldInteract');return button&&!button.hidden&&button.textContent.includes('คาเฟ่');},null,{timeout:25000});
+      await page.locator('#worldInteract').click();assert.equal(await page.locator('.cafe-orders progress').count(),4);assert.ok(await page.locator('.world-cafe-worker canvas').count()<=4);
+      await page.screenshot({path:join(output,'cafe.png'),fullPage:true});await page.locator('#worldPanel').getByRole('button',{name:'ปิด',exact:true}).click();report.checks.push('read-only live cafe tableau and four stage progress bubbles');
+    }
   }
+  // Owner-only cast is cancelled: validate the sitting scene/gauge without minting fish/chips.
+  await page.getByRole('button',{name:'🐟 ไปบ่อตกปลา',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#fishingPanel')?.dataset.near==='true',null,{timeout:25000});
+  await page.locator('#fishAction').click();await page.waitForFunction(()=>document.querySelector('#fishingPanel')?.dataset.phase==='waiting');
+  assert.equal(await page.locator('#fishingPanel').getAttribute('data-sitting'),'true');assert.equal(await page.locator('#fishingScene').isVisible(),true);
+  await page.waitForFunction(()=>document.querySelector('#fishingPanel')?.dataset.phase==='bite',null,{timeout:15000});
+  await page.screenshot({path:join(output,'fishing.png')});assert.equal(await page.locator('#fishSkillGauge').isVisible(),true);
+  await page.locator('#fishCancel').click();await page.waitForFunction(()=>document.querySelector('#fishingPanel')?.dataset.phase==='idle',null,{timeout:10000});
+  report.checks.push('authoritative sitting fishing scene/red target; own cast cancelled with no reward');
   await page.getByRole('button',{name:'สมุดสะสม',exact:true}).click();await page.locator('.collection-tabs').getByRole('button',{name:'ปลา',exact:true}).click();assert.equal(await page.locator('.world-collection article').count(),7);
   await page.screenshot({path:join(output,'collection.png'),fullPage:true});await page.locator('#worldPanel').getByRole('button',{name:'ปิด',exact:true}).click();
   // Spectator only: never sit/bet/start, collect items or join another player's kitchen.

@@ -37,6 +37,7 @@ export function shade(hex: string, amt: number): string {
 }
 
 export type Dir = "down" | "up" | "side";
+export type CharacterPose = 'standing'|'seated'|'fishing'|'prepare'|'cook'|'serve';
 
 export interface Look {
   id: string;
@@ -55,9 +56,9 @@ export const CHAR_SCALE = 1.125; // Keep the original 54x72 world footprint at r
 export const CHAR_ORIGIN_Y = (CHAR_H + 1) / (CHAR_H + 2);
 
 /** DOM previews and game textures share exactly the same pixel renderer. */
-export function renderCharacterCanvas(look: Look, dir: Dir = "down", frame = 0): HTMLCanvasElement {
+export function renderCharacterCanvas(look: Look, dir: Dir = "down", frame = 0, pose:CharacterPose='standing'): HTMLCanvasElement {
   const gender=look.gender===1?1:0;
-  const canvas=artCanvas(`character-${gender}-${dir}-${frame}`,48,64),context=canvas.getContext('2d')!;
+  const canvas=artCanvas(pose==='standing'?`character-${gender}-${dir}-${frame}`:`pose-${gender}-${pose}-${dir}`,48,64),context=canvas.getContext('2d')!;
   // Generated heads replace the complete head layer; body/feet remain the walking frame.
   context.clearRect(0,0,48,40);
   context.drawImage(artImage(`head-${gender}-${look.style%3}-${dir}`),1,0,46,43);
@@ -83,6 +84,7 @@ export function ensureCharacter(scene: Phaser.Scene, look: Look) {
       const key=`ch-${look.id}-${d}-${f}`;
       if(!scene.textures.exists(key))scene.textures.addCanvas(key,renderCharacterCanvas(look,d,f))?.setFilter(Phaser.Textures.FilterMode.NEAREST);
     }
+    for(const pose of ['seated','fishing'] as const){const key=`ch-${look.id}-${pose}-${d}-0`;if(!scene.textures.exists(key))scene.textures.addCanvas(key,renderCharacterCanvas(look,d,0,pose))?.setFilter(Phaser.Textures.FilterMode.NEAREST);}
   }
 }
 
