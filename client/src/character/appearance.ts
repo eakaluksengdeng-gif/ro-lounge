@@ -1,4 +1,4 @@
-import type { Appearance } from "../net";
+import type { Appearance, PlayerState } from "../net";
 import type { Look } from "../art";
 
 export const SHIRT_COLORS = ["#f28b82", "#fbbc04", "#a7d676", "#78d9ec", "#aecbfa", "#d7aefb", "#fdcfe8"];
@@ -25,4 +25,13 @@ export function appearanceToLook(appearance: Appearance): Look {
     id: `${parseInt(SHIRT_COLORS[color].slice(1), 16)}-${hair}-${skin}-${pants}-${style}-${gender}`,
     shirt: SHIRT_COLORS[color], hair: HAIR_COLORS[hair], skin: SKIN_COLORS[skin], pants: PANTS_COLORS[pants], style, gender,
   };
+}
+
+/** Wire color is an RGB integer, whereas the creator's color is a palette INDEX. */
+export function playerToLook(player:PlayerState):Look {
+  const parts={...DEFAULT_LOOK,color:0};
+  for(const key of ['hair','skin','pants','style','gender'] as const)parts[key]=Number.isInteger(player[key])?Math.max(0,Math.min(OPTION_COUNTS[key]-1,player[key])):DEFAULT_LOOK[key];
+  const look=appearanceToLook(parts);
+  look.shirt='#'+player.color.toString(16).padStart(6,'0');look.id=player.color+'-'+parts.hair+'-'+parts.skin+'-'+parts.pants+'-'+parts.style+'-'+parts.gender;
+  return look;
 }

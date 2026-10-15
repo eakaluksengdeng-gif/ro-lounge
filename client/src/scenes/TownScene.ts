@@ -1,4 +1,6 @@
 import Phaser from "phaser";
+import { artImage } from '../reference/Assets';
+import { groundCanvas } from '../reference/WorldArt';
 import { TownNature } from "../nature/TownNature";
 import { avatarMotion } from "../../../shared/avatarMotion";
 import { gameSounds } from "../audio/GameSounds";
@@ -15,7 +17,7 @@ import {
   TILE_PX, TREES, treeFeet,
 } from "../world";
 import {
-  CHAR_H, CHAR_ORIGIN_Y, buildWorldTextures, ensureCharacter, hashString, mulberry32,
+  CHAR_H, CHAR_SCALE, CHAR_ORIGIN_Y, buildWorldTextures, ensureCharacter, hashString, mulberry32,
   type Dir, type Look,
 } from "../art";
 
@@ -27,7 +29,7 @@ const EMOTE_ICONS: Record<string, string> = {
 };
 
 
-const HEAD_Y = -(CHAR_H + 2) * PX - 4; // ตำแหน่งเหนือหัวสำหรับ bubble / emote
+const HEAD_Y = -(CHAR_H + 2) * CHAR_SCALE - 4; // Sprite resolution does not change its world-space foot anchor.
 const WALK_STEP_PX = 22; // ระยะเดินต่อ 1 ท่า
 const WALK_SEQ = [1, 0, 2, 0];
 
@@ -141,45 +143,24 @@ export class TownScene extends Phaser.Scene {
   }
 
   private buildMap() {
-    const rnd = mulberry32(7);
-    const rt = this.add.renderTexture(0, 0, TILES_X * TILE, TILES_Y * TILE)
-      .setOrigin(0).setScale(PX).setDepth(-1000);
-
-    const pondDist = (tx: number, ty: number) =>
-      ((tx + 0.5 - POND.cx) / POND.rx) ** 2 + ((ty + 0.5 - POND.cy) / POND.ry) ** 2;
-    const inPlaza = (tx: number, ty: number) =>
-      tx >= PLAZA.x0 && tx <= PLAZA.x1 && ty >= PLAZA.y0 && ty <= PLAZA.y1;
-    const isPath = (tx: number, ty: number) => PATH_ROWS.includes(ty) || PATH_COLS.includes(tx);
-
-    const grassTiles: [number, number][] = [];
-    for (let ty = 0; ty < TILES_Y; ty++) {
-      for (let tx = 0; tx < TILES_X; tx++) {
-        let key: string;
-        if (inPlaza(tx, ty)) key = `stone${(tx + ty) % 2}`;
-        else if (isPath(tx, ty)) key = `path${Math.floor(rnd() * 3)}`;
-        else if (pondDist(tx, ty) <= 1.45) key = "sand0";
-        else {
-          const r = rnd();
-          key = r < 0.1 ? `flower${Math.floor(rnd() * 4)}` : `grass${Math.floor(rnd() * 4)}`;
-          grassTiles.push([tx, ty]);
-        }
-        rt.draw(key, tx * TILE, ty * TILE);
-        if (pondDist(tx, ty) <= 1) {
-          const w = this.add.image(tx * TILE_PX, ty * TILE_PX, "water0")
-            .setOrigin(0).setScale(PX).setDepth(-999);
-          this.waterTiles.push(w);
-        }
-      }
+    const groundKey='reference-ground-town';
+    if(!this.textures.exists(groundKey))this.textures.addCanvas(groundKey,groundCanvas('town'));
+    this.add.image(0,0,groundKey).setOrigin(0).setDepth(-1000);
+    const grassTiles:[number,number][]=[];
+    for(let ty=0;ty<TILES_Y;ty++)for(let tx=0;tx<TILES_X;tx++){
+      const pond=((tx+.5-POND.cx)/POND.rx)**2+((ty+.5-POND.cy)/POND.ry)**2;
+      if(!PATH_ROWS.includes(ty)&&!PATH_COLS.includes(tx)&&pond>1.5&&!(tx>=PLAZA.x0&&tx<=PLAZA.x1&&ty>=PLAZA.y0&&ty<=PLAZA.y1))grassTiles.push([tx,ty]);
     }
+    for(let x=55;x<MAP_W;x+=112)if(Math.abs(x-720)>130){this.add.image(x,54,'tree').setOrigin(.5,.94).setDepth(54);this.add.image(x,MAP_H+30,'tree').setOrigin(.5,.94).setDepth(MAP_H+30);}
 
     const shadowAt = (x: number, y: number, sx: number, sy: number) =>
-      this.add.image(x, y, "shadow").setScale(PX * sx, PX * sy).setDepth(y - 1);
+      this.add.image(x, y, "shadow").setScale(sx, sy).setDepth(y - 1);
 
     // ต้นไม้
     for (const t of TREES) {
       const f = treeFeet(t);
       shadowAt(f.x, f.y - 2, 2.4, 1.6);
-      this.add.image(f.x, f.y, "tree").setOrigin(0.5, 34 / 37).setScale(PX).setDepth(f.y);
+      this.add.image(f.x, f.y, "tree").setOrigin(0.5, 34 / 37).setScale(1).setDepth(f.y);
     }
 
     // พุ่มไม้ (ตำแหน่งสุ่มแต่คงที่ทุกเครื่อง)
@@ -191,32 +172,32 @@ export class TownScene extends Phaser.Scene {
       const y = (ty + 0.9) * TILE_PX;
       if (TREES.some((t) => Math.hypot(treeFeet(t).x - x, treeFeet(t).y - y) < 60)) continue;
       shadowAt(x, y - 1, 1.1, 1);
-      this.add.image(x, y, "bush").setOrigin(0.5, 12 / 14).setScale(PX).setDepth(y);
+      this.add.image(x, y, "bush").setOrigin(0.5, 12 / 14).setScale(1).setDepth(y);
       placed++;
     }
 
     // น้ำพุ
     this.buildCasino();
-    this.fountain = this.add.image(FOUNTAIN.x, FOUNTAIN.y, "fountain0").setScale(PX).setDepth(FOUNTAIN.y + 40);
+    this.fountain = this.add.image(FOUNTAIN.x, FOUNTAIN.y, "fountain0").setScale(1).setDepth(FOUNTAIN.y + 40);
 
     // ม้านั่งและโคมไฟ
     for (const [bx, by] of BENCHES) {
       const x = bx * TILE_PX;
       const y = by * TILE_PX;
       shadowAt(x, y - 1, 1.7, 1);
-      this.add.image(x, y, "bench").setOrigin(0.5, 11 / 14).setScale(PX).setDepth(y);
+      this.add.image(x, y, "bench").setOrigin(0.5, 11 / 14).setScale(1).setDepth(y);
     }
     for (const [lx, ly] of LAMPS) {
       const x = lx * TILE_PX;
       const y = ly * TILE_PX;
-      this.add.image(x, y, "lamp").setOrigin(0.5, 23 / 26).setScale(PX).setDepth(y);
+      this.add.image(x, y, "lamp").setOrigin(0.5, 23 / 26).setScale(1).setDepth(y);
       this.add.circle(x, y - 58, 40, 0xffe27a, 0.07).setBlendMode(Phaser.BlendModes.ADD).setDepth(y + 1);
     }
 
     // ป้ายชื่อเมือง
     const bx = FOUNTAIN.x;
     const by = (PLAZA.y0 - 0.4) * TILE_PX;
-    this.add.image(bx, by, "board").setScale(PX).setDepth(by);
+    this.add.image(bx, by, "board").setScale(1).setDepth(by);
     this.add.text(bx, by, "Town Square", { fontFamily: FONT, fontSize: "16px", color: "#fff4d6", fontStyle: "bold" })
       .setOrigin(0.5).setDepth(by + 1);
   }
@@ -224,41 +205,14 @@ export class TownScene extends Phaser.Scene {
   /* ---------------- ตัวละคร ---------------- */
 
   private buildCasino() {
-    const { x, y, width: w, height: h } = CASINO_BUILDING;
-    const g = this.add.graphics().setDepth(y + h);
-    g.fillStyle(0x101525, .35).fillRect(x + 9, y + h - 9, w + 12, 27);
-    g.fillStyle(0x2b1f30).fillRect(x, y + 36, w, h - 36);
-    g.fillStyle(0xb77b55).fillRect(x + 9, y + 42, w - 18, h - 48);
-    for (let row = y + 54; row < y + h - 6; row += 15) {
-      g.fillStyle(0x9d6047).fillRect(x + 9, row, w - 18, 3);
-    }
-    g.fillStyle(0x302038).fillRect(x - 9, y + 24, w + 18, 27);
-    for (let row = 0; row < 5; row++) {
-      const inset = (4 - row) * 9;
-      g.fillStyle(row % 2 ? 0x6a354b : 0x874353)
-        .fillRect(x - 12 + inset, y + row * 9, w + 24 - inset * 2, 9);
-    }
-    g.fillStyle(0xffd477).fillRect(x - 12, y + 45, w + 24, 6);
-    for (const wx of [x + 24, x + w - 57]) {
-      g.fillStyle(0x372539).fillRect(wx, y + 75, 33, 33);
-      g.fillStyle(0xf7c870).fillRect(wx + 3, y + 78, 27, 27);
-      g.fillStyle(0x8b523c).fillRect(wx + 15, y + 78, 3, 27).fillRect(wx + 3, y + 90, 27, 3);
-    }
-    g.fillStyle(0x382536).fillRect(x + w / 2 - 24, y + h - 51, 48, 51);
-    g.fillStyle(0xe3ae66).fillRect(x + w / 2 - 21, y + h - 48, 42, 3);
-    g.fillStyle(0x171a29).fillRect(x + w / 2 - 18, y + h - 45, 36, 45);
-    g.fillStyle(0xd7aa7b).fillRect(x + w / 2 - 30, y + h, 60, 9);
-    this.add.text(x + w / 2, y + 61, "Boardgame", {
-      fontFamily: FONT, fontSize: "17px", color: "#ffe27a", backgroundColor: "#352436", padding: { x: 7, y: 2 },
-    }).setOrigin(.5).setDepth(y + h + 1);
-    const ring = this.add.circle(CASINO_DOOR.x, CASINO_DOOR.y, 22, 0xffe27a, .12)
-      .setStrokeStyle(3, 0xffe27a, .7).setDepth(-10);
-    this.tweens.add({ targets: ring, alpha: .35, duration: 900, yoyo: true, repeat: -1 });
-    this.add.text(CASINO_DOOR.x, CASINO_DOOR.y + 28, "เดินเข้าประตูเพื่อเล่น • ชิปฟรี", {
-      fontFamily: FONT, fontSize: "13px", color: "#fff4d6", backgroundColor: "#1b2230cc", padding: { x: 5, y: 3 },
-    }).setOrigin(.5, 0).setDepth(CASINO_DOOR.y + 70);
+    const {x,y,width:w,height:h}=CASINO_BUILDING;
+    const key='reference-boardgame';
+    if(!this.textures.exists(key))this.textures.addImage(key,artImage('prop-boardgame'));
+    this.add.image(x+w/2,y+h,key).setOrigin(.5,.94).setDisplaySize(w+30,w+30).setDepth(y+h);
+    this.add.text(x+w/2,y+61,'Boardgame',{fontFamily:FONT,fontSize:'16px',color:'#ffe6a5',backgroundColor:'#61412d',padding:{x:5,y:2}}).setOrigin(.5).setDepth(y+h+1);
+    this.add.circle(CASINO_DOOR.x,CASINO_DOOR.y,22,0xffe27a,.12).setStrokeStyle(2,0xffe27a,.6).setDepth(-10);
+    this.add.text(CASINO_DOOR.x,CASINO_DOOR.y+28,'Boardgame · เดินเข้าประตู',{fontFamily:FONT,fontSize:'12px',color:'#fff4d6',backgroundColor:'#244332cc',padding:{x:5,y:3}}).setOrigin(.5,0).setDepth(CASINO_DOOR.y+70);
   }
-
   update(_t: number, dtMs: number) {
     this.nature?.update(_t, dtMs);
     const me = this.room.state?.players?.get(this.room.sessionId);
@@ -359,10 +313,10 @@ export class TownScene extends Phaser.Scene {
     ensureCharacter(this, look);
     const isMe = id === this.room.sessionId;
 
-    const shadow = this.add.image(0, -1, "shadow").setScale(PX * 1.1, PX);
+    const shadow = this.add.image(0, -1, "shadow").setScale(1.1, 1);
     const texKey = `ch-${look.id}-down-0`;
-    const sprite = this.add.sprite(0, 0, texKey).setOrigin(0.5, CHAR_ORIGIN_Y).setScale(PX);
-    const gear = this.add.image(0,0,"gear-"+(p.cosmetic||"none")).setOrigin(.5,CHAR_ORIGIN_Y).setScale(PX);
+    const sprite = this.add.sprite(0, 0, texKey).setOrigin(0.5, CHAR_ORIGIN_Y).setScale(CHAR_SCALE);
+    const gear = this.add.image(0,0,"gear-"+(p.cosmetic||"none")).setOrigin(.5,CHAR_ORIGIN_Y).setScale(CHAR_SCALE);
 
     const name = this.add.text(0, 6, p.name, {
       fontFamily: FONT, fontSize: "14px", color: isMe ? "#ffe27a" : "#ffffff",

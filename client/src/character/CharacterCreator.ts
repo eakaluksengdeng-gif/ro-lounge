@@ -33,8 +33,8 @@ export class CharacterCreator {
     const scenery = document.createElement("div");
     scenery.className = "creator-scenery";
     this.preview.id = "characterPreview";
-    this.preview.width = 18;
-    this.preview.height = 24;
+    this.preview.width = 48;
+    this.preview.height = 64;
     this.preview.setAttribute("role", "img");
     scenery.append(this.preview);
     this.label.id = "characterPreviewName";
@@ -121,9 +121,9 @@ export class CharacterCreator {
   private drawPreview() {
     const context = this.preview.getContext("2d")!;
     const sprite = renderCharacterCanvas(appearanceToLook(this.look), this.dir);
-    context.clearRect(0, 0, 18, 24);
+    context.clearRect(0, 0, 48, 64);
     context.save();
-    if (this.flipped) { context.translate(18, 0); context.scale(-1, 1); }
+    if (this.flipped) { context.translate(48, 0); context.scale(-1, 1); }
     context.drawImage(sprite, 0, 0);
     context.restore();
     this.label.textContent = this.name.value.trim() || "Novice";
@@ -153,7 +153,8 @@ export class CharacterCreator {
       const ctx = choice.canvas.getContext("2d")!;
       ctx.imageSmoothingEnabled = false;
       ctx.clearRect(0, 0, choice.canvas.width, choice.canvas.height);
-      ctx.drawImage(sprite, ...choice.crop, 0, 0, choice.canvas.width, choice.canvas.height);
+      const crop:[number,number,number,number]=choice.key==='gender'?[0,0,48,64]:['style','hair','skin'].includes(choice.key)?[1,0,46,43]:choice.key==='color'?[6,38,36,18]:[7,51,34,13];
+      ctx.drawImage(sprite, ...crop, 0, 0, choice.canvas.width, choice.canvas.height);
       choice.input.checked = this.look[choice.key] === choice.index;
     }
   }

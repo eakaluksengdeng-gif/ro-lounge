@@ -9,11 +9,13 @@ try {
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("http://127.0.0.1:5173");
   await page.evaluate(async () => {
+    const {loadReferenceArt}=await import('/src/reference/Assets.ts');await loadReferenceArt();
     const { CasinoUI } = await import("/src/pokdeng/CasinoUI.ts");
     document.body.replaceChildren();
     const listeners = new Map();
     const sent = [];
-    const town = { state: {}, send() {}, onMessage(type, callback) { listeners.set(type, callback); } };
+    const players=new Map(Array.from({length:8},(_,i)=>['s'+i,{playerId:'p'+i,color:0x78d9ec,hair:i%6,skin:i%3,pants:i%3,style:i%3,gender:i%2,cosmetic:'none'}]));
+    const town = { state: {players}, send() {}, onMessage(type, callback) { listeners.set(type, callback); } };
     const room = { send(type, body) { sent.push({ type, body }); } };
     const ui = new CasinoUI(town, { casinoOpen: true }, "นักตกปลา");
     ui.room = room;

@@ -7,6 +7,7 @@ import type { TownScene } from "../scenes/TownScene";
 import { gameSounds } from "../audio/GameSounds";
 import { beachFishingLocation } from "../../../shared/regions";
 import "./nature.css";
+import { itemCanvas } from '../world/Cosmetics';
 
 const WEATHER = { sunny: "☀️ แดดออก", rain: "🌧️ ฝนตก", snow: "❄️ หิมะตก" };
 export class NatureUI {
@@ -19,6 +20,7 @@ export class NatureUI {
   private panel = document.createElement("section");
   private title = document.createElement("strong");
   private message = document.createElement("p");
+  private catchArt=document.createElement('div');
   private action = document.createElement("button");
   private cancel = document.createElement("button");
   private bar = document.createElement("div");
@@ -99,7 +101,8 @@ export class NatureUI {
       list.append(row);
     }
     rates.append(summary, list);
-    this.panel.append(this.title, this.message, this.gauge, this.bar, this.countdown, this.action, this.cancel, rates);
+    this.catchArt.id='fishCatchArt';this.catchArt.hidden=true;
+    this.panel.append(this.title, this.catchArt, this.message, this.gauge, this.bar, this.countdown, this.action, this.cancel, rates);
     document.body.append(this.panel);
     room.onMessage<FishingState>("fish:state", state => {
       const soundState = `${state.castId}:${state.phase}:${state.result?.reason ?? ""}`;
@@ -110,6 +113,8 @@ export class NatureUI {
       }
       this.soundState = soundState;
       this.state = state;
+      this.catchArt.hidden=state.result?.reason!=='caught';
+      if(state.result?.fish&&state.result.reason==='caught')this.catchArt.replaceChildren(itemCanvas(state.result.fish.species));
       if (!this.clockReady) this.offset = state.serverTime - Date.now();
       if (state.phase !== "idle") this.scene.stopNavigation();
       if (state.result?.reason === "caught") this.message.textContent = "ได้ " + state.result.fish!.name + " " + state.result.fish!.lengthCm + " ซม.! 🐟 +" + state.result.rewardChips + " ชิป";
@@ -237,6 +242,7 @@ export class NatureUI {
       for (const fish of FISH_SPECIES) {
         const line = document.createElement("p");
         line.textContent = fish.name + " × " + (this.state?.inventory[fish.id] ?? 0);
+        line.prepend(itemCanvas(fish.id));
         this.inventory.append(line);
       }
     }

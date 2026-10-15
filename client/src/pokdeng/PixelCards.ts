@@ -20,13 +20,8 @@ function sprite(rows: string[], colors: Record<string, string>, className: strin
   return svg;
 }
 
-export function goldCoin(): SVGSVGElement {
-  return sprite([
-    ".....oooooo.....", "...ooddddddoo...", "..oddyyyyyyddo..", ".oddyHHHHyyyydo.",
-    ".odyHHyyyyyyydo.", "oddyHyyyLLyyyydo", "odyyyyyLLLLyyydo", "odyyyyLLddLLyydo",
-    "odyyyyLLddLLyydo", "odyyyyyLLLLyyydo", "oddyyyyyLLyyyydo", ".odyyyyyyyyyydo.",
-    ".oddyyyyyyyyddo.", "..oddddddddddo..", "...ooaaaaaaoo...", ".....oooooo.....",
-  ], { o: "#694014", d: "#cf841b", y: "#f8c83d", H: "#fff5b2", L: "#ffe977", a: "#a45b17" }, "pixel-coin");
+export function goldCoin(): HTMLImageElement {
+  const image=document.createElement('img');image.src='/art/reference-v1/icon-coin.png';image.className='pixel-coin';image.alt='';image.setAttribute('aria-hidden','true');image.width=image.height=64;return image;
 }
 
 const SUITS: Record<Suit, string[]> = {

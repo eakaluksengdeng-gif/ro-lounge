@@ -14,7 +14,9 @@
     "test:sound": "node test/sound.e2e.mjs",
     "test:music-live": "node test/music-live.e2e.mjs",
     "test:world": "node test/world.e2e.mjs",
-    "test:world-live": "node test/world.live.e2e.mjs"
+    "test:world-live": "node test/world.live.e2e.mjs",
+    "art:prepare": "node scripts/prepare-reference-art.mjs",
+    "test:reference-art": "node test/reference-art.e2e.mjs"
   },
   "dependencies": {
     "colyseus.js": "^0.15.28",
@@ -22,6 +24,7 @@
   },
   "devDependencies": {
     "playwright": "^1.64.0",
+    "sharp": "0.35.5",
     "typescript": "^5.5.0",
     "vite": "^5.4.0"
   }

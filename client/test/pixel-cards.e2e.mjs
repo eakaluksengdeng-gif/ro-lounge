@@ -25,7 +25,7 @@ try {
     grid.append(back);
     document.body.append(wallet, grid);
     return { faces, back: { label: back.getAttribute("aria-label"), rank: back.dataset.rank, suit: back.dataset.suit },
-      coin: wallet.querySelector("svg").getAttribute("viewBox"), largeBalance: wallet.querySelectorAll(".gold-amount")[1].textContent };
+      coin: wallet.querySelector("img.pixel-coin").getAttribute("src"), largeBalance: wallet.querySelectorAll(".gold-amount")[1].textContent };
   });
   assert.equal(result.faces.length, 52);
   assert.equal(new Set(result.faces.map(face => face.label)).size, 52);
@@ -34,7 +34,7 @@ try {
     assert.equal(face.portraits, face.rank > 10 ? 2 : 0);
   }
   assert.deepEqual(result.back, { label: "ไพ่คว่ำ", rank: undefined, suit: undefined });
-  assert.equal(result.coin, "0 0 16 16");
+  assert.equal(result.coin, "/art/reference-v1/icon-coin.png");
   assert.equal(result.largeBalance, "123,456,789");
   await page.screenshot({ path: "/tmp/ro-lounge-pixel-deck.png", fullPage: true });
   const numeric = await page.evaluate(async () => {

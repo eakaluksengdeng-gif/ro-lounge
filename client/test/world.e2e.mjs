@@ -44,9 +44,9 @@ try{
   assert.equal(await a.evaluate(()=>window.qaWorld.progress.inventory.mushroom),1);await close(a);
   await a.screenshot({path:"/tmp/ro-world-forest.png"});
   await a.emulateMedia({reducedMotion:"reduce"});await a.waitForTimeout(100);
-  const frozen=await a.evaluate(()=>({water:window.qaScene.worldRenderer.waterEffects.commandBuffer.slice(),bugs:window.qaScene.worldRenderer.movingSprites.map(m=>[m.sprite.x,m.sprite.y])}));
+  const frozen=await a.evaluate(()=>({water:window.qaScene.worldRenderer.water.commandBuffer.slice(),bugs:window.qaScene.worldRenderer.movingSprites.map(m=>[m.sprite.x,m.sprite.y])}));
   assert.ok(frozen.water.length>0);await a.waitForTimeout(300);
-  assert.deepEqual(await a.evaluate(()=>({water:window.qaScene.worldRenderer.waterEffects.commandBuffer.slice(),bugs:window.qaScene.worldRenderer.movingSprites.map(m=>[m.sprite.x,m.sprite.y])})),frozen);
+  assert.deepEqual(await a.evaluate(()=>({water:window.qaScene.worldRenderer.water.commandBuffer.slice(),bugs:window.qaScene.worldRenderer.movingSprites.map(m=>[m.sprite.x,m.sprite.y])})),frozen);
   await a.emulateMedia({reducedMotion:"no-preference"});
   await go(a,420,350);await activity(a,"ผีเสื้อ");
   await a.locator("#worldPanel").getByRole("button",{name:"จับผีเสื้อฟ้า",exact:true}).click();await saved(a,"สำเร็จ");await close(a);

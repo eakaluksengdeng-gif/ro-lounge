@@ -4,9 +4,10 @@ import { MAP_NAMES, WORLD_NODES, MAP_IDS, ITEMS, COSMETICS, SEEDS, destination, 
 import { FISH_SPECIES, type FishingState } from "../../../shared/nature";
 import { gameSounds } from "../audio/GameSounds";
 import { cosmeticCanvas, itemCanvas } from "./Cosmetics";
-import { appearanceToLook, loadAppearance } from "../character/appearance";
+import { appearanceToLook, loadAppearance, playerToLook } from "../character/appearance";
 import { renderCharacterCanvas } from "../art";
 import "./world.css";
+import { groundCanvas } from '../reference/WorldArt';
 const STATIONS=["รับออร์เดอร์","เตรียม","ปรุง","เสิร์ฟ"];
 const COLLECTION_HINTS:Record<string,string>={
   butterfly:"ป่าน้ำตก · ผีเสื้อฟ้าตามทาง",beetle:"ป่าน้ำตก · ด้วงทองฝั่งตะวันออก",firefly:"ป่าน้ำตก · ตอนเย็นหรือกลางคืน",
@@ -28,6 +29,8 @@ export class WorldUI {
   private minimap=document.createElement("canvas");
   private interact=document.createElement("button");
   private page="map";
+  private category='ทั้งหมด';
+  private grounds=new Map<MapId,HTMLCanvasElement>();
   private node?:WorldNode;
   private owner="";
   private recipe="salad";
@@ -160,7 +163,9 @@ export class WorldUI {
     const progress=this.view!.progress,grid=document.createElement("div");grid.className="world-collection";
     const entries=[...Object.entries(ITEMS).map(([id,item])=>({id,...item,count:progress.inventory[id]??0,found:progress.discovered.includes(id)})),...FISH_SPECIES.map(f=>({id:f.id,name:f.name,icon:"🐟",category:"ปลา",count:this.fish[f.id]??0,found:(this.fish[f.id]??0)>0}))];
     this.body.append(this.text("พบแล้ว "+entries.filter(e=>e.found).length+" / "+entries.length+" · แลกของแล้วบันทึกการค้นพบยังอยู่"));
-    for(const entry of entries){const card=document.createElement("article");card.className=entry.found?"":"world-locked";
+    const tabs=document.createElement('div');tabs.className='collection-tabs';
+    for(const category of ['ทั้งหมด','ปลา','แมลง','ของป่า','สัตว์','ผลผลิต','ชายหาด','กิจกรรม']){const button=this.button(category,()=>{this.category=category;this.render(true);});button.setAttribute('aria-pressed',String(this.category===category));tabs.append(button);}this.body.append(tabs);
+    for(const entry of entries.filter(e=>this.category==='ทั้งหมด'||e.category===this.category)){const card=document.createElement("article");card.className=entry.found?"":"world-locked";
       const icon=itemCanvas(entry.id);icon.setAttribute("aria-hidden","true");card.append(icon,this.text(entry.found?entry.name:"ยังไม่พบ","world-card-title"),this.text(entry.category+" · "+(this.page==="inventory"?entry.count:entry.found?"พบแล้ว":"สำรวจแมพต่าง ๆ")));
       const hint=COLLECTION_HINTS[entry.id]??(["mackerel","clownfish","seahorse"].includes(entry.id)?"หาดสายลม · ตกปลาริมทะเลหรือท่าเรือ":"เมืองกลาง · ตกปลารอบบ่อ");
       card.append(this.text(hint,"world-item-hint"));grid.append(card);
@@ -188,6 +193,14 @@ export class WorldUI {
   }
   private cafePage(){
     const c=this.view!.cafe,id=this.player()?.playerId,member=c.members.find(m=>m.id===id);
+    const kitchen=document.createElement('div');kitchen.className='world-cafe-room';kitchen.setAttribute('aria-label','ครัวและสมาชิกทีมจริง');
+    for(let index=0;index<4;index++){
+      const station=document.createElement('div');station.className='world-cafe-worker';const m=c.members[index];
+      if(m){let player:any;this.room.state?.players?.forEach((p:any)=>{if(p.playerId===m.id)player=p;});
+        if(player){const avatar=renderCharacterCanvas(playerToLook(player));avatar.getContext('2d')!.drawImage(cosmeticCanvas(player.cosmetic||'none'),0,0);station.append(avatar);}station.append(this.text(m.name));
+      }else station.append(this.text('รอเพื่อน'));
+      station.append(this.text(STATIONS[index]));kitchen.append(station);
+    }this.body.append(kitchen);
     const foodId=c.recipe==="ซุปแครอท"||c.recipe==="soup"?"soup":"salad";
     const order=document.createElement("div");order.className="world-cafe-order";
     const food=itemCanvas(foodId);food.setAttribute("aria-label",foodId==="soup"?"ซุปแครอท":"สลัดสวน");
@@ -228,9 +241,8 @@ export class WorldUI {
     }this.body.append(grid);
   }
   private drawMinimap(){
-    const c=this.minimap.getContext("2d")!,p=this.player();if(!p)return;c.imageSmoothingEnabled=false;c.fillStyle="#294638";c.fillRect(0,0,120,72);
-    c.fillStyle="#cabd8e";c.fillRect(57,0,6,72);c.fillRect(0,33,120,6);
-    const map=(p.mapId??"town") as MapId;c.fillStyle="#f7d881";
+    const c=this.minimap.getContext("2d")!,p=this.player();if(!p)return;c.imageSmoothingEnabled=false;
+    const map=(p.mapId??"town") as MapId;if(!this.grounds.has(map))this.grounds.set(map,groundCanvas(map));c.drawImage(this.grounds.get(map)!,0,0,120,72);c.fillStyle="#f7d881";
     for(const [direction,x,y]of [["north",60,3],["south",60,69],["west",3,36],["east",117,36]] as [Direction,number,number][]){if(destination(map,direction))c.fillRect(x-2,y-2,4,4);}
     c.fillStyle="#f9a3a5";c.fillRect(Math.round(p.x/1440*120)-2,Math.round(p.y/864*72)-2,4,4);
   }
