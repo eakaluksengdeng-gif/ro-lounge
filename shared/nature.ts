@@ -49,6 +49,7 @@ export const FISH_SPECIES = [
 export type FishId = typeof FISH_SPECIES[number]["id"];
 export interface FishCatch { species: FishId; name: string; lengthCm: number }
 export interface FishingState {
+  discovered?:FishId[];
   phase: "idle" | "waiting" | "bite" | "result";
   castId: string | null;
   deadline: number | null;

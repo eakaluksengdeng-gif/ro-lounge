@@ -4,6 +4,9 @@ import { requireGame, objectPayload } from "../pokdeng/errors";
 import type { SnapshotStore } from "../storage/SnapshotStore";
 import { CATCHABLE_BUGS,wildlifeCatchKey,type WildlifeView } from '../../../shared/nature';
 import { worldBlocked } from '../../../shared/regions';
+import {VILLAGE_ORDERS,ORDER_COOLDOWN} from '../../../shared/village';
+import {FISH_SPECIES} from '../../../shared/nature';
+import type {FishingManager} from '../nature/FishingManager';
 export interface WorldActor { id:string; name:string; map:MapId; x:number; y:number; inCasino?:boolean; }
 const fresh = ():Progress => ({map:"town",water:2,inventory:{},discovered:[],plots:Array(6).fill(null),allowHelp:false,unlocks:["none"],equipped:"none",cooldowns:{}});
 const cafeFresh = ():CafeView => ({phase:"lobby",members:[],host:null,deadline:null,order:0,served:0,recipe:"สลัดสวน",roundId:null});
@@ -17,12 +20,12 @@ export class WorldManager {
   private cleanup = 0;
   private musicRate = new Map<string,number>();
   private activeReceipt?:{id:string;request:string};
-  constructor(private store?:SnapshotStore, private now:()=>number=Date.now) {
+  constructor(private store?:SnapshotStore, private now:()=>number=Date.now,private fishing?:FishingManager) {
     this.profiles = new Map(Object.entries(store?.get<Record<string,Progress>>("progress",{}) ?? {}));
     this.cleanup = store?.get<number>("cleanup",0) ?? 0;
   }
   connect(id:string,name:string) { this.names.set(id,name); if(!this.profiles.has(id)) this.commit(id,fresh()); return this.profile(id); }
-  profile(id:string):Progress { const profile=this.profiles.get(id); requireGame(profile,"UNKNOWN_PROFILE","เข้าเมืองก่อน"); return {...structuredClone(profile),water:profile.water??2}; }
+  profile(id:string):Progress { const profile=this.profiles.get(id); requireGame(profile,"UNKNOWN_PROFILE","เข้าเมืองก่อน"); return {...structuredClone(profile),water:profile.water??2,village:structuredClone(profile.village??{xp:{},completed:[],museum:[]})}; }
   private commit(id:string,p:Progress) {
     if(this.activeReceipt?.id===id){p.receipts??={};p.receipts[this.activeReceipt.request]="คำสั่งนี้ยืนยันแล้ว";while(Object.keys(p.receipts).length>100)delete p.receipts[Object.keys(p.receipts)[0]];}
     const next=new Map(this.profiles); next.set(id,structuredClone(p)); this.store?.set("progress",Object.fromEntries(next)); this.profiles=next;
@@ -61,7 +64,25 @@ export class WorldManager {
       }else node=WORLD_NODES.find(node=>node.id===msg.nodeId);
       requireGame(node&&node.map===actor.map,"WRONG_MAP","กิจกรรมนี้อยู่ในแมพอื่น");
       requireGame(Math.hypot(actor.x-node.x,actor.y-node.y)<=100,"TOO_FAR","เดินเข้าใกล้จุดกิจกรรมก่อน");
-      if(verb==="refill") {
+      if(verb==='order-submit'||verb==='museum-donate'){
+        requireGame(msg.confirmed===true,'CONFIRM_REQUIRED','ตรวจรายการและยืนยันก่อนส่งของ');
+        if(verb==='order-submit'){
+          requireGame(node.kind==='orders','BAD_ACTION','ไปที่กระดานออร์เดอร์ก่อน');
+          const order=VILLAGE_ORDERS.find(o=>o.id===msg.orderId);requireGame(order,'BAD_ORDER','ไม่มีออร์เดอร์นี้');
+          requireGame(this.now()>=(p.cooldowns['order:'+order.id]??0),'COOLDOWN','ออร์เดอร์นี้ส่งแล้ว รอรอบถัดไป');
+          this.consumeMaterials(actor.id,p,order.cost as Record<string,number>);
+          p.village!.xp[order.skill]=Math.min(1000000,(p.village!.xp[order.skill]??0)+order.xp);
+          if(!p.village!.completed.includes(order.id)){p.village!.completed.push(order.id);if(order.reward&&!p.unlocks.includes(order.reward))p.unlocks.push(order.reward);}
+          p.cooldowns['order:'+order.id]=this.now()+ORDER_COOLDOWN;this.commit(actor.id,p);notice='ส่งออร์เดอร์สำเร็จ · ความชำนาญ +'+order.xp;
+        }else{
+          requireGame(node.kind==='museum','BAD_ACTION','ไปที่หอสะสมธรรมชาติก่อน');
+          const item=String(msg.itemId),fish=FISH_SPECIES.some(f=>f.id===item);
+          requireGame(fish||['bee','ladybug','beetle','butterfly','firefly'].includes(item),'BAD_ITEM','รับเฉพาะปลาและแมลง');
+          requireGame(!p.village!.museum.includes(item),'ALREADY_DONATED','เคยมอบชนิดนี้แล้ว ไม่ต้องส่งซ้ำ');
+          this.consumeMaterials(actor.id,p,{[item]:1});p.village!.museum.push(item);const skill=fish?'fishing':'nature';p.village!.xp[skill]=Math.min(1000000,(p.village!.xp[skill]??0)+5);
+          if(p.village!.museum.length>=5&&!p.unlocks.includes('cat-hat'))p.unlocks.push('cat-hat');this.commit(actor.id,p);notice='มอบตัวอย่างสำเร็จ · บันทึกจัดแสดงถาวร · ความชำนาญ +5';
+        }
+      }else if(verb==="refill") {
         requireGame(node.kind==="water","BAD_ACTION","ไปที่จุดตักน้ำก่อน");
         requireGame(this.now()>=(p.cooldowns.refill??0),"COOLDOWN","รอตักน้ำสักครู่");
         requireGame((p.water??2)<999999,"INVENTORY_FULL","น้ำเต็มแล้ว");
@@ -142,6 +163,16 @@ export class WorldManager {
   private add(p:Progress,item:string,count:number) {
     const next=(p.inventory[item]??0)+count;requireGame(Number.isSafeInteger(next)&&next<=999999,"INVENTORY_FULL","กระเป๋าเต็ม");
     p.inventory[item]=next;if(!p.discovered.includes(item))p.discovered.push(item);
+  }
+  private consumeMaterials(id:string,p:Progress,cost:Record<string,number>){
+    const fish=this.fishing?.holdings(id)??{},fishCost:Record<string,number>={};
+    for(const [item,n]of Object.entries(cost)){
+      const isFish=FISH_SPECIES.some(f=>f.id===item);const count=isFish?(fish as Record<string,number>)[item]??0:p.inventory[item]??0;
+      requireGame(Number.isSafeInteger(n)&&n>0&&count>=n,'MISSING_ITEMS','วัตถุดิบไม่พอ กรุณาตรวจของในกระเป๋า');if(isFish)fishCost[item]=n;
+    }
+    // All ingredients are checked first; caller runs this inside the existing durable batch.
+    if(Object.keys(fishCost).length)this.fishing!.consume(id,fishCost);
+    for(const [item,n]of Object.entries(cost)){if(!p.discovered.includes(item))p.discovered.push(item);if(!Object.prototype.hasOwnProperty.call(fishCost,item))p.inventory[item]-=n;}
   }
   private cafeAction(actor:WorldActor,verb:string,msg:Record<string,unknown>) {
     const c=this.cafe, member=c.members.find(m=>m.id===actor.id);

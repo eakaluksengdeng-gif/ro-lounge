@@ -11,7 +11,7 @@ export let economy = new EconomyManager(storage);
 export let guests = new GuestManager(economy, storage);
 export const casinoAccess = new CasinoAccess();
 export let fishing = new FishingManager(undefined, undefined, (id, castId, chips) => economy.rewardFishingCatch(id, castId, chips), storage);
-export let world = new WorldManager(storage);
+export let world = new WorldManager(storage,undefined,fishing);
 export async function initializeServices() {
   const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (url || key) {
@@ -23,5 +23,5 @@ export async function initializeServices() {
   }
   economy = new EconomyManager(storage); guests = new GuestManager(economy, storage);
   fishing = new FishingManager(undefined, undefined, (id, castId, chips) => economy.rewardFishingCatch(id, castId, chips), storage);
-  world = new WorldManager(storage);
+  world = new WorldManager(storage,undefined,fishing);
 }

@@ -13,9 +13,11 @@ interface Cast {
 export class FishingManager {
   private casts = new Map<string, Cast>();
   private inventories = new Map<string, Partial<Record<FishId, number>>>();
+  private discoveries=new Map<string,FishId[]>();
   constructor(private now: () => number = Date.now, private random: (max: number) => number = randomInt,
     private reward: (id: string, castId: string, chips: number) => boolean = () => true, private store?: SnapshotStore) {
       this.inventories = new Map(Object.entries(store?.get<Record<string, Partial<Record<FishId, number>>>>("fish", {}) ?? {}));
+      this.discoveries=new Map(Object.entries(store?.get<Record<string,FishId[]>>('fishDiscoveries',{})??{}));
     }
 
   cast(id: string, owner: string, x: number, y: number, inCasino = false, map: MapId = "town"): void {
@@ -57,6 +59,7 @@ export class FishingManager {
     requireGame(this.reward(id, cast.id, chips), "ALREADY_REWARDED", "Fishing cast was already rewarded");
     inventory[species.id] = (inventory[species.id] ?? 0) + 1;
     this.inventories.set(id, inventory);
+    this.discoveries.set(id,[...new Set([...this.discovered(id),species.id])]);this.store?.set('fishDiscoveries',Object.fromEntries(this.discoveries));
     this.store?.set("fish", Object.fromEntries(this.inventories));
     this.finish(cast, "caught", { species: species.id, name: species.name, lengthCm: 12 + this.random(29) }, chips);
   }
@@ -74,11 +77,18 @@ export class FishingManager {
     const cast = this.casts.get(id);
     const own = cast?.owner === owner ? cast : undefined;
     const inventory = { ...this.inventories.get(id) };
-    return { phase: own?.phase ?? "idle", castId: own?.id ?? null, location: own ? { ...own.location } : null,
+    return { discovered:this.discovered(id),phase: own?.phase ?? "idle", castId: own?.id ?? null, location: own ? { ...own.location } : null,
       biteStartedAt: own?.biteStartedAt ?? null,
       deadline: own?.deadline ?? null, serverTime: this.now(), inventory,
       total: Object.values(inventory).reduce((sum, count) => sum + (count ?? 0), 0),
       result: own?.result ? { ...own.result, fish: own.result.fish ? { ...own.result.fish } : undefined } : undefined };
+  }
+  holdings(id:string){return {...this.inventories.get(id)};}
+  private discovered(id:string):FishId[]{return [...new Set([...(this.discoveries.get(id)??[]),...FISH_SPECIES.filter(f=>(this.inventories.get(id)?.[f.id]??0)>0).map(f=>f.id)])];}
+  consume(id:string,cost:Record<string,number>){
+    const inventory=this.holdings(id);for(const [key,n]of Object.entries(cost))requireGame(FISH_SPECIES.some(f=>f.id===key)&&Number.isSafeInteger(n)&&n>0&&(inventory[key as FishId]??0)>=n,'MISSING_ITEMS','ปลาสำหรับส่งยังไม่พอ');
+    this.discoveries.set(id,this.discovered(id));for(const [key,n]of Object.entries(cost))inventory[key as FishId]=(inventory[key as FishId]??0)-n;
+    this.store?.set('fishDiscoveries',Object.fromEntries(this.discoveries));this.inventories.set(id,inventory);this.store?.set('fish',Object.fromEntries(this.inventories));
   }
   private finish(cast: Cast, reason: NonNullable<FishingState["result"]>["reason"], fish?: NonNullable<FishingState["result"]>["fish"], rewardChips = 0) {
     cast.phase = "result"; cast.deadline = this.now() + 3000;
