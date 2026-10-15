@@ -35,6 +35,7 @@ export const SEEDS = [
 ] as const;
 export type SeedId = typeof SEEDS[number]["id"];
 export const ITEMS: Record<string, { name: string; icon: string; category: string }> = {
+  bee:{name:'ผึ้ง',icon:'🐝',category:'แมลง'},ladybug:{name:'เต่าทอง',icon:'🐞',category:'แมลง'},
   butterfly:{name:"ผีเสื้อฟ้า",icon:"🦋",category:"แมลง"},beetle:{name:"ด้วงทอง",icon:"🪲",category:"แมลง"},
   firefly:{name:"หิ่งห้อย",icon:"✨",category:"แมลง"},mushroom:{name:"เห็ดป่า",icon:"🍄",category:"ของป่า"},
   "snow-rabbit":{name:"กระต่ายหิมะที่พบ",icon:"🐇",category:"สัตว์"}, "animal-friend":{name:"เพื่อนสัตว์",icon:"🐱",category:"สัตว์"},

@@ -86,7 +86,7 @@ export class WorldRenderer {
   }
   update(view:WorldView|undefined,weather='sunny'){
     const t=this.motion.matches?0:this.scene.time.now;
-    for(const moving of this.movingSprites){moving.sprite.setVisible((moving.id!=='forest-rare'||weather==='snow')&&(moving.id!=='bug-firefly'||Math.floor(Date.now()/300000)%4>=2));moving.sprite.setPosition(moving.x+Math.round(Math.sin(t/1300+moving.x)*9),moving.y+Math.round(Math.cos(t/850+moving.x)*5));moving.sprite.setTexture('nature-'+moving.kind+'-'+Math.floor(t/220)%2);}
+    for(const moving of this.movingSprites){moving.sprite.setVisible((view?.progress.cooldowns[moving.id]??0)<=Date.now()&&(moving.id!=='forest-rare'||weather==='snow')&&(moving.id!=='bug-firefly'||Math.floor(Date.now()/300000)%4>=2));moving.sprite.setPosition(moving.x+Math.round(Math.sin(t/1300+moving.x)*9),moving.y+Math.round(Math.cos(t/850+moving.x)*5));moving.sprite.setTexture('nature-'+moving.kind+'-'+Math.floor(t/220)%2);}
     this.fire?.setScale(.84+Math.sin(t/180)*.015);
     this.water?.clear();
     if(this.map==='forest')for(let i=0;i<6;i++)this.water?.fillStyle(0xe4ffff,.65).fillRect(752+i*7,90+(Math.floor(t/60+i*6)%110),3,12);

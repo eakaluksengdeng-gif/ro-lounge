@@ -11,4 +11,4 @@ export function cosmeticCanvas(id:string) {
   return canvas;
 }
 export function ensureCosmetics(scene:Phaser.Scene){for(const item of COSMETICS)if(!scene.textures.exists('gear-'+item.id))scene.textures.addCanvas('gear-'+item.id,cosmeticCanvas(item.id));}
-export function itemCanvas(id:string){return artCanvas('icon-'+id,64);}
+export function itemCanvas(id:string){return artCanvas(id==='bee'||id==='ladybug'?'animal-'+id+'-0':'icon-'+id,64);}

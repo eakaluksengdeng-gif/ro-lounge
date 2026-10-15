@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { MAP_IDS, WORLD_NODES, SEEDS, COSMETICS, type MapId, type Progress, type WorldNode, type CafeView, type BoatView, type WorldView, type SeedId } from "../../../shared/regions";
 import { requireGame, objectPayload } from "../pokdeng/errors";
 import type { SnapshotStore } from "../storage/SnapshotStore";
+import { CATCHABLE_BUGS,wildlifeCatchKey,type WildlifeView } from '../../../shared/nature';
+import { worldBlocked } from '../../../shared/regions';
 export interface WorldActor { id:string; name:string; map:MapId; x:number; y:number; inCasino?:boolean; }
 const fresh = ():Progress => ({map:"town",water:2,inventory:{},discovered:[],plots:Array(6).fill(null),allowHelp:false,unlocks:["none"],equipped:"none",cooldowns:{}});
 const cafeFresh = ():CafeView => ({phase:"lobby",members:[],host:null,deadline:null,order:0,served:0,recipe:"สลัดสวน",roundId:null});
@@ -32,10 +34,10 @@ export class WorldManager {
       const p=this.profile(id); return {id,name,allowHelp:p.allowHelp,plots:p.plots};
     }):[],cafe:structuredClone(this.cafe),boat:structuredClone(this.boat),cleanup:this.cleanup};
   }
-  action(actor:WorldActor,raw:unknown,weather:string):{notice:string;activity?:string;note?:number} {
-    try{return this.processAction(actor,raw,weather);}finally{this.activeReceipt=undefined;}
+  action(actor:WorldActor,raw:unknown,weather:string,wildlife?:ReadonlyMap<string,WildlifeView>):{notice:string;activity?:string;note?:number} {
+    try{return this.processAction(actor,raw,weather,wildlife);}finally{this.activeReceipt=undefined;}
   }
-  private processAction(actor:WorldActor,raw:unknown,weather:string):{notice:string;activity?:string;note?:number} {
+  private processAction(actor:WorldActor,raw:unknown,weather:string,wildlife?:ReadonlyMap<string,WildlifeView>):{notice:string;activity?:string;note?:number} {
     requireGame(!actor.inCasino,"IN_CASINO","ออกจากโต๊ะก่อนทำกิจกรรม");
     const msg=objectPayload(raw), request=msg.requestId;
     requireGame(typeof request==="string"&&/^[a-zA-Z0-9-]{8,80}$/.test(request),"BAD_REQUEST","รหัสคำสั่งไม่ถูกต้อง");
@@ -49,7 +51,14 @@ export class WorldManager {
       const cosmetic=String(msg.cosmeticId); requireGame(p.unlocks.includes(cosmetic),"LOCKED_ITEM","ยังไม่ได้ปลดล็อกชุดนี้");
       p.equipped=cosmetic; this.commit(actor.id,p); notice="เปลี่ยนชุดตกแต่งแล้ว";
     } else {
-      const node=WORLD_NODES.find(node=>node.id===msg.nodeId);
+      let node:WorldNode|undefined;
+      if(verb==='catch'){
+        const id=typeof msg.wildlifeId==='string'?msg.wildlifeId:'';
+        const animal=wildlife?.get(id),bug=animal&&CATCHABLE_BUGS[animal.kind];
+        requireGame(animal&&bug,"BAD_WILDLIFE","แมลงตัวนี้ไม่มีอยู่หรือจับไม่ได้");
+        requireGame(actor.map==='town'||!worldBlocked(actor.map,animal.x,animal.y),'BAD_WILDLIFE','แมลงไม่อยู่ในจุดนี้');
+        node={id:wildlifeCatchKey(actor.map,id),map:actor.map,x:animal.x,y:animal.y,kind:'bug',name:bug.name,item:bug.item};
+      }else node=WORLD_NODES.find(node=>node.id===msg.nodeId);
       requireGame(node&&node.map===actor.map,"WRONG_MAP","กิจกรรมนี้อยู่ในแมพอื่น");
       requireGame(Math.hypot(actor.x-node.x,actor.y-node.y)<=100,"TOO_FAR","เดินเข้าใกล้จุดกิจกรรมก่อน");
       if(verb==="refill") {
@@ -58,7 +67,7 @@ export class WorldManager {
         requireGame((p.water??2)<999999,"INVENTORY_FULL","น้ำเต็มแล้ว");
         p.water=(p.water??2)+1;p.cooldowns.refill=this.now()+800;
         this.commit(actor.id,p);notice="ตักน้ำ +1 · มีน้ำ "+p.water+" หน่วย";
-      } else if(verb==="collect") {
+      } else if(verb==="collect"||verb==='catch') {
         requireGame(["bug","mushroom","rare","shell","treasure","cleanup"].includes(node.kind),"BAD_ACTION","จุดนี้เก็บไม่ได้");
         requireGame(this.now()>=(p.cooldowns[node.id]??0),"COOLDOWN","จุดนี้กำลังฟื้นตัว รอสักครู่");
         if(node.id==="bug-firefly") requireGame(Math.floor(this.now()/300000)%4>=2,"WRONG_TIME","หิ่งห้อยออกตอนเย็นและกลางคืน");
