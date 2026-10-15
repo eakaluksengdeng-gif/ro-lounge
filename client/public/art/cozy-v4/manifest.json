@@ -1,0 +1,16 @@
+{
+  "furniture": [
+    "furniture-flower-pot",
+    "furniture-shell-lamp",
+    "furniture-forest-stool",
+    "furniture-picnic-rug",
+    "furniture-aquarium",
+    "furniture-festival-lantern"
+  ],
+  "meals": [
+    "meal-garden-salad",
+    "meal-forest-soup",
+    "meal-fish-soup",
+    "meal-picnic-bread"
+  ]
+}

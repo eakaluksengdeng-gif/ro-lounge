@@ -1,0 +1,7 @@
+import sharp from 'sharp';import {mkdir,writeFile} from 'node:fs/promises';import {fileURLToPath} from 'node:url';
+const source=fileURLToPath(new URL('../art-source/cozy-v4/furniture-atlas.png',import.meta.url)),out=fileURLToPath(new URL('../public/art/cozy-v4/',import.meta.url));await mkdir(out,{recursive:true});
+const sprites=[['flower-pot',80,30,420,470],['shell-lamp',610,80,380,420],['forest-stool',1100,110,390,380],['picnic-rug',10,560,550,450],['aquarium',590,520,430,470],['festival-lantern',1130,510,360,460]];
+for(const [id,left,top,width,height]of sprites){const crop=await sharp(source).extract({left,top,width,height}).png().toBuffer();await sharp(crop).trim().resize(96,96,{fit:'contain',kernel:'nearest',background:{r:0,g:0,b:0,alpha:0}}).png().toFile(out+'furniture-'+id+'.png');}
+const meals=fileURLToPath(new URL('../art-source/cozy-v4/meals-atlas.png',import.meta.url));const metadata=await sharp(meals).metadata();const cellW=Math.floor(metadata.width/2),cellH=Math.floor(metadata.height/2),ids=['garden-salad','forest-soup','fish-soup','picnic-bread'];
+for(let index=0;index<ids.length;index++){const crop=await sharp(meals).extract({left:index%2*cellW,top:Math.floor(index/2)*cellH,width:cellW,height:cellH}).png().toBuffer();await sharp(crop).trim().resize(96,96,{fit:'contain',kernel:'nearest',background:{r:0,g:0,b:0,alpha:0}}).png().toFile(out+'meal-'+ids[index]+'.png');}
+await writeFile(out+'manifest.json',JSON.stringify({furniture:sprites.map(([id])=>'furniture-'+id),meals:ids.map(id=>'meal-'+id)},null,2)+'\n');

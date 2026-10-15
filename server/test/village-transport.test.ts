@@ -11,9 +11,9 @@ test('real village socket confirms, rejects forged claims and preserves one rewa
  try{const r=await join({name:'Village QA'});const authP=next<GuestReady>(r,'auth:ready');r.send('auth:sync',{});const auth=await authP;
   const msg={requestId:'wire-order-once',verb:'order-submit',nodeId:'village-board',orderId:'forest',confirmed:true,xp:99999,cost:{},ownerId:'other'};
   const bad=next<ApiError>(r,'api:error');r.send('world:action',{...msg,confirmed:false});assert.equal((await bad).code,'CONFIRM_REQUIRED');
-  const saved=next<WorldView>(r,'world:state',v=>!!v.notice);r.send('world:action',msg);const v=await saved;assert.equal(v.progress.inventory.mushroom,0);assert.equal(v.progress.village!.xp.nature,20);assert.ok(v.progress.unlocks.includes('camp-hat'));assert.ok(v.progress.discovered.includes('mushroom'));
-  const replay=next<WorldView>(r,'world:state',v=>!!v.notice);r.send('world:action',msg);assert.equal((await replay).progress.village!.xp.nature,20);await r.leave();
-  const resumed=await join({name:'Village QA',sessionId:auth.sessionId});const sync=next<WorldView>(resumed,'world:state');resumed.send('world:sync',{});assert.equal((await sync).progress.village!.xp.nature,20);
+  const saved=next<WorldView>(r,'world:state',v=>!!v.notice);r.send('world:action',msg);const v=await saved;assert.equal(v.progress.inventory.mushroom,0);assert.equal(v.progress.village!.xp.nature,24);assert.ok(v.progress.unlocks.includes('camp-hat'));assert.ok(v.progress.discovered.includes('mushroom'));
+  const replay=next<WorldView>(r,'world:state',v=>!!v.notice);r.send('world:action',msg);assert.equal((await replay).progress.village!.xp.nature,24);await r.leave();
+  const resumed=await join({name:'Village QA',sessionId:auth.sessionId});const sync=next<WorldView>(resumed,'world:state');resumed.send('world:sync',{});assert.equal((await sync).progress.village!.xp.nature,24);
   const denied=next<ApiError>(resumed,'api:error');resumed.send('world:action',{...msg,requestId:'wire-order-repeat'});assert.equal((await denied).code,'COOLDOWN');
  }finally{for(const r of rooms)if(r.connection.isOpen)await r.leave();await server.gracefullyShutdown(false);}
 });

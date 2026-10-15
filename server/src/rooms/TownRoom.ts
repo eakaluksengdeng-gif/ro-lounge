@@ -85,7 +85,7 @@ export class TownRoom extends Room<TownState> {
       fishing.cast(p.playerId, this.fishingOwner(client), p.x, p.y, !!casinoAccess.roomFor(p.playerId), p.mapId as MapId);
       p.targetX = p.x; p.targetY = p.y;
     });
-    fishEvent("fish:reel", (client, p, message) => fishing.reel(p.playerId, this.fishingOwner(client), objectPayload(message).castId));
+    fishEvent("fish:reel", (client, p, message) => {if(fishing.reel(p.playerId, this.fishingOwner(client), objectPayload(message).castId))world.recordFishing(p.playerId);});
     fishEvent("fish:cancel", (client, p) => { fishing.cancel(p.playerId, this.fishingOwner(client)); });
     this.onMessage("nature:sync", client => client.send("nature:weather", this.environment.weather(Date.now())));
     this.onMessage("world:sync", client => this.sendWorld(client));

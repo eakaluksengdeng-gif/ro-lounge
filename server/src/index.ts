@@ -14,7 +14,7 @@ const httpServer = createServer((req, res) => {
   }
   if (req.url === "/version") {
     res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" })
-      .end(JSON.stringify({ version: "cozy-world-v1", durableStorage: storage.durable, commit: process.env.RENDER_GIT_COMMIT ?? null }));
+      .end(JSON.stringify({ version: "cozy-world-v2", durableStorage: storage.durable, commit: process.env.RENDER_GIT_COMMIT ?? null }));
     return;
   }
   res.writeHead(404).end();

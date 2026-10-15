@@ -5,8 +5,10 @@ export type Direction = "north" | "south" | "west" | "east";
 export const WORLD_W = 1440, WORLD_H = 864;
 export const MAP_NAMES: Record<MapId, string> = { town: "เมืองกลาง", forest: "ป่าน้ำตก", farm: "ฟาร์มเพื่อนรัก", beach: "หาดสายลม", market: "ตลาดโคมไฟ" };
 export const MAP_COLORS: Record<MapId, number> = { town: 0x86b96c, forest: 0x577e54, farm: 0x9ab67c, beach: 0xe7ce93, market: 0x485451 };
-export interface WorldNode { id: string; map: MapId; x: number; y: number; kind: "orders" | "museum" | "water" | "bug" | "mushroom" | "rare" | "camp" | "farm" | "greenhouse" | "animal" | "shell" | "treasure" | "cleanup" | "boat" | "cafe" | "shop" | "stage"; name: string; item?: string; }
+export interface WorldNode { id: string; map: MapId; x: number; y: number; kind: "home" | "community" | "orders" | "museum" | "water" | "bug" | "mushroom" | "rare" | "camp" | "farm" | "greenhouse" | "animal" | "shell" | "treasure" | "cleanup" | "boat" | "cafe" | "shop" | "stage"; name: string; item?: string; }
 export const WORLD_NODES: WorldNode[] = [
+  {id:'cozy-home',map:'town',x:430,y:650,kind:'home',name:'บ้านและเวิร์กช็อป'},
+  {id:'cozy-community',map:'town',x:1030,y:650,kind:'community',name:'ลานชุมชนและเทศกาล'},
   {id:'village-board',map:'town',x:550,y:460,kind:'orders',name:'กระดานออร์เดอร์หมู่บ้าน'},
   {id:'nature-museum',map:'town',x:900,y:650,kind:'museum',name:'หอสะสมธรรมชาติ'},
   { id:"farm-water",map:"farm",x:800,y:520,kind:"water",name:"ตักน้ำ +1" },
@@ -37,6 +39,10 @@ export const SEEDS = [
 ] as const;
 export type SeedId = typeof SEEDS[number]["id"];
 export const ITEMS: Record<string, { name: string; icon: string; category: string }> = {
+  'garden-salad':{name:'สลัดสวน',icon:'🥗',category:'อาหาร'},
+  'forest-soup':{name:'ซุปเห็ดอุ่นใจ',icon:'🍲',category:'อาหาร'},
+  'fish-soup':{name:'ซุปปลาสด',icon:'🍲',category:'อาหาร'},
+  'picnic-bread':{name:'ขนมปังปิกนิก',icon:'🍞',category:'อาหาร'},
   bee:{name:'ผึ้ง',icon:'🐝',category:'แมลง'},ladybug:{name:'เต่าทอง',icon:'🐞',category:'แมลง'},
   butterfly:{name:"ผีเสื้อฟ้า",icon:"🦋",category:"แมลง"},beetle:{name:"ด้วงทอง",icon:"🪲",category:"แมลง"},
   firefly:{name:"หิ่งห้อย",icon:"✨",category:"แมลง"},mushroom:{name:"เห็ดป่า",icon:"🍄",category:"ของป่า"},
@@ -59,13 +65,17 @@ export const COSMETICS = [
 export interface Crop { seed: SeedId; plantedAt: number; readyAt: number; watered: boolean; }
 export interface Progress { map: MapId; inventory: Record<string,number>; discovered: string[]; plots:(Crop|null)[];
   water?:number;
+  cozy?:import('./cozy').CozyProgress;
+  cozyContributions?:Record<string,number>;
   village?:import('./village').VillageProgress;
   allowHelp:boolean; unlocks:string[]; equipped:string; cooldowns:Record<string,number>; receipts?:Record<string,string>; }
 export interface CafeMember { id:string;name:string;actions:number; }
 export interface CafeView { phase:"lobby"|"running"|"result"; members:CafeMember[]; host:string|null; deadline:number|null; order:number; served:number; recipe:string; roundId:string|null; }
 export interface BoatView { departAt:number;returnAt:number;members:string[]; }
 export interface WorldView { map:MapId;serverTime:number;progress:Progress; farms:{id:string;name:string;allowHelp:boolean;plots:(Crop|null)[]}[];
-  cafe:CafeView;boat:BoatView|null;cleanup:number; notice?:string; }
+  cafe:CafeView;boat:BoatView|null;cleanup:number; notice?:string;
+  community?:import('./cozy').CommunityView;
+  homes?:{id:string;name:string;home:import('./cozy').HomeState}[]; }
 export function mapId(value:unknown): value is MapId { return MAP_IDS.includes(value as MapId); }
 export function exitDirection(x:number,y:number):Direction|null {
   if (Math.abs(x-WORLD_W/2)<100 && y<=100) return "north";

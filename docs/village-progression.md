@@ -11,7 +11,11 @@ The first phase connects existing activities to useful destinations without new 
 
 Verification: village unit/real WebSocket tests, mixed-ingredient atomic preflight, replay/reconnect, specimen uniqueness, first-only rewards, historical fish, responsive UI and explicit cancel/confirmation. `client/test/village.live.e2e.mjs` walks the real forest/town loop with an isolated guest, gathers two mushrooms, completes an order, checks stock/reward/journal and reconnects with chips unchanged.
 
-## Next phases (not implemented in this release)
+## Subsequent expansion
+
+The originally planned follow-up systems now ship in `cozy-expansion.md`: direct skill XP, personal room editor/visits, actual furniture, shared scenery projects, real meal recipes, group picnic and a weekly festival. The details below document the original first-phase boundary, not current missing features.
+
+### Original roadmap
 
 1. Skill rewards from direct actions and more authored recipes, retaining the same server-owned progression contract.
 2. Personal home scenes and real furniture placement: introduce a furniture catalogue and ownership/placement validation before awarding furniture. Do not grant unusable placeholder furniture now.
