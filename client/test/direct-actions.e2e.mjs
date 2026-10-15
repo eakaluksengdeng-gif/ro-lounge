@@ -30,8 +30,19 @@ try{
  await page.evaluate(()=>{const q=window.qa;for(const phase of ['waiting','bite','result','idle'])q.emit('fish:state',{phase,castId:'cast-1',serverTime:Date.now(),inventory:{},total:0,biteStartedAt:Date.now(),deadline:Date.now()+8000});});
  assert.equal(await page.evaluate(()=>window.qa.sent.filter(x=>x.type==='fish:cast').length),2);
  assert.equal(await page.evaluate(()=>window.qa.sent.filter(x=>x.type==='fish:reel').length),0,'never automatically reel');
+ await page.evaluate(()=>window.qa.emit('fish:state',{phase:'bite',castId:'layout-cast',serverTime:Date.now(),inventory:{},total:0,biteStartedAt:Date.now(),deadline:Date.now()+8000}));
+ for(const [width,height]of [[1440,900],[768,1024],[390,844],[320,568],[844,390]]){
+  await page.setViewportSize({width,height});const box=await page.locator('#fishingPanel').boundingBox();
+  assert.ok(Math.abs(box.x+box.width/2-width/2)<2&&Math.abs(box.y+box.height/2-height/2)<2,'centered fishing panel');
+  assert.ok(box.x>=0&&box.y>=0&&box.x+box.width<=width&&box.y+box.height<=height,'panel within viewport');
+  assert.equal(await page.locator('#worldBagButton').isVisible(),false,'bag hidden during fishing');
+  await page.locator('#fishAction').scrollIntoViewIfNeeded();
+  assert.equal(await page.locator('#fishAction').evaluate(el=>{const r=el.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===el;}),true,'catch button unobstructed');
+  await page.screenshot({path:'/tmp/ro-centered-fishing-'+width+'x'+height+'.png'});
+ }
  await page.locator('#fishCancel').click();
  await page.evaluate(()=>window.qa.emit('fish:state',{phase:'idle',serverTime:Date.now(),inventory:{},total:0}));await page.waitForTimeout(500);
  assert.equal(await page.evaluate(()=>window.qa.sent.filter(x=>x.type==='fish:cast').length),2,'stop stays stopped');
- assert.deepEqual(errors,[]);console.log('PASS direct catch without modal, visual inventory responsive 1100/390/320, continuous recast/manual reel/stop');
+ await page.evaluate(()=>{window.qa.player.y=400;window.qa.nature.render();});assert.equal(await page.locator('#worldBagButton').isVisible(),true,'bag restored outside fishing');
+ assert.deepEqual(errors,[]);console.log('PASS direct collection/continuous manual fishing; centered unobstructed fishing 1440/768/390/320/landscape; bag hidden and restored');
 }finally{await browser.close();}

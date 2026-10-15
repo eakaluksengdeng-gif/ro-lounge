@@ -1,0 +1,37 @@
+/* A centered activity card; the map stays clickable outside it to leave fishing. */
+html #fishingPanel{
+  left:50%;top:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);
+  width:min(460px,calc(100vw - 28px));max-height:calc(100dvh - 28px);
+  z-index:11;padding:12px;overscroll-behavior:contain;scrollbar-width:thin;
+  box-shadow:0 18px 70px #051e2070;
+}
+html #fishingPanel .activity-plaque{margin-bottom:9px;}
+html #fishingPanel #fishingScene{max-height:34dvh;object-fit:contain;background:#173e32;}
+html #fishingPanel strong{margin-top:10px;font-size:15px;}
+html #fishingPanel p{font-size:12px;margin:6px 0 12px;}
+html #fishingPanel #fishSkillGauge{margin:12px 4px 7px;}
+html #fishingPanel #fishCountdown{display:block;margin:7px 0;color:#cfe8db;font-size:12px;}
+html #fishingPanel #fishCountdown[hidden]{display:none;}
+html #fishingPanel #fishControls{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:8px;margin-top:10px;align-items:stretch;}
+html #fishingPanel #fishControls:has(#fishCancel[hidden]) #fishAction{grid-column:1/-1;}
+html #fishingPanel #fishAction{min-height:52px;font-size:22px;margin:0;}
+html #fishingPanel #fishAction+#fishCancel{width:100%;min-height:44px;margin:0;font-size:12px;padding:7px;}
+html #fishingPanel #fishRates{margin-top:9px;}
+/* Never put an inventory shortcut over the timing gauge or catch button. */
+body:has(#fishingPanel:not([hidden])) #worldToolbar #worldBagButton{visibility:hidden;pointer-events:none;}
+@media(max-width:540px){
+  html #fishingPanel{width:calc(100vw - 20px);max-height:calc(100dvh - 20px);padding:9px;border-width:6px;border-image-width:6px;}
+  html #fishingPanel strong{font-size:14px;}html #fishingPanel p{font-size:11px;}
+  html #fishingPanel #fishAction{font-size:21px;}
+}
+@media(max-height:540px){
+  html #fishingPanel{width:min(420px,calc(100vw - 24px));padding:8px;}
+  html #fishingPanel #fishingScene{max-height:27dvh;}
+  html #fishingPanel .activity-plaque{line-height:30px;font-size:20px;margin-bottom:5px;}
+}
+@media(max-height:740px){
+  html #fishingPanel #fishingScene{max-height:24dvh;}
+  html #fishingPanel p{margin:4px 0 7px;}
+  html #fishingPanel #fishCountdown{margin:4px 0;}
+  html #fishingPanel strong{margin-top:5px;}
+}

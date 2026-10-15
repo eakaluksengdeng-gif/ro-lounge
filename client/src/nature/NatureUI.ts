@@ -120,7 +120,8 @@ export class NatureUI {
     this.catchArt.id='fishCatchArt';this.catchArt.hidden=true;
     const plaque=document.createElement('div');plaque.className='activity-plaque';plaque.textContent='FISHING';
     this.vignette.id='fishingScene';this.vignette.width=720;this.vignette.height=400;this.vignette.setAttribute('role','img');this.vignette.setAttribute('aria-label','ตัวละครคุณนั่งตกปลาที่ท่าไม้ริมน้ำ');
-    this.panel.append(plaque,this.vignette,this.catchArt,this.title,this.message,this.gauge,this.bar,this.countdown,this.action,this.cancel,rates);
+    const controls=document.createElement('div');controls.id='fishControls';controls.append(this.action,this.cancel);
+    this.panel.append(plaque,this.vignette,this.catchArt,this.title,this.message,this.gauge,this.bar,this.countdown,controls,rates);
     document.body.append(this.panel);
     room.onMessage<FishingState>("fish:state", state => {
       const soundState = `${state.castId}:${state.phase}:${state.result?.reason ?? ""}`;
@@ -274,7 +275,7 @@ export class NatureUI {
     this.action.textContent = phase === "bite" ? "SPACE / TAP" : phase === "waiting" ? "รอปลากินเหยื่อ…" : phase === "result" ? "รอสักครู่…" : "SPACE / TAP · ตกปลา";
     this.action.setAttribute('aria-label',phase==='bite'?'ดึงเบ็ด Space หรือแตะ':'เริ่มตกปลา Space หรือแตะ');
     this.action.disabled = phase === "waiting" || phase === "result" || this.scene.casinoOpen;
-    this.cancel.textContent="หยุดตกต่อเนื่อง · เก็บเบ็ด";
+    this.cancel.textContent="หยุด · เก็บเบ็ด";
     this.cancel.hidden = !this.continuous && phase !== "waiting" && phase !== "bite";
     this.bar.hidden = phase !== "bite";
     this.gauge.hidden = this.countdown.hidden = phase !== "bite";

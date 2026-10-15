@@ -12,6 +12,7 @@ import './reference/reference.css';
 import './reference/activities.css';
 import './world/modern.css';
 import './world/collection.css';
+import './nature/fishing-layout.css';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
