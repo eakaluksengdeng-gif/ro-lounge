@@ -2,7 +2,8 @@ import type { Card, PrivateHand, SeatView, TableState } from "../../../shared/po
 import { coinAmount, goldCoin, playingCard } from "./PixelCards";
 import { formatNumber, formatDelta } from "./numbers";
 import { renderCharacterCanvas, type Look } from '../art';
-import { cosmeticCanvas } from '../world/Cosmetics';
+import {equipmentCanvas,wireEquipment} from '../world/EquipmentArt';
+import type {Equipment} from '../../../shared/equipment';
 
 const KINDS = { points: "แต้ม", pok8: "ป๊อก 8", pok9: "ป๊อก 9", sian: "เซียน", straight: "เรียง", tong: "ตอง" };
 const PHASES = { betting: "รอเดิมพัน", dealing: "กำลังแจกไพ่", check_pok: "ตรวจป๊อก", action: "จั่ว หรือ อยู่", showdown: "เปิดไพ่ · คิดชิปแล้ว" };
@@ -95,7 +96,7 @@ export class PokTableView {
   private views: { element: HTMLElement; title: HTMLElement; name: HTMLElement; info: HTMLElement; result: HTMLElement;
     avatar: HTMLElement; sit: HTMLButtonElement; hand: AnimatedCards; playerId?: string }[] = [];
 
-  constructor(sit: (seat: number) => void, private portrait?:(id:string)=>{look:Look;cosmetic:string}|undefined) {
+  constructor(sit: (seat: number) => void, private portrait?:(id:string)=>{look:Look;cosmetic:string;equipment?:Equipment}|undefined) {
     this.element.className = "pok-arena";
     this.element.setAttribute("aria-label", "โต๊ะป๊อกเด้ง 8 ที่นั่ง");
     const felt = document.createElement("div");
@@ -177,7 +178,7 @@ export class PokTableView {
         view.avatar.replaceChildren();
         delete view.avatar.dataset.look;
       }
-      if(seat){const portrait=this.portrait?.(seat.playerId);if(portrait){const dir=position===0?'up':position===4?'down':'side';const flip=position>4;const signature=JSON.stringify([portrait,dir,flip]);if(view.avatar.dataset.look!==signature){const base=renderCharacterCanvas(portrait.look,dir,0,'seated');base.getContext('2d')!.drawImage(cosmeticCanvas(portrait.cosmetic),0,0);const canvas=document.createElement('canvas');canvas.width=48;canvas.height=64;const ctx=canvas.getContext('2d')!;if(flip){ctx.translate(48,0);ctx.scale(-1,1);}ctx.drawImage(base,0,0);view.avatar.replaceChildren(canvas);view.avatar.dataset.look=signature;}}}
+      if(seat){const portrait=this.portrait?.(seat.playerId);if(portrait){const dir=position===0?'up':position===4?'down':'side';const flip=position>4;const signature=JSON.stringify([portrait,dir,flip]);if(view.avatar.dataset.look!==signature){const base=renderCharacterCanvas(portrait.look,dir,0,'seated');base.getContext('2d')!.drawImage(equipmentCanvas(portrait.equipment??wireEquipment({cosmetic:portrait.cosmetic}),dir,'seated'),0,0);const canvas=document.createElement('canvas');canvas.width=48;canvas.height=64;const ctx=canvas.getContext('2d')!;if(flip){ctx.translate(48,0);ctx.scale(-1,1);}ctx.drawImage(base,0,0);view.avatar.replaceChildren(canvas);view.avatar.dataset.look=signature;}}}
       if (seat) {
         view.info.title = seat.dealer ? "เจ้ามือรับทุกเดิมพัน" : "เดิมพัน " + formatNumber(seat.bet) + " ชิป";
         if (seat.dealer) view.info.textContent = "รับทุกเดิมพัน";

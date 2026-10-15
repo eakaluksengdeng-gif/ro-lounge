@@ -18,6 +18,7 @@ export interface PlayerState {
   fishing: string;
   mapId: "town" | "forest" | "farm" | "beach" | "market";
   cosmetic: string;
+  equipment?:string;
   activity: string;
   fishingBobberX: number;
   fishingBobberY: number;

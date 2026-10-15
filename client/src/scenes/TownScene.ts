@@ -10,6 +10,7 @@ import { ensureCosmetics } from "../world/Cosmetics";
 import { WORLD_NODES, type MapId, type WorldView } from "../../../shared/regions";
 import {ProjectScenery} from '../world/ProjectScenery';
 import {FARM_PLOTS} from '../../../shared/regions';
+import {wireEquipment,ensureEquipmentTexture} from '../world/EquipmentArt';
 import { CATCHABLE_BUGS,wildlifeCatchKey,type WildlifeView } from '../../../shared/nature';
 import { CASINO_BUILDING, CASINO_DOOR } from "../../../shared/casinoWorld";
 import { HAIR_COLORS as HAIR, SKIN_COLORS as SKIN, PANTS_COLORS as PANTS } from "../character/appearance";
@@ -281,8 +282,6 @@ export class TownScene extends Phaser.Scene {
     c.setPosition(nx, ny);
     c.setDepth(c.y);
     const fishing=!!p.fishing;
-    const cosmetic=fishing&&(!p.cosmetic||p.cosmetic==='none')?'straw-hat':p.cosmetic||'none';
-    av.gear.setTexture("gear-"+cosmetic);
     av.gear.setFlipX(av.dir==="side"&&av.flip);
     av.sprite.setAlpha(p.activity==="camp"?.9:1);
     av.sprite.y = av.gear.y = p.activity === "camp" ? 6 : 0;
@@ -312,6 +311,8 @@ export class TownScene extends Phaser.Scene {
       av.texKey = key;
     }
     av.sprite.setFlipX(av.dir === "side" && av.flip);
+    const equipment=wireEquipment(p);if(fishing&&!equipment.head)equipment.head='straw-hat';
+    av.gear.setTexture(ensureEquipmentTexture(this,equipment,av.dir,pose??'standing',frame));av.gear.setFlipX(av.dir==='side'&&av.flip);
   }
 
   private lookFor(p: PlayerState, id: string): Look {
