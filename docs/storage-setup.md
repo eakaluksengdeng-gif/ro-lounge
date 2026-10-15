@@ -14,6 +14,7 @@
 ตรวจการเชื่อมต่อแล้ว: โปรเจกต์ ro-lounge บน Free มี table/RPC ตาม migration และทดสอบ save, idempotent retry, stale revision สำเร็จโดย rollback ธุรกรรมทดสอบ จึงไม่เปลี่ยนข้อมูลจริง
 Render ให้เลือก Save only ตอนเพิ่มคีย์ ก่อน merge โค้ดใหม่ เพื่อลดการ restart ระบบ memory เดิมโดยไม่จำเป็น
 Supabase MCP ไม่คืน server Secret key; ผู้ใช้คัดลอกจาก API Keys ใส่ Render Environment เอง ห้ามส่งคีย์ในแชท
+ทดสอบ restart/resume บนเว็บจริงผ่านแล้ว 2026-10-15: Guest เดิมได้ยอด 104 ชิป หมวกเชฟ ของสะสมและแปลงแครอทที่รดน้ำไว้คืนครบ โดยไม่ได้สร้าง Guest หรือแจก 100 ชิปใหม่
 
 Free มีโควตาและอาจ pause เมื่อไม่ได้ใช้งานตามนโยบายบริการ; ไม่ใช่บริการเซฟไร้ขีดจำกัดหรือการรับประกัน uptime
 อ้างอิง https://supabase.com/docs/guides/getting-started/api-keys และ https://supabase.com/docs/guides/platform/free-project-pausing

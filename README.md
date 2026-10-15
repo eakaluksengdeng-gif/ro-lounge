@@ -70,6 +70,7 @@ Production ใช้ Supabase Free: Guest/wallet/fish inventory/world progress/�
 ทดสอบโลกจริงด้วย cd client แล้ว npm run test:world; ทดสอบ backend/persistence/permissions ด้วย cd server แล้ว npm test
 ทดสอบเว็บ production แบบไม่ใช้ DEV hook ด้วย E2E_URL=https://ro-lounge.vercel.app npm run test:world-live
 เพิ่ม E2E_RESTART_CHECK=1 เพื่อรอทดสอบ restart; RO_QA_OUTPUT=data/qa-release เก็บผลทดสอบแบบไม่มีคีย์ลับและถูก gitignore
+ยืนยันบนเว็บจริงแล้วว่าหลัง restart Guest เดิม ยอดชิปที่ได้จริง ของสะสม หมวกเชฟ และแปลงที่รดน้ำไว้กลับมาครบ (2026-10-15); ดู [ผลตรวจการปล่อย](docs/world-progress.md)
 
 ## ร้าน Boardgame — ป๊อกเด้ง
 
