@@ -65,8 +65,11 @@ Production ใช้ Supabase Free: Guest/wallet/fish inventory/world progress/�
 มือไพ่และทีม/เรือที่ยังเล่นอยู่ยกเลิกเมื่อ process restart; เงินที่ settle แล้วและของสะสมไม่รีเซ็ต เงินสำรองที่ยังไม่หักคืนได้โดยไม่คืนยอดที่แพ้ไปแล้ว
 เป็น storage สำหรับ single-process prototype ไม่ใช่ระบบ replica หรือ account recovery; ดูข้อจำกัดและวิธีเชื่อมใน [storage setup](docs/storage-setup.md)
 ทำ SQL migration server/storage.sql และตั้ง SUPABASE_URL กับ SUPABASE_SECRET_KEY ใน Render ก่อน deploy; backend production ไม่ยอม fallback ลงดิสก์ชั่วคราว
-ผู้ใช้ยอมเริ่ม Guest ก่อนระบบเซฟใหม่ 100 ชิปหนึ่งครั้ง; ยังต้องตั้งค่า Supabase/Render และตรวจเว็บจริงก่อนถือว่าปล่อยแล้ว
+ปล่อย Cozy World และเชื่อม Supabase/Render แล้วผ่าน PR #15; /version แสดง cozy-world-v1 และ durableStorage:true
+ผู้ใช้ยอมเริ่ม Guest ก่อนระบบเซฟใหม่ 100 ชิปหนึ่งครั้ง; Guest หลังย้ายระบบบันทึกถาวรและไม่รับ 100 ชิปใหม่เมื่อกลับเข้าเกม
 ทดสอบโลกจริงด้วย cd client แล้ว npm run test:world; ทดสอบ backend/persistence/permissions ด้วย cd server แล้ว npm test
+ทดสอบเว็บ production แบบไม่ใช้ DEV hook ด้วย E2E_URL=https://ro-lounge.vercel.app npm run test:world-live
+เพิ่ม E2E_RESTART_CHECK=1 เพื่อรอทดสอบ restart; RO_QA_OUTPUT=data/qa-release เก็บผลทดสอบแบบไม่มีคีย์ลับและถูก gitignore
 
 ## ร้าน Boardgame — ป๊อกเด้ง
 
