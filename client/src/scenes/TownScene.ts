@@ -8,6 +8,7 @@ import { WorldRenderer } from "../world/WorldRenderer";
 import { planRoute } from "../world/PathPlanner";
 import { ensureCosmetics } from "../world/Cosmetics";
 import { WORLD_NODES, type MapId, type WorldView } from "../../../shared/regions";
+import {ProjectScenery} from '../world/ProjectScenery';
 import { CATCHABLE_BUGS,wildlifeCatchKey,type WildlifeView } from '../../../shared/nature';
 import { CASINO_BUILDING, CASINO_DOOR } from "../../../shared/casinoWorld";
 import { HAIR_COLORS as HAIR, SKIN_COLORS as SKIN, PANTS_COLORS as PANTS } from "../character/appearance";
@@ -67,6 +68,7 @@ export class TownScene extends Phaser.Scene {
   private mapObjects: Phaser.GameObjects.GameObject[] = [];
   private worldRenderer?: WorldRenderer;
   private worldView?: WorldView;
+  private projectScenery?:ProjectScenery;
   setWorldView(view:WorldView) {this.worldView=view;}
   wildlifeAvailable(id:string){return (this.worldView?.progress.cooldowns[wildlifeCatchKey(this.map,id)]??0)<=Date.now();}
   navigateTo(points: { x: number; y: number }[]) {
@@ -141,6 +143,7 @@ export class TownScene extends Phaser.Scene {
   /* ---------------- แมพ ---------------- */
 
   private rebuildMap(map:MapId) {
+    this.projectScenery?.clear();this.projectScenery=new ProjectScenery(this);
     this.stopNavigation();this.map=map;
     for(const object of this.mapObjects)object.destroy();this.mapObjects=[];
     this.waterTiles=[];this.fountain=undefined;
@@ -191,7 +194,7 @@ export class TownScene extends Phaser.Scene {
     this.buildCasino();
     for(const node of WORLD_NODES.filter(n=>n.map==='town')){
       this.add.image(node.x,node.y,'board').setDisplaySize(126,55).setDepth(node.y);
-      this.add.text(node.x,node.y,node.kind==='orders'?'ออร์เดอร์':'หอธรรมชาติ',{fontFamily:FONT,fontSize:'14px',color:'#fff3c5'}).setOrigin(.5).setDepth(node.y+1);
+      this.add.text(node.x,node.y,({orders:'ออร์เดอร์',museum:'หอธรรมชาติ',home:'บ้าน / แต่งบ้าน',community:'ลานชุมชน'} as Record<string,string>)[node.kind]??node.name,{fontFamily:FONT,fontSize:'14px',color:'#fff3c5'}).setOrigin(.5).setDepth(node.y+1);
     }
     this.fountain = this.add.image(FOUNTAIN.x, FOUNTAIN.y, "fountain0").setScale(1).setDepth(FOUNTAIN.y + 40);
 
@@ -233,6 +236,7 @@ export class TownScene extends Phaser.Scene {
     const me = this.room.state?.players?.get(this.room.sessionId);
     if(me&&(me.mapId??"town")!==this.map)this.rebuildMap(me.mapId);
     this.worldRenderer?.update(this.worldView,this.room.state?.weather??"sunny");
+    this.projectScenery?.update(this.map,this.worldView);
     if (me) gameSounds.setNearWater(this.map==="beach"&&me.y>530 || this.map==="forest"&&Math.hypot(me.x-780,me.y-210)<260 || this.map==="town"&&(Math.hypot(me.x - FOUNTAIN.x, me.y - FOUNTAIN.y) < 130 ||
       Math.hypot(me.x - POND.cx * TILE_PX, me.y - POND.cy * TILE_PX) < 180));
     if (me && this.route[0] && Math.hypot(me.x - this.route[0].x, me.y - this.route[0].y) < 2) {

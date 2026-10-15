@@ -11,6 +11,8 @@ import { groundCanvas } from '../reference/WorldArt';
 import { bagCanvas } from './bag';
 import {catalogue,bagEntries,bagQuantity} from './inventory';
 import {VILLAGE_ORDERS,SKILL_NAMES,villageLevel} from '../../../shared/village';
+import {CozyUI} from './CozyUI';
+import {RECIPES,FURNITURE} from '../../../shared/cozy';
 const STATIONS=["รับออร์เดอร์","เตรียม","ปรุง","เสิร์ฟ"];
 const COLLECTION_HINTS:Record<string,string>={
   butterfly:"ป่าน้ำตก · ผีเสื้อฟ้าตามทาง",beetle:"ป่าน้ำตก · ด้วงทองฝั่งตะวันออก",firefly:"ป่าน้ำตก · ตอนเย็นหรือกลางคืน",
@@ -19,6 +21,10 @@ const COLLECTION_HINTS:Record<string,string>={
   shell:"หาดสายลม · ตามริมทราย",pearl:"หาดสายลม · เปลือกหอยกลางหาด",treasure:"หาดสายลม · หีบเก่าฝั่งตะวันตก",
   cleanup:"หาดสายลม · ช่วยเก็บขยะ",voyager:"หาดสายลม · ล่องเรือกลับถึงท่า",camper:"ป่าน้ำตก · นั่งข้างกองไฟ",
   chef:"ตลาดโคมไฟ · ช่วยทีมเสิร์ฟอาหารครบ 3 จาน",musician:"ตลาดโคมไฟ · เล่นเวทีดนตรี",
+  'garden-salad':'คาเฟ่ · ปรุงจากแครอทและมะเขือเทศ',
+  'forest-soup':'คาเฟ่ · ปรุงจากเห็ดและแครอท',
+  'fish-soup':'คาเฟ่ · ปรุงจากปลาคาร์ปและแครอท',
+  'picnic-bread':'คาเฟ่ · ปรุงจากข้าวสาลี 2 ชิ้น',
 };
 export class WorldUI {
   private view?:WorldView;
@@ -53,6 +59,7 @@ export class WorldUI {
   private journalFilter='all';
   private fishDiscoveries:string[]=[];
   private villageConfirmation?:{verb:'order-submit'|'museum-donate';id:string};
+  private cozyUI=new CozyUI();
   constructor(private room:Room,private scene:TownScene) {
     this.toolbar.id="worldToolbar";this.minimap.width=120;this.minimap.height=72;this.minimap.setAttribute("aria-label","แผนที่ย่อและตำแหน่งของคุณ");
     const bag=this.button('กระเป๋า',()=>this.open('inventory'));bag.id='worldBagButton';bag.setAttribute('aria-label','กระเป๋า');bag.title='กระเป๋า · B';this.bagCount.className='bag-count';this.bagCount.setAttribute('aria-hidden','true');bag.prepend(bagCanvas());bag.append(this.bagCount);
@@ -122,7 +129,7 @@ export class WorldUI {
     this.render(true);
   }
   private open(page:string) {if(!this.view||this.scene.casinoOpen)return;this.page=page;this.panel.hidden=false;this.scene.worldOpen=true;document.body.classList.add("world-ui-open");this.notice.textContent="";this.render(true);}
-  private close(){this.villageConfirmation=undefined;this.panel.hidden=true;this.scene.worldOpen=false;document.body.classList.remove("world-ui-open");}
+  private close(){this.cozyUI.reset();this.villageConfirmation=undefined;this.panel.hidden=true;this.scene.worldOpen=false;document.body.classList.remove("world-ui-open");}
   private update() {
     const p=this.player();if(!p)return;
     if(this.scene.casinoOpen&&!this.panel.hidden)this.close();
@@ -156,7 +163,10 @@ export class WorldUI {
   }
   private render(force=false) {
     if(this.panel.hidden||!this.view)return;
-    const sig=JSON.stringify([this.page,this.view.progress,this.view.farms,this.view.cafe,this.view.boat,this.view.cleanup,this.fish,this.fishDiscoveries,this.pending,this.node?.id,
+    const sig=JSON.stringify([this.page,this.view.progress,this.view.farms,this.view.cafe,this.view.boat,this.view.cleanup,this.view.community,this.view.homes,this.fish,this.fishDiscoveries,this.pending,this.node?.id,
+      this.view.community?.picnic?Date.now()>=this.view.community.picnic.endsAt:false,
+      this.view.community?.picnic?Date.now()>this.view.community.picnic.endsAt+60000:false,
+      Date.now()>=(this.view.progress.cooldowns.cook??0),Date.now()>=(this.view.progress.cooldowns.picnic??0),
       this.view.farms.flatMap(farm=>farm.plots.map(crop=>crop?Date.now()>=crop.readyAt:false)),
       Date.now()>=(this.view.progress.cooldowns[this.node?.id??""]??0)]);
     if(!force&&sig===this.signature)return;this.signature=sig;this.body.replaceChildren();
@@ -166,6 +176,8 @@ export class WorldUI {
     if(this.page==='collection'){this.title.textContent='สมุดสะสม';this.collectionPage();return;}
     if(!this.node){this.body.append(this.text("กลับไปใกล้จุดกิจกรรมเพื่อใช้งาน"));return;}
     this.title.textContent=this.node.name;
+    if(this.page==='cooking'){this.title.textContent='ครัวส่วนตัว · ปรุงอาหาร';this.body.append(this.button('กลับไปครัวทีม',()=>this.open('cafe')));}
+    if(['home','community','cooking'].includes(this.page)){this.cozyUI.render(this.page,this.view,this.fish,this.body,this.player()?.playerId,this.pending,(verb,payload)=>this.send(verb,payload),()=>this.render(true),id=>{let player:any;this.room.state?.players?.forEach((p:any)=>{if(p.playerId===id)player=p;});if(!player||typeof player.color!=='number')return;const person=document.createElement('div');person.append(renderCharacterCanvas(playerToLook(player),'down',0,'seated'),this.text(player.name??'เพื่อน'));return person;});return;}
     if(this.page==='orders'||this.page==='museum'){this.villagePage();return;}
     if(["farm","greenhouse"].includes(this.page)){this.farmPage();return;}
     if(this.page==="cafe"){this.cafePage();return;}
@@ -203,7 +215,7 @@ export class WorldUI {
     this.body.append(actions);
     if(map==='town'){
       const village=document.createElement('div');village.className='world-actions';
-      for(const id of ['village-board','nature-museum']){const node=WORLD_NODES.find(n=>n.id===id)!;village.append(this.button('เดินไป'+node.name,()=>{this.close();this.scene.navigateTo([{x:node.x,y:node.y}]);},p?.activity==='boat'));}this.body.append(village);
+      for(const id of ['village-board','nature-museum','cozy-home','cozy-community']){const node=WORLD_NODES.find(n=>n.id===id)!;village.append(this.button('เดินไป'+node.name,()=>{this.close();this.scene.navigateTo([{x:node.x,y:node.y}]);},p?.activity==='boat'));}this.body.append(village);
     }
   }
   private navigateExit(direction:Direction) {
@@ -228,9 +240,9 @@ export class WorldUI {
     search.addEventListener('input',()=>{this.inventoryQuery=search.value;const cursor=search.selectionStart;this.render(true);const next=this.body.querySelector<HTMLInputElement>('input[type=search]');next?.focus();if(cursor!==null)next?.setSelectionRange(cursor,cursor);});
     const sort=document.createElement('select');sort.setAttribute('aria-label','เรียงของในกระเป๋า');for(const [id,label]of [['name','เรียงตามชื่อ'],['quantity','จำนวนมากก่อน']]){const option=document.createElement('option');option.value=id;option.textContent=label;sort.append(option);}sort.value=this.inventorySort;sort.onchange=()=>{this.inventorySort=sort.value;this.render(true);};tools.append(search,sort);this.body.append(tools);
     const book=document.createElement('div');book.className='collection-book inventory-book';const tabs=document.createElement('div');tabs.className='collection-tabs';
-    for(const [category,icon]of [['ทั้งหมด','treasure'],['ปลา','carp'],['แมลง','butterfly'],['วัตถุดิบ','mushroom']]){const button=this.button(category,()=>{this.inventoryCategory=category;this.render(true);});button.prepend(itemCanvas(icon));button.setAttribute('aria-label',category);button.setAttribute('aria-pressed',String(this.inventoryCategory===category));tabs.append(button);}book.append(tabs);
+    for(const [category,icon]of [['ทั้งหมด','treasure'],['ปลา','carp'],['แมลง','butterfly'],['วัตถุดิบ','mushroom'],['อาหาร','garden-salad']]){const button=this.button(category,()=>{this.inventoryCategory=category;this.render(true);});button.prepend(itemCanvas(icon));button.setAttribute('aria-label',category);button.setAttribute('aria-pressed',String(this.inventoryCategory===category));tabs.append(button);}book.append(tabs);
     const content=document.createElement('div');content.className='collection-content';const grid=document.createElement('div');grid.className='world-collection';const detail=document.createElement('aside');detail.className='collection-inspector inventory-inspector';detail.setAttribute('aria-live','polite');
-    const entries=owned.filter(e=>(this.inventoryCategory==='ทั้งหมด'||e.category===this.inventoryCategory||(this.inventoryCategory==='วัตถุดิบ'&&!['ปลา','แมลง'].includes(e.category)))&&e.name.includes(this.inventoryQuery.trim())).sort((a,b)=>this.inventorySort==='quantity'?b.count-a.count||a.name.localeCompare(b.name,'th'):a.name.localeCompare(b.name,'th'));
+    const entries=owned.filter(e=>(this.inventoryCategory==='ทั้งหมด'||e.category===this.inventoryCategory||(this.inventoryCategory==='วัตถุดิบ'&&!['ปลา','แมลง','อาหาร'].includes(e.category)))&&e.name.includes(this.inventoryQuery.trim())).sort((a,b)=>this.inventorySort==='quantity'?b.count-a.count||a.name.localeCompare(b.name,'th'):a.name.localeCompare(b.name,'th'));
     const inspect=(entry:typeof entries[number])=>{this.selectedItem=entry.id;grid.querySelectorAll<HTMLElement>('[data-item]').forEach(card=>card.dataset.selected=String(card.dataset.item===entry.id));
       detail.replaceChildren(itemCanvas(entry.id),this.text(entry.name,'world-card-title'),this.text('ในกระเป๋า × '+entry.count,'collection-quantity'),this.text(entry.category,'collection-hint'));
       const uses=COSMETICS.filter(c=>Object.prototype.hasOwnProperty.call(c.cost,entry.id)&&!progress.unlocks.includes(c.id));
@@ -239,6 +251,9 @@ export class WorldUI {
       const jobs=VILLAGE_ORDERS.filter(o=>Object.prototype.hasOwnProperty.call(o.cost,entry.id));
       if(jobs.length){const uses=document.createElement('div');uses.className='inventory-uses';for(const job of jobs)uses.append(this.text('ออร์เดอร์ '+job.name+' · ใช้ '+(job.cost as Record<string,number>)[entry.id]+' ชิ้น · '+SKILL_NAMES[job.skill]+' +'+job.xp+' XP'));uses.append(this.text('ส่งได้ที่กระดานออร์เดอร์ข้างน้ำพุ'));detail.append(uses);}
       if((entry.category==='ปลา'||entry.category==='แมลง')&&!progress.village?.museum.includes(entry.id))detail.append(this.text('มอบ 1 ตัวให้หอสะสมธรรมชาติได้ · ความชำนาญ +5 XP','collection-hint'));
+      for(const recipe of RECIPES.filter(r=>Object.prototype.hasOwnProperty.call(r.cost,entry.id)))detail.append(this.text('ใช้ปรุง '+recipe.name+' ที่คาเฟ่','inventory-uses'));
+      for(const furniture of FURNITURE.filter(f=>f.cost&&Object.prototype.hasOwnProperty.call(f.cost,entry.id)))detail.append(this.text('ใช้สร้าง '+furniture.name+' ที่เวิร์กช็อป','inventory-uses'));
+      if(entry.category==='อาหาร')detail.append(this.text('นำอาหารร่วมปิกนิกที่ลานชุมชน · ใช้จริง 1 จาน ไม่ใช่การขายรับชิป','inventory-uses'));
     };
     for(const entry of entries){const card=document.createElement('article');card.dataset.item=entry.id;card.tabIndex=0;card.setAttribute('role','button');card.setAttribute('aria-label',entry.name+' จำนวน '+entry.count);card.append(itemCanvas(entry.id),this.text(entry.name,'world-card-title'),this.text('× '+entry.count,'collection-count'));card.onclick=()=>inspect(entry);card.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();inspect(entry);}};grid.append(card);}
     if(entries.length){content.append(grid);book.append(content);this.body.append(book,detail);inspect(entries.find(e=>e.id===this.selectedItem)??entries[0]);}
@@ -269,7 +284,7 @@ export class WorldUI {
       detail.replaceChildren(itemCanvas(entry.id),this.text(entry.name,'world-card-title'),this.text(entry.found?'เคยค้นพบแล้ว ✓':'ยังไม่ค้นพบ','collection-quantity'),this.text(entry.record?'บันทึกกิจกรรม / ความสำเร็จ ไม่ใช่สิ่งของในกระเป๋า':entry.count>0?'ของที่มีตอนนี้ × '+entry.count:'ตอนนี้ไม่มีของชิ้นนี้ในกระเป๋า','collection-hint'),this.text(hint,'collection-hint'));
     };
     const filtered=entries.filter(e=>(this.category==='ทั้งหมด'||e.category===this.category||(this.category==='ของสะสม'&&!['ปลา','แมลง','สัตว์'].includes(e.category)))&&(this.journalFilter==='all'||(this.journalFilter==='found'?e.found:!e.found)));
-    for(const category of ['ปลา','แมลง','ของป่า','ชายหาด','ผลผลิต','สัตว์','กิจกรรม'].filter(category=>filtered.some(e=>e.category===category))){
+    for(const category of ['ปลา','แมลง','ของป่า','ชายหาด','ผลผลิต','อาหาร','สัตว์','กิจกรรม'].filter(category=>filtered.some(e=>e.category===category))){
       const group=document.createElement('section');group.className='collection-group';group.append(this.text(category,'collection-group-title'));
       const grid=document.createElement('div');grid.className='world-collection';
       for(const entry of filtered.filter(e=>e.category===category)){
@@ -331,6 +346,7 @@ export class WorldUI {
   }
   private cafePage(){
     this.title.textContent='CAFE';
+    this.body.append(this.button('ปรุงอาหารจากวัตถุดิบในกระเป๋า',()=>this.open('cooking')));
     const c=this.view!.cafe,id=this.player()?.playerId,member=c.members.find(m=>m.id===id);
     const foodId=c.recipe==='ซุปแครอท'||c.recipe==='soup'?'soup':'salad';
     const kitchen=document.createElement('div');kitchen.className='world-cafe-room';kitchen.dataset.phase=c.phase;kitchen.setAttribute('aria-label','ครัวและสมาชิกทีมจริง');

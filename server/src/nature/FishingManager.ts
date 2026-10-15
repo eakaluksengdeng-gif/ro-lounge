@@ -44,14 +44,14 @@ export class FishingManager {
     return false;
   }
 
-  reel(id: string, owner: string, castId: unknown): void {
+  reel(id: string, owner: string, castId: unknown): boolean {
     this.tick(id, owner);
     const cast = this.casts.get(id);
     requireGame(cast && cast.owner === owner && cast.id === castId, "WRONG_CAST", "This cast has ended");
     requireGame(cast.phase !== "result", "ALREADY_REELED", "A cast can be reeled only once");
-    if (cast.phase === "waiting") { this.finish(cast, "early"); return; }
+    if (cast.phase === "waiting") { this.finish(cast, "early"); return false; }
     requireGame(cast.phase === "bite" && this.now() < cast.deadline!, "BITE_ENDED", "The fish got away");
-    if (!fishingGaugeHit(cast.biteStartedAt!, this.now())) { this.finish(cast, "miss"); return; }
+    if (!fishingGaugeHit(cast.biteStartedAt!, this.now())) { this.finish(cast, "miss"); return false; }
     const roll = this.random(100);
     const species = FISH_SPECIES[cast.map === "beach" ? (roll < 65 ? 4 : roll < 93 ? 5 : 6) : roll < 50 ? 0 : roll < 78 ? 1 : roll < 94 ? 3 : 2];
     const inventory = this.inventories.get(id) ?? {};
@@ -62,6 +62,7 @@ export class FishingManager {
     this.discoveries.set(id,[...new Set([...this.discovered(id),species.id])]);this.store?.set('fishDiscoveries',Object.fromEntries(this.discoveries));
     this.store?.set("fish", Object.fromEntries(this.inventories));
     this.finish(cast, "caught", { species: species.id, name: species.name, lengthCm: 12 + this.random(29) }, chips);
+    return true;
   }
 
   cancel(id: string, owner: string): boolean {

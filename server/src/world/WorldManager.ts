@@ -7,6 +7,8 @@ import { worldBlocked } from '../../../shared/regions';
 import {VILLAGE_ORDERS,ORDER_COOLDOWN} from '../../../shared/village';
 import {FISH_SPECIES} from '../../../shared/nature';
 import type {FishingManager} from '../nature/FishingManager';
+import {CozyManager} from './CozyManager';
+import {cozyFresh} from '../../../shared/cozy';
 export interface WorldActor { id:string; name:string; map:MapId; x:number; y:number; inCasino?:boolean; }
 const fresh = ():Progress => ({map:"town",water:2,inventory:{},discovered:[],plots:Array(6).fill(null),allowHelp:false,unlocks:["none"],equipped:"none",cooldowns:{}});
 const cafeFresh = ():CafeView => ({phase:"lobby",members:[],host:null,deadline:null,order:0,served:0,recipe:"สลัดสวน",roundId:null});
@@ -20,12 +22,14 @@ export class WorldManager {
   private cleanup = 0;
   private musicRate = new Map<string,number>();
   private activeReceipt?:{id:string;request:string};
+  private cozy:CozyManager;
   constructor(private store?:SnapshotStore, private now:()=>number=Date.now,private fishing?:FishingManager) {
+    this.cozy=new CozyManager(store,now);
     this.profiles = new Map(Object.entries(store?.get<Record<string,Progress>>("progress",{}) ?? {}));
     this.cleanup = store?.get<number>("cleanup",0) ?? 0;
   }
   connect(id:string,name:string) { this.names.set(id,name); if(!this.profiles.has(id)) this.commit(id,fresh()); return this.profile(id); }
-  profile(id:string):Progress { const profile=this.profiles.get(id); requireGame(profile,"UNKNOWN_PROFILE","เข้าเมืองก่อน"); return {...structuredClone(profile),water:profile.water??2,village:structuredClone(profile.village??{xp:{},completed:[],museum:[]})}; }
+  profile(id:string):Progress { const profile=this.profiles.get(id); requireGame(profile,"UNKNOWN_PROFILE","เข้าเมืองก่อน"); return {...structuredClone(profile),water:profile.water??2,cozy:structuredClone(profile.cozy??cozyFresh()),village:structuredClone(profile.village??{xp:{},completed:[],museum:[]})}; }
   private commit(id:string,p:Progress) {
     if(this.activeReceipt?.id===id){p.receipts??={};p.receipts[this.activeReceipt.request]="คำสั่งนี้ยืนยันแล้ว";while(Object.keys(p.receipts).length>100)delete p.receipts[Object.keys(p.receipts)[0]];}
     const next=new Map(this.profiles); next.set(id,structuredClone(p)); this.store?.set("progress",Object.fromEntries(next)); this.profiles=next;
@@ -33,7 +37,7 @@ export class WorldManager {
   travel(id:string,map:MapId) { const p=this.profile(id); p.map=map; this.commit(id,p); this.leaveCafe(id); this.leaveBoat(id); }
   view(id:string,map:MapId):WorldView {
     const progress=this.profile(id);delete progress.receipts;
-    return {map,serverTime:this.now(),progress,farms:map==="farm"?[...this.names].map(([id,name])=> {
+    return {map,serverTime:this.now(),progress,community:this.cozy.view(progress),homes:map==='town'?[...this.names].filter(([other])=>other===id||this.profile(other).cozy!.home.open).map(([other,name])=>({id:other,name,home:this.profile(other).cozy!.home})):[],farms:map==="farm"?[...this.names].map(([id,name])=> {
       const p=this.profile(id); return {id,name,allowHelp:p.allowHelp,plots:p.plots};
     }):[],cafe:structuredClone(this.cafe),boat:structuredClone(this.boat),cleanup:this.cleanup};
   }
@@ -64,7 +68,9 @@ export class WorldManager {
       }else node=WORLD_NODES.find(node=>node.id===msg.nodeId);
       requireGame(node&&node.map===actor.map,"WRONG_MAP","กิจกรรมนี้อยู่ในแมพอื่น");
       requireGame(Math.hypot(actor.x-node.x,actor.y-node.y)<=100,"TOO_FAR","เดินเข้าใกล้จุดกิจกรรมก่อน");
-      if(verb==='order-submit'||verb==='museum-donate'){
+      if(verb==='cook'||verb.startsWith('home-')||verb==='project-contribute'||verb.startsWith('picnic-')||verb==='festival-claim'){
+        notice=this.cozy.action(actor.id,p,node,verb,msg,cost=>this.consumeMaterials(actor.id,p,cost),(item,n)=>this.add(p,item,n));this.commit(actor.id,p);
+      }else if(verb==='order-submit'||verb==='museum-donate'){
         requireGame(msg.confirmed===true,'CONFIRM_REQUIRED','ตรวจรายการและยืนยันก่อนส่งของ');
         if(verb==='order-submit'){
           requireGame(node.kind==='orders','BAD_ACTION','ไปที่กระดานออร์เดอร์ก่อน');
@@ -94,6 +100,7 @@ export class WorldManager {
         if(node.id==="bug-firefly") requireGame(Math.floor(this.now()/300000)%4>=2,"WRONG_TIME","หิ่งห้อยออกตอนเย็นและกลางคืน");
         if(node.kind==="rare") requireGame(weather==="snow","WRONG_WEATHER","กระต่ายหิมะจะมาเมื่อหิมะตก");
         this.add(p,node.item!,1); p.cooldowns[node.id]=this.now()+(node.kind==="treasure"?300000:node.kind==="rare"?120000:45000);
+        this.skill(p,['bug','mushroom','rare'].includes(node.kind)?'nature':'explore',2);
         this.commit(actor.id,p); notice=node.kind==="rare"?"บันทึกสัตว์หายากแล้ว!":node.name+"สำเร็จ +1";
         if(node.kind==="cleanup") { this.cleanup++; this.store?.set("cleanup",this.cleanup); }
       } else if(verb==="plant"||verb==="water"||verb==="harvest"||verb==="allow-help") {
@@ -122,7 +129,7 @@ export class WorldManager {
               target.plots[slot]={seed:seed.id as SeedId,plantedAt:this.now(),readyAt:this.now()+seed.growMs,watered:false}; notice="ปลูก"+seed.name+"แล้ว";
             } else {
               requireGame(crop&&crop.watered&&this.now()>=crop.readyAt,"NOT_READY","รอให้ผักโตและรดน้ำก่อน");
-              this.add(target,crop.seed,1); target.plots[slot]=null; notice="เก็บผลผลิต +1";
+              this.add(target,crop.seed,1);this.skill(target,'garden',3); target.plots[slot]=null; notice="เก็บผลผลิต +1 · ทำสวน +3 XP";
             }
           }
           this.commit(owner,target);
@@ -164,6 +171,9 @@ export class WorldManager {
     const next=(p.inventory[item]??0)+count;requireGame(Number.isSafeInteger(next)&&next<=999999,"INVENTORY_FULL","กระเป๋าเต็ม");
     p.inventory[item]=next;if(!p.discovered.includes(item))p.discovered.push(item);
   }
+  private skill(p:Progress,skill:string,xp:number){p.village??={xp:{},completed:[],museum:[]};p.village.xp[skill]=Math.min(1000000,(p.village.xp[skill]??0)+xp);}
+  /** Internal successful-reel hook; no client message can claim arbitrary XP. */
+  recordFishing(id:string){const p=this.profile(id);this.skill(p,'fishing',3);this.commit(id,p);}
   private consumeMaterials(id:string,p:Progress,cost:Record<string,number>){
     const fish=this.fishing?.holdings(id)??{},fishCost:Record<string,number>={};
     for(const [item,n]of Object.entries(cost)){
