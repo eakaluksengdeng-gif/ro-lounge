@@ -18,6 +18,7 @@ import {DirectFarmUI} from './DirectFarmUI';
 import {WardrobeUI} from './WardrobeUI';
 import {NEW_GEAR} from '../../../shared/equipment';
 import {equipmentCanvas,wireEquipment} from './EquipmentArt';
+import {GAME_NAME} from '../brand';
 const STATIONS=["รับออร์เดอร์","เตรียม","ปรุง","เสิร์ฟ"];
 const COLLECTION_HINTS:Record<string,string>={
   butterfly:"ป่าน้ำตก · ผีเสื้อฟ้าตามทาง",beetle:"ป่าน้ำตก · ด้วงทองฝั่งตะวันออก",firefly:"ป่าน้ำตก · ตอนเย็นหรือกลางคืน",
@@ -70,7 +71,8 @@ export class WorldUI {
     this.farm=new DirectFarmUI(scene,(verb,payload)=>this.send(verb,payload));
     this.toolbar.id="worldToolbar";this.minimap.width=120;this.minimap.height=72;this.minimap.setAttribute("aria-label","แผนที่ย่อและตำแหน่งของคุณ");
     const bag=this.button('กระเป๋า',()=>this.open('inventory'));bag.id='worldBagButton';bag.setAttribute('aria-label','กระเป๋า');bag.title='กระเป๋า · B';this.bagCount.className='bag-count';this.bagCount.setAttribute('aria-hidden','true');bag.prepend(bagCanvas());bag.append(this.bagCount);
-    this.toolbar.append(this.mapLabel,this.minimap,this.button("🧭 แผนที่",()=>this.open("map")),this.button("สมุดสะสม",()=>this.open("collection")),bag);
+    const nearby=this.button('กิจกรรม',()=>this.open('nearby'));nearby.id='nearbyActivitiesButton';nearby.setAttribute('aria-label','กิจกรรมใกล้ตัว');
+    this.toolbar.append(this.mapLabel,this.minimap,this.button("🧭 แผนที่",()=>this.open("map")),this.button("สมุดสะสม",()=>this.open("collection")),nearby,bag);
     this.toolbar.setAttribute('aria-busy','true');this.toolbar.querySelectorAll('button').forEach(button=>button.disabled=true);
     document.body.append(this.toolbar);
     this.interact.id="worldInteract";this.interact.type="button";this.interact.hidden=true;
@@ -176,7 +178,7 @@ export class WorldUI {
   }
   private render(force=false) {
     if(this.panel.hidden||!this.view)return;
-    const sig=JSON.stringify([this.page,this.view.progress,this.view.farms,this.view.cafe,this.view.boat,this.view.cleanup,this.view.community,this.view.homes,this.fish,this.fishDiscoveries,this.pending,this.node?.id,
+    const sig=JSON.stringify([this.page,this.page==='nearby'?this.nearbySignature():null,this.view.progress,this.view.farms,this.view.cafe,this.view.boat,this.view.cleanup,this.view.community,this.view.homes,this.fish,this.fishDiscoveries,this.pending,this.node?.id,
       this.view.community?.picnic?Date.now()>=this.view.community.picnic.endsAt:false,
       this.view.community?.picnic?Date.now()>this.view.community.picnic.endsAt+60000:false,
       Date.now()>=(this.view.progress.cooldowns.cook??0),Date.now()>=(this.view.progress.cooldowns.picnic??0),
@@ -184,7 +186,8 @@ export class WorldUI {
       Date.now()>=(this.view.progress.cooldowns[this.node?.id??""]??0)]);
     if(!force&&sig===this.signature)return;this.signature=sig;this.body.replaceChildren();
     this.panel.dataset.page=this.page;
-    if(this.page==="map"){this.title.textContent="โลกของ RO Lounge";this.mapPage();return;}
+    if(this.page==="map"){this.title.textContent='โลกของ '+GAME_NAME;this.mapPage();return;}
+    if(this.page==='nearby'){this.title.textContent='กิจกรรมใกล้ตัว';this.nearbyPage();return;}
     if(this.page==='inventory'){this.title.textContent='กระเป๋าของฉัน';this.inventoryPage();return;}
     if(this.page==='collection'){this.title.textContent='สมุดสะสม';this.collectionPage();return;}
     if(!this.node){this.body.append(this.text("กลับไปใกล้จุดกิจกรรมเพื่อใช้งาน"));return;}
@@ -229,6 +232,20 @@ export class WorldUI {
       const village=document.createElement('div');village.className='world-actions';
       for(const id of ['village-board','nature-museum','cozy-home','cozy-community']){const node=WORLD_NODES.find(n=>n.id===id)!;village.append(this.button('เดินไป'+node.name,()=>{this.close();this.scene.navigateTo([{x:node.x,y:node.y}]);},p?.activity==='boat'));}this.body.append(village);
     }
+  }
+  private nearbySignature(){const p=this.player();return WORLD_NODES.filter(n=>n.map===(p?.mapId??'town')).map(n=>[n.id,!!p&&Math.hypot(p.x-n.x,p.y-n.y)<=100,(this.view?.progress.cooldowns[n.id]??0)>Date.now()]);}
+  private nearbyPage(){
+    const p=this.player();if(!p)return;this.body.append(this.text('เลือกสิ่งที่อยากทำ · เดินเข้าใกล้แล้วกด E หรือแตะ · ไม่มีเมนูบังคับรับงาน'));
+    const icons:Record<string,string>={home:'camper',community:'cleanup',orders:'cafe-order',museum:'butterfly',water:'carp',bug:'butterfly',mushroom:'mushroom',rare:'snow-rabbit',camp:'camper',farm:'carrot',greenhouse:'tomato',animal:'animal-friend',shell:'shell',treasure:'treasure',cleanup:'cleanup',boat:'voyager',cafe:'chef',shop:'straw-hat',stage:'musician'};
+    const hints:Record<string,string>={home:'แต่งบ้านและสร้างของจากวัตถุดิบ',community:'ช่วยสร้างเมือง ปิกนิก และเทศกาล',orders:'ส่งผลผลิต รับ XP และเครื่องแต่งกาย',museum:'มอบตัวอย่างเพื่อสะสมชนิดถาวร',water:'ตักน้ำไว้รดผักของคุณ',farm:'ปลูก รดน้ำ และเก็บเกี่ยวตรงแปลง',greenhouse:'ดูแลพืชในโรงเรือน',cafe:'ทำครัวกับเพื่อนหรือปรุงจากของในกระเป๋า',shop:'แลกเครื่องแต่งกายด้วยผลผลิต'};
+    const grid=document.createElement('div');grid.className='nearby-activities';
+    for(const node of WORLD_NODES.filter(n=>n.map===(p.mapId??'town')).sort((a,b)=>Math.hypot(p.x-a.x,p.y-a.y)-Math.hypot(p.x-b.x,p.y-b.y))){
+      const close=Math.hypot(p.x-node.x,p.y-node.y)<=100,card=document.createElement('article');card.dataset.activity=node.id;
+      const icon=itemCanvas(icons[node.kind]??'cleanup'),info=document.createElement('div');info.append(this.text(node.name,'world-card-title'),this.text(hints[node.kind]??'กิจกรรมเล็ก ๆ ระหว่างสำรวจหมู่บ้าน','activity-hint'));
+      const cooldown=this.view!.progress.cooldowns[node.id]??0,ready=close&&cooldown<=Date.now()&&!['farm','greenhouse'].includes(node.kind);
+      const action=this.button(ready?'ทำกิจกรรม':cooldown>Date.now()?'จุดนี้กำลังพัก':'เดินไปหา',()=>{if(ready){this.node=node;this.activate();}else{this.close();this.scene.navigateTo([{x:node.x,y:node.y}]);}},this.pending||cooldown>Date.now()||p.activity==='boat');action.dataset.nearbyAction=node.id;
+      card.append(icon,info,action);grid.append(card);
+    }this.body.append(grid);
   }
   private navigateExit(direction:Direction) {
     const p=this.player();if(!p)return;this.close();
