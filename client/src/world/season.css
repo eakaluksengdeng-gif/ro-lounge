@@ -4,3 +4,9 @@
 #directFarm [data-primary] canvas{margin-right:5px}
 #emotes button canvas{display:block;width:28px;height:28px;image-rendering:pixelated}
 @media(max-height:600px){#directFarm .farm-seeds{max-height:115px}}
+/* Mobile inventory belongs with the navigation tools, not over chat/emotes. */
+@media(max-width:540px){
+ html #worldToolbar #worldBagButton{position:relative;right:auto;bottom:auto;grid-column:1/-1;box-sizing:border-box;width:100%;height:44px;min-height:44px;flex-direction:row;gap:7px;border-radius:10px;box-shadow:none;padding:4px!important}
+ html #worldToolbar #worldBagButton canvas{width:27px;height:27px}
+ html #worldBagButton .bag-count{right:-5px;top:-5px;min-width:20px;padding:2px 4px;font-size:10px}
+}
