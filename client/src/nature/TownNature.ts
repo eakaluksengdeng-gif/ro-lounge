@@ -36,11 +36,8 @@ export class TownNature {
       const x = spot.x + (index === 0 ? 34 : 40);
       g.fillStyle(0x754c37).fillRect(x - 3, spot.y - 45, 6, 45);
       g.fillStyle(0xe5c992).fillRect(x - 24, spot.y - 54, 48, 27);
-      scene.add.text(x, spot.y - 42, "🐟", { fontSize: "20px" }).setOrigin(.5).setDepth(spot.y + 1);
-      scene.add.text(spot.x, spot.y + 38, "ตกได้รอบบ่อ · SPACE", {
-        fontFamily: '"Noto Sans Thai", sans-serif', fontSize: "12px", color: "#fff0c8",
-        backgroundColor: "#233649b8", padding: { x: 5, y: 3 },
-      }).setOrigin(.5).setDepth(spot.y + 42);
+      if(!scene.textures.exists('shore-fish-icon'))scene.textures.addImage('shore-fish-icon',artImage('icon-carp'));
+      scene.add.image(x,spot.y-42,'shore-fish-icon').setDisplaySize(20,20).setDepth(spot.y+1);
     }
     this.pondObjects=scene.children.list.filter(object=>!before.has(object));
   }

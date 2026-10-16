@@ -9,6 +9,7 @@ import { planRoute } from "../world/PathPlanner";
 import { ensureCosmetics } from "../world/Cosmetics";
 import { WORLD_NODES, type MapId, type WorldView } from "../../../shared/regions";
 import {ProjectScenery} from '../world/ProjectScenery';
+import {addActivityMarker} from '../world/ActivityMarkers';
 import {FARM_PLOTS} from '../../../shared/regions';
 import {wireEquipment,ensureEquipmentTexture} from '../world/EquipmentArt';
 import { CATCHABLE_BUGS,wildlifeCatchKey,type WildlifeView } from '../../../shared/nature';
@@ -197,8 +198,7 @@ export class TownScene extends Phaser.Scene {
     // น้ำพุ
     this.buildCasino();
     for(const node of WORLD_NODES.filter(n=>n.map==='town')){
-      this.add.image(node.x,node.y,'board').setDisplaySize(126,55).setDepth(node.y);
-      this.add.text(node.x,node.y,({orders:'ออร์เดอร์',museum:'หอธรรมชาติ',home:'บ้าน / แต่งบ้าน',community:'ลานชุมชน'} as Record<string,string>)[node.kind]??node.name,{fontFamily:FONT,fontSize:'14px',color:'#fff3c5'}).setOrigin(.5).setDepth(node.y+1);
+      addActivityMarker(this,node);
     }
     this.fountain = this.add.image(FOUNTAIN.x, FOUNTAIN.y, "fountain0").setScale(1).setDepth(FOUNTAIN.y + 40);
 
@@ -219,8 +219,8 @@ export class TownScene extends Phaser.Scene {
     // ป้ายชื่อเมือง
     const bx = FOUNTAIN.x;
     const by = (PLAZA.y0 - 0.4) * TILE_PX;
-    this.add.image(bx, by, "board").setScale(1).setDepth(by);
-    this.add.text(bx, by, "Town Square", { fontFamily: FONT, fontSize: "16px", color: "#fff4d6", fontStyle: "bold" })
+    this.add.image(bx, by, "board").setDisplaySize(130,40).setDepth(by);
+    this.add.text(bx, by, "Clover Nook", { fontFamily: FONT, fontSize: "14px", color: "#fff4d6", fontStyle: "bold" })
       .setOrigin(0.5).setDepth(by + 1);
   }
 
@@ -233,7 +233,6 @@ export class TownScene extends Phaser.Scene {
     this.add.image(x+w/2,y+h,key).setOrigin(.5,.94).setDisplaySize(w+30,w+30).setDepth(y+h);
     this.add.text(x+w/2,y+61,'Boardgame',{fontFamily:FONT,fontSize:'16px',color:'#ffe6a5',backgroundColor:'#61412d',padding:{x:5,y:2}}).setOrigin(.5).setDepth(y+h+1);
     this.add.circle(CASINO_DOOR.x,CASINO_DOOR.y,22,0xffe27a,.12).setStrokeStyle(2,0xffe27a,.6).setDepth(-10);
-    this.add.text(CASINO_DOOR.x,CASINO_DOOR.y+28,'Boardgame · เดินเข้าประตู',{fontFamily:FONT,fontSize:'12px',color:'#fff4d6',backgroundColor:'#244332cc',padding:{x:5,y:3}}).setOrigin(.5,0).setDepth(CASINO_DOOR.y+70);
   }
   update(_t: number, dtMs: number) {
     this.nature?.update(_t, dtMs);

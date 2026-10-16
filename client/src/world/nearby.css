@@ -1,0 +1,11 @@
+html #worldPanel[data-page=nearby] .world-frame{width:min(760px,100%);border-radius:20px;background:#fff5dc;color:#405540;border:2px solid #aac49b;box-shadow:0 16px 60px #102a284d}
+html #worldPanel[data-page=nearby] h2{color:#4d5938}
+.nearby-activities{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.nearby-activities article{display:grid;grid-template-columns:44px minmax(0,1fr);align-items:center;gap:5px 10px;padding:12px;background:#edf1da;border:1px solid #c4d1ad;border-radius:16px}
+.nearby-activities canvas{width:42px;height:42px;image-rendering:pixelated;grid-row:span 2}
+.nearby-activities .activity-hint{font-size:11px;color:#65745b}
+.nearby-activities button{grid-column:2;background:#d4e5be!important;color:#345340!important;border:1px solid #afc197!important;border-radius:10px;box-shadow:none!important;font-size:12px}
+#nearbyActivitiesButton{grid-column:1/-1}
+.village-migration{padding:10px 14px;background:#eaf0da;border:1px solid #c0d0ad;border-radius:16px;font:12px/1.6 'Noto Sans Thai',sans-serif;color:#4d6545}.village-migration p{margin:3px 0}.village-migration button{font:inherit;min-height:38px;border:1px solid #9fb990;border-radius:10px;padding:6px 12px;background:#d3e5bf;color:#34593b}.village-migration [role=status]{font-size:11px}
+html #worldInteract{max-width:min(300px,90vw);white-space:normal;text-align:center;line-height:1.4;font-size:12px!important;padding:7px 12px!important;min-height:36px}
+@media(max-width:540px){.nearby-activities{grid-template-columns:1fr}#nearbyActivitiesButton{grid-column:auto}html #worldToolbar{grid-template-columns:repeat(2,minmax(0,1fr))}html #worldToolbar #worldBagButton{grid-column:auto;min-width:0;font-size:10px;gap:3px;padding:3px!important}html #worldToolbar #worldBagButton canvas{width:20px;height:20px;flex:0 0 20px}html #worldToolbar #nearbyActivitiesButton{min-width:0}}

@@ -1,4 +1,4 @@
-# RO Lounge — โปรเจกต์ตั้งต้น
+# Clover Nook — หมู่บ้านเล็ก ๆ ของเรา
 
 เกม social hub 2D บนเว็บ แนว RO แต่ไม่มีมอนสเตอร์ เดิน แชท และ emote ร่วมกันแบบ realtime
 
@@ -68,7 +68,7 @@ Production ใช้ Supabase Free: Guest/wallet/fish inventory/world progress/�
 ปล่อย Cozy World และเชื่อม Supabase/Render แล้วผ่าน PR #15; /version แสดง cozy-world-v1 และ durableStorage:true
 ผู้ใช้ยอมเริ่ม Guest ก่อนระบบเซฟใหม่ 100 ชิปหนึ่งครั้ง; Guest หลังย้ายระบบบันทึกถาวรและไม่รับ 100 ชิปใหม่เมื่อกลับเข้าเกม
 ทดสอบโลกจริงด้วย cd client แล้ว npm run test:world; ทดสอบ backend/persistence/permissions ด้วย cd server แล้ว npm test
-ทดสอบเว็บ production แบบไม่ใช้ DEV hook ด้วย E2E_URL=https://ro-lounge.vercel.app npm run test:world-live
+ทดสอบเว็บ production แบบไม่ใช้ DEV hook ด้วย E2E_URL=https://clover-nook.vercel.app npm run test:world-live
 เพิ่ม E2E_RESTART_CHECK=1 เพื่อรอทดสอบ restart; RO_QA_OUTPUT=data/qa-release เก็บผลทดสอบแบบไม่มีคีย์ลับและถูก gitignore
 ยืนยันบนเว็บจริงแล้วว่าหลัง restart Guest เดิม ยอดชิปที่ได้จริง ของสะสม หมวกเชฟ และแปลงที่รดน้ำไว้กลับมาครบ (2026-10-15); ดู [ผลตรวจการปล่อย](docs/world-progress.md)
 
@@ -113,7 +113,7 @@ Guest ก่อนใช้ระบบเซฟถาวรยัง memory-onl
 ทดสอบด้วย `cd client && npm run test:sound` (เปิด Vite ก่อน): วัด waveform จริง, การ mute/จำค่า/หยุดเมื่อซ่อนแท็บ,
 เสียงทั้ง 31 แบบ, lifecycle ของ audio nodes, ความเป็นส่วนตัวและการไม่เล่นซ้ำ, storage ที่ถูกปิดและอุปกรณ์ที่ไม่มี Web Audio
 ทดสอบเพลงครบ loop/วัดความเบา/จำค่า/แยก mute อยู่ใน `test:sound`; `npm run test:music-live` ทดสอบเข้าเมือง/เข้าร้านจริงแบบผู้ชม ไม่เดิมพัน
-ใช้ `RO_TEST_URL=https://ro-lounge.vercel.app npm run test:music-live` ตรวจเวอร์ชันที่ deploy แล้ว
+ใช้ `RO_TEST_URL=https://clover-nook.vercel.app npm run test:music-live` ตรวจเวอร์ชันที่ deploy แล้ว
 
 ## ไฟล์สำคัญ
 

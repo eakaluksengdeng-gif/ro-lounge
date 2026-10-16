@@ -14,6 +14,8 @@ import './world/modern.css';
 import './world/collection.css';
 import './nature/fishing-layout.css';
 import './world/season.css';
+import './world/nearby.css';
+import {installVillageMigration} from './migration/PlayerTransfer';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -26,6 +28,7 @@ const chatForm = $<HTMLFormElement>("chatForm");
 const chatInput = $<HTMLInputElement>("chatInput");
 const emotesEl = $("emotes");
 const statusEl = $("status");
+installVillageMigration(loginForm);
 gameSounds.bindGestures();
 const soundTools = document.createElement("div");
 soundTools.className = "creator-sound-tools";

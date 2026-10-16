@@ -60,7 +60,7 @@ export class WorldRenderer {
       if(node.kind==='water'){
         this.scene.add.ellipse(node.x,node.y,68,42,0x73d4ef).setStrokeStyle(7,0xb2a17d).setDepth(node.y-1);
       }
-      const sign=this.scene.add.text(node.x,node.y+34,node.name,{fontFamily:FONT,fontSize:'12px',color:'#fff0ca',backgroundColor:'#244a32dc',padding:{x:5,y:3}}).setOrigin(.5).setDepth(node.y+40);sign.setData('worldNode',node.id);
+      // Activity titles live in the nearby menu/prompt, not floating over every prop.
       if(['bug','rare'].includes(node.kind)){
         const kind=node.kind==='rare'?'rabbit-2':node.id==='bug-gold'?'ladybug-1':'butterfly-0';
         const sprite=this.scene.add.image(node.x,node.y-10,'nature-'+kind+'-0').setDisplaySize(36,36).setDepth(node.y);
