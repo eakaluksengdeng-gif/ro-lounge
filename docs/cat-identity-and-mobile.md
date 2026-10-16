@@ -4,6 +4,8 @@ All live cat walking/rest textures now originate in ONE model sheet: orange tabb
 
 Character composition also aligns short heads by their chin rather than image top and joins the neck behind head/shirt. Mobile preview uses integer 2× pixel scale, desktop 3×, instead of fractional enlargement. No server, wallet, inventory or save changes.
 
+On phones up to 540px, the bag button is part of the upper navigation panel rather than a floating button over the last emotes/chat. `mobile-hud-layout.e2e.mjs` verifies no intersection, no horizontal overflow, and working five-slot inventory at 320/360/390/430/540 plus landscape.
+
 ## Generated assets and reproducibility
 
 Mode: built-in imagegen, not CLI/API fallback. Identity reference: `client/public/art/season-v1/cat-sit.png`. Fishing edit target: `client/public/art/activity-v2/activity-cove.png`.
