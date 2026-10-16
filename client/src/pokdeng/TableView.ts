@@ -4,6 +4,7 @@ import { formatNumber, formatDelta } from "./numbers";
 import { renderCharacterCanvas, type Look } from '../art';
 import {equipmentCanvas,wireEquipment} from '../world/EquipmentArt';
 import type {Equipment} from '../../../shared/equipment';
+import {catCanvas} from '../nature/CatArt';
 
 const KINDS = { points: "แต้ม", pok8: "ป๊อก 8", pok9: "ป๊อก 9", sian: "เซียน", straight: "เรียง", tong: "ตอง" };
 const PHASES = { betting: "รอเดิมพัน", dealing: "กำลังแจกไพ่", check_pok: "ตรวจป๊อก", action: "จั่ว หรือ อยู่", showdown: "เปิดไพ่ · คิดชิปแล้ว" };
@@ -118,7 +119,8 @@ export class PokTableView {
     this.timer.setAttribute("aria-label", "เวลาที่เหลือ");
     center.append(brand, this.round, this.total, this.deck, this.phase, this.timer);
     this.element.append(felt, center, this.seats);
-    for(const [key,className]of [['activity-cat','pok-inn-cat'],['activity-shelf','pok-inn-shelf']] as const){const prop=document.createElement('img');prop.src='/art/activity-v2/'+key+'.png';prop.className=className;prop.alt='';this.element.append(prop);}
+    const cat=catCanvas('sleep');cat.className='pok-inn-cat';cat.setAttribute('aria-hidden','true');this.element.append(cat);
+    const shelf=document.createElement('img');shelf.src='/art/activity-v2/activity-shelf.png';shelf.className='pok-inn-shelf';shelf.alt='';this.element.append(shelf);
     for (let i = 0; i < 8; i++) {
       const element = document.createElement("article");
       element.dataset.tableSeat = String(i);
