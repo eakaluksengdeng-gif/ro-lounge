@@ -223,7 +223,7 @@ export class NatureUI {
     if(this.panel.hidden)return;const p=this.room.state?.players?.get(this.room.sessionId);if(!p)return;
     const look=playerToLook(p),equipment=wireEquipment(p);if(!equipment.head)equipment.head='straw-hat';const key=JSON.stringify([look,equipment]);
     if(key!==this.previewKey){this.previewKey=key;this.previewSprite=renderCharacterCanvas(look,'side',0,'fishing');this.previewSprite.getContext('2d')!.drawImage(equipmentCanvas(equipment,'side','fishing'),0,0);}
-    const c=this.vignette.getContext('2d')!;c.imageSmoothingEnabled=false;c.drawImage(artImage('activity-cove'),0,0,720,540);
+    const c=this.vignette.getContext('2d')!;c.imageSmoothingEnabled=false;c.drawImage(artImage('cat-v2-cove'),0,0,720,540);
     c.save();c.translate(506,0);c.scale(-1,1);c.drawImage(this.previewSprite!,0,196,96,128);c.restore();
     const t=matchMedia('(prefers-reduced-motion: reduce)').matches?0:performance.now();
     const y=343+Math.sin(t/(this.state?.phase==='bite'?90:700))*(this.state?.phase==='bite'?5:2);

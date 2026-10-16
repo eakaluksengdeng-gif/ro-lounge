@@ -5,7 +5,7 @@ export const ART_VERSION='reference-v1';
 export function artImage(key:string){const image=images.get(key);if(!image)throw new Error('Reference art not loaded: '+key);return image;}
 export function loadReferenceArt(){
   return ready??= (async()=>{
-    for(const directory of ['reference-v1','activity-v2','cozy-v3','cozy-v4','equipment-v1','season-v1']){
+    for(const directory of ['reference-v1','activity-v2','cozy-v3','cozy-v4','equipment-v1','season-v1','cats-v2']){
       const response=await fetch('/art/'+directory+'/manifest.json');
       if(!response.ok)throw new Error('โหลดชุดภาพเกมไม่สำเร็จ');
       const manifest=await response.json();

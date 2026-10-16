@@ -9,7 +9,7 @@
 .creator-caption { letter-spacing: 2px; color: #5c7a7c; font-size: 11px; margin-bottom: 12px; }
 .creator-scenery { position: relative; height: 300px; overflow: hidden; border: 2px solid #b3c9c4; background: #7fd06c url("/art/character-courtyard-pixel.png") center / cover no-repeat; image-rendering: pixelated; }
 .creator-scenery::after { content: ""; position: absolute; width: 82px; height: 16px; background: #20334640; border-radius: 50%; bottom: 11%; left: calc(50% - 41px); }
-#characterPreview { position: absolute; width: 126px; height: 168px; left: calc(50% - 63px); bottom: 12%; z-index: 1; image-rendering: pixelated; }
+#characterPreview { position: absolute; width: 144px; height: 192px; left: calc(50% - 72px); bottom: 12%; z-index: 1; image-rendering: pixelated; }
 #characterPreviewName { margin: 12px 0 8px; color: #294750; font-size: 23px; font-weight: 600; overflow-wrap: anywhere; }
 .creator-turn { display: flex; align-items: center; justify-content: center; gap: 10px; }
 .creator-turn span { font: 12px "Noto Sans Thai", sans-serif; color: #577375; }
@@ -43,7 +43,7 @@
   #login #loginForm { padding: 16px; gap: 16px; }
   #customize { grid-template-columns: 1fr; gap: 18px; }
   .creator-scenery { height: 190px; }
-  #characterPreview { width: 90px; height: 120px; left: calc(50% - 45px); }
+  #characterPreview { width: 96px; height: 128px; left: calc(50% - 48px); }
   .creator-caption { margin-bottom: 8px; }
   .creator-preview { padding: 10px; }
   .creator-preview .creator-note { display: none; }

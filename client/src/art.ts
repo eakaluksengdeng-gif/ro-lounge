@@ -54,6 +54,13 @@ export const CHAR_H = 62;
 export const CHAR_SCALE = 1.125; // Keep the original 54x72 world footprint at richer sprite resolution.
 // จุดเท้าอยู่ล่างสุดของภาพ (รวมขอบ 1 พิกเซล)
 export const CHAR_ORIGIN_Y = (CHAR_H + 1) / (CHAR_H + 2);
+const headOffsets=new Map<string,number>();
+function headOffset(key:string){
+  if(headOffsets.has(key))return headOffsets.get(key)!;
+  const probe=artCanvas(key,46,43),data=probe.getContext('2d')!.getImageData(0,0,46,43).data;let chin=0;
+  for(let y=0;y<43;y++)for(let x=18;x<30;x++)if(data[(y*46+x)*4+3]>180)chin=Math.max(chin,y);
+  const offset=Math.max(0,38-chin);headOffsets.set(key,offset);return offset;
+}
 
 /** DOM previews and game textures share exactly the same pixel renderer. */
 export function renderCharacterCanvas(look: Look, dir: Dir = "down", frame = 0, pose:CharacterPose='standing'): HTMLCanvasElement {
@@ -61,7 +68,11 @@ export function renderCharacterCanvas(look: Look, dir: Dir = "down", frame = 0, 
   const canvas=artCanvas(pose==='standing'?`character-${gender}-${dir}-${frame}`:`pose-${gender}-${pose}-${dir}`,48,64),context=canvas.getContext('2d')!;
   // Generated heads replace the complete head layer; body/feet remain the walking frame.
   context.clearRect(0,0,48,40);
-  context.drawImage(artImage(`head-${gender}-${look.style%3}-${dir}`),1,0,46,43);
+  const head=`head-${gender}-${look.style%3}-${dir}`;
+  // Shorter generated heads (notably pigtails) need a chin anchor, not a
+  // top-edge anchor. Bridge only transparent pixels behind the shirt/head.
+  context.save();context.globalCompositeOperation='destination-over';context.fillStyle='#ffdcc0';context.fillRect(21,34,7,10);context.fillStyle='#32251f';context.fillRect(20,34,9,10);context.restore();
+  context.drawImage(artImage(head),1,headOffset(head),46,43);
   const pixels=context.getImageData(0,0,48,64),d=pixels.data;
   const hair=hexToRgb(look.hair),shirt=hexToRgb(look.shirt),skin=hexToRgb(look.skin),pants=hexToRgb(look.pants);
   for(let y=0;y<64;y++)for(let x=0;x<48;x++){
