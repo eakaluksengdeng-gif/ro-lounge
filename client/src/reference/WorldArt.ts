@@ -1,6 +1,6 @@
 import { artImage } from './Assets';
 import { MAP_W,MAP_H,POND,PLAZA,PATH_ROWS,PATH_COLS,TILE_PX } from '../world';
-import type { MapId } from '../../../shared/regions';
+import {FARM_PLOTS,type MapId} from '../../../shared/regions';
 /** Raster composition uses unchanged gameplay coordinates, never baked fake interactions. */
 export function groundCanvas(map:MapId){
   const canvas=document.createElement('canvas');canvas.width=MAP_W;canvas.height=MAP_H;
@@ -31,16 +31,26 @@ export function groundCanvas(map:MapId){
   };
   if(map==='town')pond(POND.cx*TILE_PX,POND.cy*TILE_PX,POND.rx*TILE_PX,POND.ry*TILE_PX);
   if(map==='forest'){
-    rounded('pond',590,90,36,222,18);pond(780,210,180,75);
+    // Keep the river in its original collision strip, with textured uneven
+    // banks rather than an isolated bright-blue capsule.
+    pond(780,210,180,75);
+    c.save();c.beginPath();c.moveTo(592,90);for(let y=90;y<=310;y+=10)c.lineTo(592+Math.sin(y/21)*2,y);for(let y=310;y>=90;y-=10)c.lineTo(623+Math.sin(y/24)*2,y);c.closePath();c.clip();tile('pond',589,88,39,224);c.restore();
+    for(let y=94;y<286;y+=29){c.drawImage(artImage('activity-rocks'),576,y-9,29,24);c.drawImage(artImage('activity-rocks'),617,y+2,28,23);}
+    c.drawImage(artImage('activity-rocks'),582,73,54,29);
     // Rounded mossy boulders replace the former rectangular cliff slab.
     for(const [x,y,w]of [[650,100,98],[711,78,108],[804,83,114],[882,110,90]])c.drawImage(artImage('activity-rocks'),x,y,w,66);
-    rounded('pond-alt',748,84,54,140,18);tile('wood',570,286,78,30);
+    c.drawImage(artImage('scenery-waterfall'),738,74,84,176);tile('wood',570,286,78,30);
+    for(const [x,y]of [[582,120],[634,177],[582,237],[634,275]])c.drawImage(artImage('activity-reeds'),x-13,y-16,26,28);
     c.strokeStyle='#65442c';c.lineWidth=4;c.strokeRect(570,286,78,30);
   }
-  if(map==='farm')for(let row=0;row<2;row++)for(let col=0;col<2;col++)rounded('soil',370+col*130,340+row*80,112,64,16);
+  if(map==='farm')for(const plot of FARM_PLOTS){const w=plot.slot<4?100:64,h=plot.slot<4?60:48;rounded('soil',plot.x-w/2,plot.y-h/2,w,h,14);c.strokeStyle='#79513d';c.lineWidth=2;c.beginPath();c.roundRect(plot.x-w/2,plot.y-h/2,w,h,14);c.stroke();}
   if(map==='beach'){
-    tile('ocean',0,622,MAP_W,MAP_H-622);c.strokeStyle='#d9ffff';c.lineWidth=6;c.beginPath();c.moveTo(0,624);for(let x=0;x<=MAP_W;x+=24)c.lineTo(x,624+Math.sin(x/100)*4);c.stroke();
+    tile('ocean',0,622,MAP_W,MAP_H-622);
+    const shore=(x:number)=>626+Math.round(Math.sin(x/78)*2+Math.sin(x/41)*2);
+    c.save();c.beginPath();c.moveTo(0,618);c.lineTo(MAP_W,618);for(let x=MAP_W;x>=0;x-=6)c.lineTo(x,shore(x));c.closePath();c.clip();tile('sand',0,618,MAP_W,16);c.restore();
+    c.strokeStyle='#e0fff2';c.lineWidth=2;c.beginPath();c.moveTo(0,shore(0));for(let x=0;x<=MAP_W;x+=6)c.lineTo(x,shore(x));c.stroke();
     tile('wood',1044,570,72,222);
+    for(const [x,y,w]of [[150,700,70],[380,780,96],[860,710,72],[1310,760,108]]){c.strokeStyle='#d7fff2';c.lineWidth=2;c.beginPath();c.ellipse(x,y+9,w*.47,w*.18,0,0,Math.PI*2);c.stroke();c.drawImage(artImage('activity-rocks'),x-w/2,y-w*.45,w,w*.7);}
   }
   if(map==='market'){tile('market',180,480,1040,96);tile('wood',850,228,240,93);}
   return canvas;

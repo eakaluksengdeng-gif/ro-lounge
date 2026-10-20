@@ -35,7 +35,8 @@ export class TownNature {
       }
       const x = spot.x + (index === 0 ? 34 : 40);
       g.fillStyle(0x754c37).fillRect(x - 3, spot.y - 45, 6, 45);
-      g.fillStyle(0xe5c992).fillRect(x - 24, spot.y - 54, 48, 27);
+      if(!scene.textures.exists('shore-wood-sign'))scene.textures.addImage('shore-wood-sign',artImage('ui-title'));
+      scene.add.image(x,spot.y-42,'shore-wood-sign').setDisplaySize(52,28).setDepth(spot.y);
       if(!scene.textures.exists('shore-fish-icon'))scene.textures.addImage('shore-fish-icon',artImage('icon-carp'));
       scene.add.image(x,spot.y-42,'shore-fish-icon').setDisplaySize(20,20).setDepth(spot.y+1);
     }

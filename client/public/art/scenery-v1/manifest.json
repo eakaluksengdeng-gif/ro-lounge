@@ -1,0 +1,8 @@
+{
+  "version": "scenery-v1",
+  "props": [
+    "scenery-well",
+    "scenery-waterfall",
+    "scenery-farmhouse"
+  ]
+}
