@@ -14,7 +14,9 @@ export function cosmeticCanvas(id:string,dir:'down'|'up'|'side'='down') {
     const sc=scratch.getContext('2d')!;sc.drawImage(source,0,0);const pixels=sc.getImageData(0,0,source.width,source.height).data;
     let left=source.width,top=source.height,right=0,bottom=0;
     for(let y=0;y<source.height;y++)for(let x=0;x<source.width;x++)if(pixels[(y*source.width+x)*4+3]>32){left=Math.min(left,x);top=Math.min(top,y);right=Math.max(right,x);bottom=Math.max(bottom,y);}
-    if(right>=left){const side=dir==='side',chef=id==='chef-hat',w=side?38:44,h=chef?30:23;ctx.drawImage(source,left,top,right-left+1,bottom-top+1,(48-w)/2+(side?1:0),chef?-9:-1,w,h);}
+    // The head retains its full skull width in the side view. A 38px hat
+    // exposed the upper hair on both sides like a second hat underneath.
+    if(right>=left){const side=dir==='side',chef=id==='chef-hat',w=chef?(side?42:44):(side?44:46),h=chef?24:23;ctx.drawImage(source,left,top,right-left+1,bottom-top+1,(48-w)/2,0,w,h);}
   }
   return canvas;
 }

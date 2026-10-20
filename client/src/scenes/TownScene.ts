@@ -12,6 +12,7 @@ import {ProjectScenery} from '../world/ProjectScenery';
 import {addActivityMarker} from '../world/ActivityMarkers';
 import {FARM_PLOTS} from '../../../shared/regions';
 import {wireEquipment,ensureEquipmentTexture} from '../world/EquipmentArt';
+import {characterTextureKey} from '../art';
 import { CATCHABLE_BUGS,wildlifeCatchKey,type WildlifeView } from '../../../shared/nature';
 import { CASINO_BUILDING, CASINO_DOOR } from "../../../shared/casinoWorld";
 import { HAIR_COLORS as HAIR, SKIN_COLORS as SKIN, PANTS_COLORS as PANTS } from "../character/appearance";
@@ -41,6 +42,7 @@ interface Avatar {
   sprite: Phaser.GameObjects.Sprite;
   gear: Phaser.GameObjects.Image;
   look: Look;
+  headwear?:string;
   bubble: Phaser.GameObjects.Container;
   bubbleGfx: Phaser.GameObjects.Graphics;
   bubbleText: Phaser.GameObjects.Text;
@@ -303,13 +305,14 @@ export class TownScene extends Phaser.Scene {
     }
     if(fishing){const vx=p.fishingBobberX-p.x,vy=p.fishingBobberY-p.y;if(Math.abs(vx)>Math.abs(vy)){av.dir='side';av.flip=vx<0;}else{av.dir=vy<0?'up':'down';av.flip=false;}av.gear.setFlipX(av.dir==='side'&&av.flip);}
     const pose=fishing?'fishing':p.activity==='camp'?'seated':undefined;
-    const key = pose?`ch-${av.look.id}-${pose}-${av.dir}-0`:`ch-${av.look.id}-${av.dir}-${frame}`;
+    const equipment=wireEquipment(p);if(fishing&&!equipment.head)equipment.head='straw-hat';
+    if(av.headwear!==equipment.head){ensureCharacter(this,av.look,equipment.head);av.headwear=equipment.head;}
+    const key = characterTextureKey(av.look,av.dir,pose?0:frame,pose??'standing',equipment.head);
     if (key !== av.texKey) {
       av.sprite.setTexture(key);
       av.texKey = key;
     }
     av.sprite.setFlipX(av.dir === "side" && av.flip);
-    const equipment=wireEquipment(p);if(fishing&&!equipment.head)equipment.head='straw-hat';
     av.gear.setTexture(ensureEquipmentTexture(this,equipment,av.dir,pose??'standing',frame));av.gear.setFlipX(av.dir==='side'&&av.flip);
   }
 

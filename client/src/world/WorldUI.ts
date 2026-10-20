@@ -205,7 +205,7 @@ export class WorldUI {
     if(!this.node){this.body.append(this.text("กลับไปใกล้จุดกิจกรรมเพื่อใช้งาน"));return;}
     this.title.textContent=this.node.name;
     if(this.page==='cooking'){this.title.textContent='ครัวส่วนตัว · ปรุงอาหาร';this.body.append(this.button('กลับไปครัวทีม',()=>this.open('cafe')));}
-    if(['home','community','cooking'].includes(this.page)){this.cozyUI.render(this.page,this.view,this.fish,this.body,this.player()?.playerId,this.pending,(verb,payload)=>this.send(verb,payload),()=>this.render(true),id=>{let player:any;this.room.state?.players?.forEach((p:any)=>{if(p.playerId===id)player=p;});if(!player||typeof player.color!=='number')return;const person=document.createElement('div'),avatar=renderCharacterCanvas(playerToLook(player),'down',0,'seated');avatar.getContext('2d')!.drawImage(equipmentCanvas(wireEquipment(player),'down','seated'),0,0);person.append(avatar,this.text(player.name??'เพื่อน'));return person;});return;}
+    if(['home','community','cooking'].includes(this.page)){this.cozyUI.render(this.page,this.view,this.fish,this.body,this.player()?.playerId,this.pending,(verb,payload)=>this.send(verb,payload),()=>this.render(true),id=>{let player:any;this.room.state?.players?.forEach((p:any)=>{if(p.playerId===id)player=p;});if(!player||typeof player.color!=='number')return;const person=document.createElement('div'),avatar=renderCharacterCanvas(playerToLook(player),'down',0,'seated',wireEquipment(player).head);avatar.getContext('2d')!.drawImage(equipmentCanvas(wireEquipment(player),'down','seated'),0,0);person.append(avatar,this.text(player.name??'เพื่อน'));return person;});return;}
     if(this.page==='orders'||this.page==='museum'){this.villagePage();return;}
     if(this.page==="cafe"){this.cafePage();return;}
     if(this.page==="shop"){this.shopPage();return;}
@@ -411,7 +411,7 @@ export class WorldUI {
     for(let index=0;index<4;index++){
       const station=document.createElement('div');station.className='world-cafe-worker';const m=c.members[index];
       if(m){let player:any;this.room.state?.players?.forEach((p:any)=>{if(p.playerId===m.id)player=p;});
-        if(player){const pose:CharacterPose=(['standing','prepare','cook','serve'] as const)[index];const avatar=renderCharacterCanvas(playerToLook(player),'down',0,pose);avatar.getContext('2d')!.drawImage(equipmentCanvas(wireEquipment(player),'down',pose),0,0);station.append(avatar);}
+        if(player){const pose:CharacterPose=(['standing','prepare','cook','serve'] as const)[index];const avatar=renderCharacterCanvas(playerToLook(player),'down',0,pose,wireEquipment(player).head);avatar.getContext('2d')!.drawImage(equipmentCanvas(wireEquipment(player),'down',pose),0,0);station.append(avatar);}
         station.append(this.text(m.name,'cafe-worker-name'));
       }else station.append(this.text('ว่าง','cafe-worker-name'));
       actors.append(station);
@@ -453,7 +453,7 @@ export class WorldUI {
     this.body.append(this.text("แลกด้วยของสะสม ไม่มีเงินจริงและไม่ซื้อความได้เปรียบ · ทดลองชุดบนตัวเราก่อนแลก"));
     const grid=document.createElement("div");grid.className="world-collection";
     for(const cosmetic of COSMETICS.slice(1)){
-      const card=document.createElement("article"),base=renderCharacterCanvas(appearanceToLook(loadAppearance()));
+      const card=document.createElement("article"),base=renderCharacterCanvas(appearanceToLook(loadAppearance()),'down',0,'standing',cosmetic.id==='cafe-apron'?undefined:cosmetic.id);
       base.getContext("2d")!.drawImage(cosmeticCanvas(cosmetic.id),0,0);card.append(base,this.text(cosmetic.name,"world-card-title"));
       card.append(this.text(Object.entries(cosmetic.cost).map(([id,n])=>(ITEMS[id]?.name??id)+" × "+n).join(" · ")));
       const owned=this.view!.progress.unlocks.includes(cosmetic.id);
