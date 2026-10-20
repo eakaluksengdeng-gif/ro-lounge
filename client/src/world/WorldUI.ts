@@ -19,6 +19,7 @@ import {WardrobeUI} from './WardrobeUI';
 import {NEW_GEAR} from '../../../shared/equipment';
 import {equipmentCanvas,wireEquipment} from './EquipmentArt';
 import {GAME_NAME} from '../brand';
+import {artCanvas} from '../reference/Assets';
 const STATIONS=["รับออร์เดอร์","เตรียม","ปรุง","เสิร์ฟ"];
 const COLLECTION_HINTS:Record<string,string>={
   butterfly:"ป่าน้ำตก · ผีเสื้อฟ้าตามทาง",beetle:"ป่าน้ำตก · ด้วงทองฝั่งตะวันออก",firefly:"ป่าน้ำตก · ตอนเย็นหรือกลางคืน",
@@ -162,7 +163,8 @@ export class WorldUI {
     this.bagCount.textContent=String(this.view?bagQuantity(this.view.progress,this.fish):0);
     this.farm.update(this.view,p,this.scene.casinoOpen||!this.panel.hidden||p.activity==='boat',this.pending);
     this.interact.hidden=!this.node||this.scene.casinoOpen||!this.panel.hidden||p.activity==="boat"||this.node.kind==='farm'||this.node.kind==='greenhouse';
-    this.interact.textContent=this.node?this.node.name+" · E / แตะ":"";
+    this.interact.classList.toggle('water-action',this.node?.kind==='water');
+    this.interact.textContent=this.node?(this.node.kind==='water'?'ตักน้ำ +1 · น้ำ '+(this.view?.progress.water??2):this.node.name)+" · E / แตะ":"";
     const cooldown=this.view?.progress.cooldowns[this.node?.kind==='water'?'refill':this.node?.kind==='animal'?'feed':this.node?.id??'']??0;
     this.interact.disabled=this.pending||cooldown>Date.now();
     if(cooldown>Date.now())this.interact.textContent='กลับมาใน '+Math.ceil((cooldown-Date.now())/1000)+' วิ';
@@ -341,7 +343,7 @@ export class WorldUI {
     else{const empty=document.createElement('div');empty.className='inventory-empty';empty.append(bagCanvas(),this.text(owned.length?'ไม่พบของตามตัวกรอง':'ยังไม่มีของในกระเป๋า','world-card-title'),this.text(owned.length?'ลองเปลี่ยนหมวดหรือคำค้น':'จับแมลง ตกปลา เก็บหอย หรือปลูกผักเพื่อเริ่มเก็บของ'));
       if(owned.length)empty.append(this.button('ล้างตัวกรอง',()=>{this.inventoryCategory='ทั้งหมด';this.inventoryQuery='';this.render(true);}));else empty.append(this.button('ดูสมุดสะสม',()=>this.open('collection')));
       content.append(empty);book.append(content);this.body.append(book);}
-    const resources=document.createElement('div');resources.className='inventory-resources';resources.append(this.text('💧 น้ำส่วนตัว '+(progress.water??2)+' หน่วย'),this.button('เปิดสมุดสะสม',()=>this.open('collection')));this.body.append(resources);
+    const resources=document.createElement('div');resources.className='inventory-resources';resources.append(artCanvas('tool-water',24),this.text('น้ำส่วนตัว '+(progress.water??2)+' หน่วย'),this.button('เปิดสมุดสะสม',()=>this.open('collection')));this.body.append(resources);
   }
   private collectionPage() {
     const progress=this.view!.progress,layout=document.createElement('div');layout.className='collection-book';

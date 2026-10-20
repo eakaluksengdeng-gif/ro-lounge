@@ -17,6 +17,7 @@ export class WorldRenderer {
   private water?:Phaser.GameObjects.Graphics;
   private watered=new Map<string,boolean>();private hasFarmView=false;private clockView?:WorldView;private receivedAt=0;
   private farmCat?:Phaser.GameObjects.Image;
+  private lastWater?:number;
   constructor(private scene:Phaser.Scene,private map:MapId){}
   private image(asset:string,x:number,y:number,w:number,h=w,foot=true){
     const key='ref-'+asset;if(!this.scene.textures.exists(key))this.scene.textures.addImage(key,artImage(asset));
@@ -58,7 +59,7 @@ export class WorldRenderer {
     }
     for(const node of WORLD_NODES.filter(n=>n.map===this.map)){
       if(node.kind==='water'){
-        this.scene.add.ellipse(node.x,node.y,68,42,0x73d4ef).setStrokeStyle(7,0xb2a17d).setDepth(node.y-1);
+        this.image('scenery-well',node.x,node.y+24,90,76).setDepth(node.y+12).setData('worldDecoration',node.id);
       }
       // Activity titles live in the nearby menu/prompt, not floating over every prop.
       if(['bug','rare'].includes(node.kind)){
@@ -75,8 +76,10 @@ export class WorldRenderer {
     this.drawExits();
   }
   private house(x:number,y:number,w:number,h:number,name:string){
-    this.image(name==='คาเฟ่'?'prop-cafe':'prop-boardgame',x+w/2,y+h,w+30,w+30);
-    this.scene.add.text(x+w/2,y+h*.48,name,{fontFamily:FONT,fontSize:'14px',color:'#ffe6a5',backgroundColor:'#61412d',padding:{x:6,y:3}}).setOrigin(.5).setDepth(y+h+1);
+    const asset=name==='คาเฟ่'?'prop-cafe':name==='ร้านแลกชุด'?'prop-stall':'scenery-farmhouse';
+    this.image(asset,x+w/2,y+h,w+30,w+30);
+    this.image('ui-title',x+w/2,y+h*.48,112,30,false).setDepth(y+h+1);
+    this.scene.add.text(x+w/2,y+h*.48,name,{fontFamily:FONT,fontSize:'12px',color:'#ffe6a5'}).setOrigin(.5).setDepth(y+h+2);
   }
   static exits(scene:Phaser.Scene,map:MapId){new WorldRenderer(scene,map).drawExits();}
   private drawExits(){
@@ -90,14 +93,18 @@ export class WorldRenderer {
   }
   update(view:WorldView|undefined,weather='sunny',owner?:string){
     const t=this.motion.matches?0:this.scene.time.now;
-    if(view!==this.clockView){this.clockView=view;this.receivedAt=Date.now();}
+    if(view!==this.clockView){
+      if(this.map==='farm'&&this.lastWater!==undefined&&(view?.progress.water??0)>this.lastWater&&view?.notice?.startsWith('ตักน้ำ'))this.refillFeedback();
+      this.lastWater=view?.progress.water;this.clockView=view;this.receivedAt=Date.now();
+    }
     const now=(view?.serverTime??this.receivedAt)+Date.now()-this.receivedAt;
     this.farmCat?.setTexture('nature-cat-'+(['sit','groom','stretch','sleep'][Math.floor(t/6500)%4]));
     for(const moving of this.movingSprites){moving.sprite.setVisible((view?.progress.cooldowns[moving.id]??0)<=Date.now()&&(moving.id!=='forest-rare'||weather==='snow')&&(moving.id!=='bug-firefly'||Math.floor(Date.now()/300000)%4>=2));moving.sprite.setPosition(moving.x+Math.round(Math.sin(t/1300+moving.x)*9),moving.y+Math.round(Math.cos(t/850+moving.x)*5));moving.sprite.setTexture('nature-'+moving.kind+'-'+Math.floor(t/220)%2);}
-    this.fire?.setScale(.84+Math.sin(t/180)*.015);
+    // Keep the authored 54px display size independent of source resolution.
+    if(this.fire)this.fire.setDisplaySize(54+Math.sin(t/180),54+Math.sin(t/180));
     this.water?.clear();
-    if(this.map==='forest')for(let i=0;i<6;i++)this.water?.fillStyle(0xe4ffff,.65).fillRect(752+i*7,90+(Math.floor(t/60+i*6)%110),3,12);
-    if(this.map==='beach')for(let i=0;i<8;i++)this.water?.fillStyle(0xe4ffff,.5).fillRect(i*180+(Math.floor(t/110)%20)*3,626+Math.floor(Math.sin(t/800+i)*3),48,3);
+    if(this.map==='forest')for(let i=0;i<5;i++)this.water?.fillStyle(0xe4ffff,.35).fillRect(764+i*6,116+(Math.floor(t/90+i*11)%80),2,6);
+    if(this.map==='beach')for(let i=0;i<8;i++)this.water?.fillStyle(0xe4ffff,.35).fillRect(i*180+(Math.floor(t/170)%20)*3,638+Math.floor(Math.sin(t/1100+i)*3),24,2);
     if(this.map==='farm')this.crops.forEach((sprite,i)=>{
       const crop=(owner?view?.farms.find(f=>f.id===owner)?.plots:view?.progress.plots)?.[i];sprite.setVisible(!!crop);if(!crop)return;
       const stage=growthStage(crop,now),asset='crop-'+crop.seed+'-'+stage;
@@ -115,5 +122,11 @@ export class WorldRenderer {
     if(this.motion.matches){this.scene.time.delayedCall(700,()=>can.destroy());return;}
     can.setAngle(-8);this.scene.tweens.add({targets:can,angle:8,y:y-22,yoyo:true,repeat:1,duration:220,onComplete:()=>can.destroy()});
     for(let i=0;i<8;i++){const drop=this.image('tool-water',x+6,y-27,6,9).setDepth(y+101);this.scene.tweens.add({targets:drop,x:x-14+(i%4)*8,y:y+4,alpha:0,delay:i*65,duration:420,onComplete:()=>drop.destroy()});}
+  }
+  private refillFeedback(){
+    const node=WORLD_NODES.find(n=>n.map===this.map&&n.kind==='water');if(!node)return;
+    const drop=this.image('tool-water',node.x,node.y-24,18,24).setDepth(node.y+80);
+    if(this.motion.matches){this.scene.time.delayedCall(650,()=>drop.destroy());return;}
+    this.scene.tweens.add({targets:drop,y:node.y-48,alpha:0,duration:800,ease:'Sine.easeOut',onComplete:()=>drop.destroy()});
   }
 }
