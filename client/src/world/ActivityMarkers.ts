@@ -3,7 +3,7 @@ import type {WorldNode} from '../../../shared/regions';
 import {artImage} from '../reference/Assets';
 import {blockedForMap} from './PathPlanner';
 /** Small physical wayfinding, never a title plaque under the player's feet. */
-const LANDMARKS:Record<string,string>={orders:'icon-cafe-order',museum:'icon-butterfly',home:'furniture-forest-stool',community:'furniture-festival-lantern'};
+const LANDMARKS:Record<string,string>={orders:'icon-cafe-order'};
 export function addActivityMarker(scene:Phaser.Scene,node:WorldNode){
  const asset=LANDMARKS[node.kind];if(!asset)return;
  const offset=[[-35,-12],[35,-12],[-35,24],[35,24]].find(([dx,dy])=>!blockedForMap(node.map,node.x+dx,node.y+dy+18))??[35,-12];

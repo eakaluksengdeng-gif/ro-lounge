@@ -1,4 +1,21 @@
-html #worldPanel[data-page=nearby] .world-frame{width:min(760px,100%);border-radius:20px;background:#fff5dc;color:#405540;border:2px solid #aac49b;box-shadow:0 16px 60px #102a284d}
+html #worldPanel:is([data-page=nearby],[data-page=menu],[data-page=settings],[data-page^="guide:"]) .world-frame{width:min(760px,100%);border-radius:20px;background:#fff5dc;color:#405540;border:2px solid #aac49b;box-shadow:0 16px 60px #102a284d}
+.world-frame header button[hidden]{display:none!important}
+.world-frame header h2{flex:1;min-width:0}
+.world-frame header{flex-wrap:wrap;gap:8px}
+.menu-intro{font-size:12px;line-height:1.7;color:#68785b}
+.village-menu{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}
+html .village-menu button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;min-height:128px;background:#e9efd8;border:1px solid #bacba7;border-radius:16px;box-shadow:0 3px 0 #ccd7b9;padding:12px;color:#40583c}
+.village-menu button:hover{background:#ddeac8;transform:translateY(-1px)}
+.village-menu button:focus-visible{outline:3px solid #60966c;outline-offset:3px}
+.village-menu canvas,.menu-catalogue canvas{width:42px;height:42px;image-rendering:pixelated;object-fit:contain}
+.village-menu strong{font-size:13px}.village-menu span{font-size:10px;color:#6d795f;line-height:1.5}
+.menu-catalogue{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}
+.menu-catalogue article{padding:14px;border:1px solid #c6d0b2;border-radius:14px;background:#edf0dc;font-size:12px;overflow-wrap:anywhere}
+.menu-ingredient{display:flex;gap:8px;align-items:center}.menu-ingredient canvas{width:28px;height:28px}
+.village-settings{display:grid;gap:16px;padding:16px;background:#edf0dc;border-radius:16px}.village-settings label{display:flex;align-items:center;gap:8px;min-height:44px}.village-settings input[type=checkbox]{width:22px;height:22px;accent-color:#51845b}.village-settings input[type=range]{width:100%;accent-color:#51845b}
+html #worldToolbar #worldMenuButton{min-width:0;font-size:12px}
+@media(max-width:540px){html #worldToolbar .world-desktop-shortcut{display:none}.village-menu{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.village-menu span{font-size:10px}html .village-menu button{min-height:112px;padding:9px}.menu-catalogue{grid-template-columns:1fr}html #worldPanel .world-frame header button{padding:6px 9px;min-height:44px}html #worldPanel .world-frame header h2{font-size:18px}}
+@media(prefers-reduced-motion:reduce){.village-menu button:hover{transform:none}}
 html #worldPanel[data-page=nearby] h2{color:#4d5938}
 .nearby-activities{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
 .nearby-activities article{display:grid;grid-template-columns:44px minmax(0,1fr);align-items:center;gap:5px 10px;padding:12px;background:#edf1da;border:1px solid #c4d1ad;border-radius:16px}
