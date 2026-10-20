@@ -1,7 +1,7 @@
 import {chromium} from 'playwright';import assert from 'node:assert/strict';import {mkdirSync} from 'node:fs';
 const url=process.env.E2E_URL??'http://127.0.0.1:5173';mkdirSync('data/scenery-polish/live',{recursive:true});const b=await chromium.launch({channel:'chrome',headless:true});
 try{
- const p=await b.newPage({viewport:{width:1440,height:864}}),errors=[],missing=[];p.on('pageerror',e=>errors.push(e.message));p.on('response',r=>{if(r.url().includes('/art/')&&r.status()!==200)missing.push(r.url());});
+ const p=await b.newPage({viewport:{width:1440,height:864}}),errors=[],missing=[];p.on('pageerror',e=>errors.push(e.message));p.on('response',r=>{if(r.url().includes('/art/')&&![200,304].includes(r.status()))missing.push({url:r.url(),status:r.status()});});
  const join=async()=>{await p.getByRole('button',{name:'เข้าเมือง',exact:true}).click();await p.waitForFunction(()=>document.querySelector('#casinoToolbar .gold-balance')?.dataset.balance==='100',null,{timeout:90000});};
  const close=()=>p.locator('#worldPanel').getByRole('button',{name:'ปิด',exact:true}).click();
  await p.goto(url,{waitUntil:'networkidle'});await p.locator('#nameInput').fill('Scenery Water QA');await join();
