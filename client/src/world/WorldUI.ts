@@ -11,7 +11,7 @@ import { groundCanvas } from '../reference/WorldArt';
 import { bagCanvas } from './bag';
 import {catalogue,bagEntries,bagQuantity} from './inventory';
 import {VILLAGE_ORDERS,SKILL_NAMES,villageLevel} from '../../../shared/village';
-import {CozyUI} from './CozyUI';
+import {CozyUI,furnitureCanvas} from './CozyUI';
 import {RECIPES,FURNITURE} from '../../../shared/cozy';
 import {SEASON_GEAR} from '../../../shared/equipment';
 import {DirectFarmUI} from './DirectFarmUI';
@@ -67,12 +67,17 @@ export class WorldUI {
   private cozyUI=new CozyUI();
   private farm:DirectFarmUI;
   private wardrobe=new WardrobeUI();
+  private returnFocus?:HTMLElement;
+  private menuBack=document.createElement('button');
   constructor(private room:Room,private scene:TownScene) {
     this.farm=new DirectFarmUI(scene,(verb,payload)=>this.send(verb,payload));
     this.toolbar.id="worldToolbar";this.minimap.width=120;this.minimap.height=72;this.minimap.setAttribute("aria-label","แผนที่ย่อและตำแหน่งของคุณ");
     const bag=this.button('กระเป๋า',()=>this.open('inventory'));bag.id='worldBagButton';bag.setAttribute('aria-label','กระเป๋า');bag.title='กระเป๋า · B';this.bagCount.className='bag-count';this.bagCount.setAttribute('aria-hidden','true');bag.prepend(bagCanvas());bag.append(this.bagCount);
     const nearby=this.button('กิจกรรม',()=>this.open('nearby'));nearby.id='nearbyActivitiesButton';nearby.setAttribute('aria-label','กิจกรรมใกล้ตัว');
-    this.toolbar.append(this.mapLabel,this.minimap,this.button("🧭 แผนที่",()=>this.open("map")),this.button("สมุดสะสม",()=>this.open("collection")),nearby,bag);
+    const mapShortcut=this.button("🧭 แผนที่",()=>this.open("map")),bookShortcut=this.button("สมุดสะสม",()=>this.open("collection"));
+    for(const shortcut of [mapShortcut,bookShortcut,nearby])shortcut.classList.add('world-desktop-shortcut');
+    const menu=this.button('เมนู',()=>this.open('menu'));menu.id='worldMenuButton';menu.setAttribute('aria-haspopup','dialog');menu.title='เมนูหมู่บ้าน · M';
+    this.toolbar.append(this.mapLabel,this.minimap,mapShortcut,bookShortcut,nearby,bag,menu);
     this.toolbar.setAttribute('aria-busy','true');this.toolbar.querySelectorAll('button').forEach(button=>button.disabled=true);
     document.body.append(this.toolbar);
     this.interact.id="worldInteract";this.interact.type="button";this.interact.hidden=true;
@@ -80,7 +85,8 @@ export class WorldUI {
     this.toast.id='worldToast';this.toast.hidden=true;this.toast.setAttribute('role','status');document.body.append(this.toast);
     this.panel.id="worldPanel";this.panel.hidden=true;this.panel.setAttribute("role","dialog");this.panel.setAttribute("aria-modal","true");this.panel.setAttribute("aria-label","สำรวจโลกและกิจกรรม");
     const frame=document.createElement("div");frame.className="world-frame";
-    const header=document.createElement("header");header.append(this.title,this.button("ปิด",()=>this.close()));
+    this.menuBack.type='button';this.menuBack.textContent='‹ เมนู';this.menuBack.onclick=()=>this.open('menu');
+    const header=document.createElement("header");header.append(this.menuBack,this.title,this.button("ปิด",()=>this.close()));
     this.notice.id="worldNotice";this.notice.setAttribute("role","status");frame.append(header,this.notice,this.body);this.panel.append(frame);document.body.append(this.panel);
     this.room.onMessage<WorldView>("world:state",view=>{
       if(!this.view){this.toolbar.setAttribute('aria-busy','false');this.toolbar.querySelectorAll('button').forEach(button=>button.disabled=false);}
@@ -100,6 +106,8 @@ export class WorldUI {
       this.showToast(error.message);
     });
     document.addEventListener("keydown",event=>{
+      if(event.code==='KeyM'&&!event.repeat&&!(event.target as HTMLElement)?.closest('input,textarea,select,[contenteditable]')){event.preventDefault();if(!this.panel.hidden&&this.page==='menu')this.close();else this.open('menu');return;}
+      if(event.key==='Tab'&&!this.panel.hidden){const controls=Array.from(this.panel.querySelectorAll<HTMLElement>('button:not(:disabled),input,select,[tabindex="0"]')).filter(el=>el.getClientRects().length>0);const first=controls[0],last=controls.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}}
       if(event.code==='KeyB'&&!event.repeat&&!(event.target as HTMLElement)?.closest('input,textarea,select,[contenteditable]')){event.preventDefault();if(!this.panel.hidden&&this.page==='inventory')this.close();else this.open('inventory');return;}
       if(event.key==="Escape"&&!this.panel.hidden){event.preventDefault();this.close();return;}
       if(event.code!=="KeyE"||event.repeat||this.scene.casinoOpen||!this.panel.hidden)return;
@@ -142,8 +150,8 @@ export class WorldUI {
     this.pendingTimer=window.setTimeout(()=>{this.pending=false;this.notice.textContent="ยังไม่ได้รับการยืนยัน กรุณารอแล้วลองใหม่";this.render(true);},12000);
     this.render(true);
   }
-  private open(page:string) {if(!this.view||this.scene.casinoOpen||page==='farm'||page==='greenhouse')return;this.page=page;this.panel.hidden=false;this.scene.worldOpen=true;document.body.classList.add("world-ui-open");this.notice.textContent="";this.render(true);}
-  private close(){this.cozyUI.reset();this.villageConfirmation=undefined;this.panel.hidden=true;this.scene.worldOpen=false;document.body.classList.remove("world-ui-open");}
+  private open(page:string) {if(!this.view||this.scene.casinoOpen||page==='farm'||page==='greenhouse')return;if(this.panel.hidden)this.returnFocus=document.activeElement as HTMLElement;this.cozyUI.reset();this.villageConfirmation=undefined;this.page=page;this.panel.hidden=false;this.scene.worldOpen=true;document.body.classList.add("world-ui-open");this.notice.textContent="";this.render(true);this.title.tabIndex=-1;this.title.focus();}
+  private close(){this.cozyUI.reset();this.villageConfirmation=undefined;this.panel.hidden=true;this.scene.worldOpen=false;document.body.classList.remove("world-ui-open");if(this.returnFocus?.isConnected)this.returnFocus.focus();}
   private update() {
     const p=this.player();if(!p)return;
     if(this.scene.casinoOpen&&!this.panel.hidden)this.close();
@@ -186,6 +194,10 @@ export class WorldUI {
       Date.now()>=(this.view.progress.cooldowns[this.node?.id??""]??0)]);
     if(!force&&sig===this.signature)return;this.signature=sig;this.body.replaceChildren();
     this.panel.dataset.page=this.page;
+    this.menuBack.hidden=this.page==='menu';
+    if(this.page==='menu'){this.title.textContent=GAME_NAME;this.menuPage();return;}
+    if(this.page==='settings'){this.title.textContent='ตั้งค่าเสียง';this.settingsPage();return;}
+    if(this.page.startsWith('guide:')){this.guidePage(this.page.slice(6));return;}
     if(this.page==="map"){this.title.textContent='โลกของ '+GAME_NAME;this.mapPage();return;}
     if(this.page==='nearby'){this.title.textContent='กิจกรรมใกล้ตัว';this.nearbyPage();return;}
     if(this.page==='inventory'){this.title.textContent='กระเป๋าของฉัน';this.inventoryPage();return;}
@@ -211,6 +223,44 @@ export class WorldUI {
     if(this.node.id==="bug-firefly")this.body.append(this.text("หิ่งห้อยออกตอนเย็นและกลางคืน"));
     this.body.append(this.button(this.page==="camp"?"นั่งข้างกองไฟ":this.page==="animal"?"ให้อาหาร":this.page==="boat"?"ขึ้นเรือ":this.node.name,()=>this.send(verb),this.pending||cooldown>Date.now()));
     this.body.append(this.text("รางวัลเป็นของสะสมและการปลดล็อก ไม่หักหรือเพิ่มชิปเอง"));
+  }
+  private menuPage(){
+    this.body.append(this.text('มุมเล็ก ๆ ของคุณ · เลือกดูได้ทุกที่ แล้วเดินไปทำที่หมู่บ้าน','menu-intro'));
+    const grid=document.createElement('nav');grid.className='village-menu';grid.setAttribute('aria-label','เมนูหมู่บ้าน');
+    for(const [page,label,icon,hint]of [
+      ['inventory','กระเป๋า','treasure','ของจริงและอุปกรณ์ที่สวมใส่'],['collection','สมุดสะสม','butterfly','บันทึกสิ่งที่เคยค้นพบ'],
+      ['guide:orders','งานหมู่บ้าน','chef','ออร์เดอร์และรางวัล'],['guide:home','บ้านและของแต่ง','forest-stool','สูตรสร้างของและจัดบ้าน'],
+      ['guide:community','ลานชุมชน','festival-lantern','โครงการ ปิกนิก เทศกาล'],['guide:museum','หอสะสมธรรมชาติ','beetle','มอบตัวอย่างและปลดล็อก'],
+      ['nearby','กิจกรรมใกล้ตัว','carp','หาอะไรทำในแมพนี้'],['map','🧭 แผนที่','voyager','เดินสำรวจทั้งห้าพื้นที่'],['settings','ตั้งค่า','musician','เพลง cozy และเสียงเกม'],
+    ]){const button=this.button('',()=>this.open(page));button.setAttribute('aria-label',label);button.dataset.menuPage=page;const title=document.createElement('strong');title.textContent=label;const description=document.createElement('span');description.textContent=hint;button.append(FURNITURE.some(f=>f.id===icon)?furnitureCanvas(icon):itemCanvas(icon),title,description);grid.append(button);}
+    this.body.append(grid);
+  }
+  /** Read-only catalogue. No mutation, credential or remote reward action is available here. */
+  private guidePage(kind:string){
+    const node=WORLD_NODES.find(n=>n.kind===kind);if(!node)return;
+    this.title.textContent=({orders:'งานหมู่บ้าน',home:'บ้านและของแต่ง',community:'ลานชุมชน',museum:'หอสะสมธรรมชาติ'} as Record<string,string>)[kind]??node.name;
+    const progress=this.view!.progress,p=this.player();
+    const nearby=p&&p.mapId===node.map&&Math.hypot(p.x-node.x,p.y-node.y)<=100;
+    this.body.append(this.text('ดูรายการได้ทุกที่ · การส่งของ แลกของ และจัดบ้านทำที่จุดจริง ไม่หักของเพียงเปิดดู','menu-intro'));
+    const action=this.button(nearby?'เปิดใช้งานที่นี่':p?.mapId===node.map?'เดินไป'+node.name:'ดูเส้นทางไป'+MAP_NAMES[node.map],()=>{
+      if(nearby){this.node=node;this.activate();}else if(p?.mapId===node.map){this.close();this.scene.navigateTo([{x:node.x,y:node.y}]);}else this.open('map');
+    },this.pending||p?.activity==='boat');action.dataset.guideAction=kind;this.body.append(action);
+    const grid=document.createElement('div');grid.className='menu-catalogue';
+    if(kind==='home')for(const furniture of FURNITURE){const card=document.createElement('article');card.append(furnitureCanvas(furniture.id),this.text(furniture.name,'world-card-title'),this.text('มีแล้ว × '+(progress.cozy?.home.owned[furniture.id]??0)));
+      card.append(this.text(furniture.cost?Object.entries(furniture.cost).map(([id,n])=>(ITEMS[id]?.name??id)+' '+(progress.inventory[id]??0)+'/'+n).join(' · '):'รางวัลจากเทศกาลชุมชน'));grid.append(card);}
+    if(kind==='orders')for(const order of VILLAGE_ORDERS){const card=document.createElement('article');card.append(this.text(order.npc,'village-npc'),this.text(order.name,'world-card-title'));
+      for(const [id,n]of Object.entries(order.cost)){const line=document.createElement('div');line.className='menu-ingredient';line.append(itemCanvas(id),this.text((ITEMS[id]?.name??FISH_SPECIES.find(f=>f.id===id)?.name??id)+' '+(FISH_SPECIES.some(f=>f.id===id)?this.fish[id]??0:progress.inventory[id]??0)+'/'+n));card.append(line);}
+      card.append(this.text(SKILL_NAMES[order.skill]+' +'+order.xp+' XP'));const gear=NEW_GEAR.find(g=>g.quest===order.id);if(gear)card.append(this.text('รางวัลครั้งแรก: '+gear.name));grid.append(card);}
+    if(kind==='museum'){grid.append(this.text('มอบปลาและแมลงชนิดละ 1 ตัว · จัดแสดงแล้ว '+(progress.village?.museum.length??0)+' ชนิด'),this.text('มอบแล้วจะหักของจริง แต่ประวัติในสมุดยังอยู่ · ครบ 5 ชนิดปลดล็อกหมวกแมว'));}
+    if(kind==='community')grid.append(this.text('ร่วมสร้างสวนและมุมพักผ่อนด้วยผลผลิตจากกระเป๋า'),this.text('นำอาหารไปแบ่งปันในปิกนิกกับเพื่อน และสะสมกิจกรรมรับของแต่งเทศกาล'),this.text('เลือกช่วยเท่าที่อยากทำ ไม่มีค่าปรับเมื่อไม่ได้เล่น'));
+    this.body.append(grid);
+  }
+  private settingsPage(){
+    const state=gameSounds.diagnostics();const box=document.createElement('div');box.className='village-settings';
+    const all=document.createElement('input');all.type='checkbox';all.checked=!gameSounds.isMuted;all.onchange=()=>{gameSounds.setMuted(!all.checked);if(all.checked)void gameSounds.unlock();};const allLabel=document.createElement('label');allLabel.append(all,' เปิดเสียงเกม');
+    const music=document.createElement('input');music.type='checkbox';music.checked=!state.musicMuted;music.onchange=()=>{gameSounds.setMusicMuted(!music.checked);void gameSounds.unlock();};const musicLabel=document.createElement('label');musicLabel.append(music,' เล่นเพลง cozy');
+    const volume=document.createElement('input');volume.type='range';volume.min='0';volume.max='100';volume.value=String(Math.round(state.musicVolume*100));volume.setAttribute('aria-label','ความดังเพลง');const output=document.createElement('output');output.textContent=volume.value+'%';volume.oninput=()=>{gameSounds.setMusicVolume(Number(volume.value)/100);output.textContent=volume.value+'%';void gameSounds.unlock();};
+    box.append(allLabel,musicLabel,this.text('ความดังเพลง · แนะนำเบา ๆ ประมาณ 20%'),volume,output,this.text('บันทึกการตั้งค่าไว้ในเบราว์เซอร์นี้'));this.body.append(box);
   }
   private mapPage(){
     this.body.append(this.text("คลิกพื้นเพื่อเดิน · เดินถึงป้ายขอบแมพเพื่อไปโซนถัดไป · ทุกแมพใช้กระเป๋าเดียวกัน"));
