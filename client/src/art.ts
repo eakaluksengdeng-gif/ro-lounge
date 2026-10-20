@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { artImage, artCanvas } from './reference/Assets';
+import {cosmeticCanvas} from './world/Cosmetics';
 // Generated raster layers; no procedural placeholder characters or terrain remain.
 
 export function mulberry32(seed: number) {
@@ -63,7 +64,7 @@ function headOffset(key:string){
 }
 
 /** DOM previews and game textures share exactly the same pixel renderer. */
-export function renderCharacterCanvas(look: Look, dir: Dir = "down", frame = 0, pose:CharacterPose='standing'): HTMLCanvasElement {
+export function renderCharacterCanvas(look: Look, dir: Dir = "down", frame = 0, pose:CharacterPose='standing',headwear?:string): HTMLCanvasElement {
   const gender=look.gender===1?1:0;
   const canvas=artCanvas(pose==='standing'?`character-${gender}-${dir}-${frame}`:`pose-${gender}-${pose}-${dir}`,48,64),context=canvas.getContext('2d')!;
   // Generated heads replace the complete head layer; body/feet remain the walking frame.
@@ -85,17 +86,28 @@ export function renderCharacterCanvas(look: Look, dir: Dir = "down", frame = 0, 
     if(target&&base){const light=(r+g+b)/(base[0]+base[1]+base[2]);for(let j=0;j<3;j++)d[i+j]=Math.max(0,Math.min(255,Math.round(target[j]*light)));}
   }
   context.putImageData(pixels,0,0);
+  if(headwear&&headwear!=='none'){
+    // Tuck only the upper crown into the hat silhouette. Preserve the face,
+    // fringe, side locks and long hair below the cap line (never a bald head).
+    const hat=cosmeticCanvas(headwear,dir).getContext('2d')!.getImageData(0,0,48,64).data;
+    const image=context.getImageData(0,0,48,64);
+    for(let y=0;y<17;y++)for(let x=0;x<48;x++)if(hat[(y*48+x)*4+3]<32)image.data[(y*48+x)*4+3]=0;
+    context.putImageData(image,0,0);
+  }
   return canvas;
 }
 
-export function ensureCharacter(scene: Phaser.Scene, look: Look) {
+export function characterTextureKey(look:Look,dir:Dir,frame=0,pose:CharacterPose='standing',headwear?:string){
+  return `ch-${look.id}${headwear&&headwear!=='none'?'-hat-'+headwear:''}-${pose==='standing'?'':pose+'-'}${dir}-${frame}`;
+}
+export function ensureCharacter(scene: Phaser.Scene, look: Look,headwear?:string) {
   const dirs: Dir[] = ["down", "up", "side"];
   for (const d of dirs) {
     for (let f = 0; f < 3; f++) {
-      const key=`ch-${look.id}-${d}-${f}`;
-      if(!scene.textures.exists(key))scene.textures.addCanvas(key,renderCharacterCanvas(look,d,f))?.setFilter(Phaser.Textures.FilterMode.NEAREST);
+      const key=characterTextureKey(look,d,f,'standing',headwear);
+      if(!scene.textures.exists(key))scene.textures.addCanvas(key,renderCharacterCanvas(look,d,f,'standing',headwear))?.setFilter(Phaser.Textures.FilterMode.NEAREST);
     }
-    for(const pose of ['seated','fishing'] as const){const key=`ch-${look.id}-${pose}-${d}-0`;if(!scene.textures.exists(key))scene.textures.addCanvas(key,renderCharacterCanvas(look,d,0,pose))?.setFilter(Phaser.Textures.FilterMode.NEAREST);}
+    for(const pose of ['seated','fishing'] as const){const key=characterTextureKey(look,d,0,pose,headwear);if(!scene.textures.exists(key))scene.textures.addCanvas(key,renderCharacterCanvas(look,d,0,pose,headwear))?.setFilter(Phaser.Textures.FilterMode.NEAREST);}
   }
 }
 
