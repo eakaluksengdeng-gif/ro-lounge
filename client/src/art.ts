@@ -73,7 +73,17 @@ export function renderCharacterCanvas(look: Look, dir: Dir = "down", frame = 0, 
   // Shorter generated heads (notably pigtails) need a chin anchor, not a
   // top-edge anchor. Bridge only transparent pixels behind the shirt/head.
   context.save();context.globalCompositeOperation='destination-over';context.fillStyle='#ffdcc0';context.fillRect(21,34,7,10);context.fillStyle='#32251f';context.fillRect(20,34,9,10);context.restore();
-  context.drawImage(artImage(head),1,headOffset(head),46,43);
+  if(gender===1&&dir==='down'){
+    // The generated head already has a closed neck outline, while the body
+    // has its own collar. Joining alpha behind them leaves two dark seams.
+    // Open only the centre of that duplicated outline into a skin bridge;
+    // retain the chin edges, side hair, white collar and tie below row 41.
+    // Seat the face three pixels closer to the collar, and exclude only the
+    // head asset's baked-in neck below the join. Side locks remain uncut.
+    context.save();context.beginPath();context.rect(0,0,48,40);context.rect(0,40,20,24);context.rect(29,40,19,24);context.clip();
+    context.drawImage(artImage(head),1,headOffset(head)+3,46,43);context.restore();
+    context.fillStyle='#ffdcc0';context.fillRect(22,39,5,2);context.fillRect(23,41,4,1);
+  }else context.drawImage(artImage(head),1,headOffset(head),46,43);
   const pixels=context.getImageData(0,0,48,64),d=pixels.data;
   const hair=hexToRgb(look.hair),shirt=hexToRgb(look.shirt),skin=hexToRgb(look.skin),pants=hexToRgb(look.pants);
   for(let y=0;y<64;y++)for(let x=0;x<48;x++){
