@@ -14,6 +14,8 @@ Public name: Clover Nook. Primary origin: `https://clover-nook.vercel.app`. Exis
 
 ## Character transfer across origins
 
+The new origin no longer shows a migration banner above the creator. Normal entry goes straight to character creation. Optional recovery is a collapsed `ช่วยเหลือ · กู้ตัวละครจากเว็บเดิม` disclosure below the entry form. The old origin keeps its move button so existing credentials can still be transferred safely; no automatic reset or credential deletion is performed.
+
 Browser storage is origin-scoped. Server save persistence alone does NOT move a guest credential to another domain. Legacy technical storage keys are intentionally kept unchanged.
 
 - From the old login page, the user-clicked move button opens the new origin; a nonce/source/origin-checked postMessage handshake transfers a whitelist of guest session, display name, appearance and audio preferences.
