@@ -25,7 +25,7 @@ export function importTransfer(raw:unknown,approve:()=>boolean){
 }
 export function installVillageMigration(form:HTMLElement){
  const origin=location.origin;if(origin!==GAME_ORIGIN&&origin!==LEGACY_ORIGIN)return;
- const panel=document.createElement('section');panel.className='village-migration';const label=document.createElement('p'),button=document.createElement('button'),status=document.createElement('p');status.setAttribute('role','status');button.type='button';button.id='villageMigrationButton';
+ const panel=document.createElement(origin===GAME_ORIGIN?'details':'section');panel.className=origin===GAME_ORIGIN?'village-recovery':'village-migration';const label=document.createElement('p'),button=document.createElement('button'),status=document.createElement('p');status.setAttribute('role','status');button.type='button';button.id='villageMigrationButton';
  let peer:Window|null=null,nonce='';
  if(origin===LEGACY_ORIGIN){
   label.textContent='บ้านของเราชื่อ Clover Nook แล้ว · ลิงก์เก่ายังเล่นต่อได้';button.textContent='ย้ายไปบ้านใหม่ พร้อมตัวละครเดิม';
@@ -34,7 +34,8 @@ export function installVillageMigration(form:HTMLElement){
    try{peer.postMessage({type:TRANSFER_TYPES.data,nonce:event.data.nonce,payload:cleanTransfer(snapshot())},GAME_ORIGIN);status.textContent='ส่งตัวละครเดิมแล้ว · ของและชิปอยู่ที่เซิร์ฟเวอร์เดิม';}catch(error){status.textContent=error instanceof Error?error.message:'ย้ายไม่สำเร็จ';}
   });
  }else{
-  label.textContent='เคยเล่นที่เว็บเดิม? ใช้ตัวละคร ของ และชิปเดิมได้';button.textContent='ย้ายตัวละครจากเว็บเดิม';
+  const summary=document.createElement('summary');summary.textContent='ช่วยเหลือ · กู้ตัวละครจากเว็บเดิม';panel.append(summary);
+  label.textContent='ใช้เฉพาะกรณีต้องการนำตัวละครเดิมกลับมา · ไม่จำเป็นสำหรับการเข้าเล่นปกติ';button.textContent='ย้ายตัวละครจากเว็บเดิม';
   const request=()=>peer?.postMessage({type:TRANSFER_TYPES.request,nonce},LEGACY_ORIGIN);
   button.onclick=()=>{nonce=crypto.randomUUID();peer=window.open(LEGACY_ORIGIN+'/move-player.html','clover-nook-recover');status.textContent=peer?'กดยืนยันในหน้าต่างเว็บเดิมเพื่อย้ายตัวละคร':'อนุญาตป๊อปอัปเพื่อย้ายตัวละคร';};
   window.addEventListener('message',event=>{
@@ -48,7 +49,7 @@ export function installVillageMigration(form:HTMLElement){
   // The old site's user-clicked move button opens this window with an opener.
   if(window.opener){peer=window.opener;nonce=crypto.randomUUID();request();}
  }
- panel.append(label,button,status);form.querySelector('header')?.after(panel);
+ panel.append(label,button,status);if(origin===GAME_ORIGIN)form.append(panel);else form.querySelector('header')?.after(panel);
 }
 
 /** This provider is ONLY for the old origin, in a user-opened top-level popup. */

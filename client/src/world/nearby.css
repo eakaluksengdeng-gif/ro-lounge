@@ -29,4 +29,8 @@ html #worldInteract.water-action{display:flex;align-items:center;gap:6px}
 html #worldInteract.water-action[hidden]{display:none}
 #worldInteract.water-action::before{content:'';width:20px;height:24px;flex:0 0 20px;background:url('/art/season-v1/tool-water.png') center/contain no-repeat;image-rendering:pixelated}
 .inventory-resources>canvas{width:24px;height:24px;image-rendering:pixelated}
+.village-recovery{grid-column:1/-1;font:11px/1.7 'Noto Sans Thai',sans-serif;color:#63735a;margin-top:12px}
+.village-recovery summary{cursor:pointer;min-height:44px;display:flex;align-items:center;text-decoration:underline;text-underline-offset:3px}
+.village-recovery p{margin:5px 0}
+.village-recovery summary:focus-visible{outline:2px solid #759466;outline-offset:3px;border-radius:6px}
 @media(max-width:540px){.nearby-activities{grid-template-columns:1fr}#nearbyActivitiesButton{grid-column:auto}html #worldToolbar{grid-template-columns:repeat(2,minmax(0,1fr))}html #worldToolbar #worldBagButton{grid-column:auto;min-width:0;font-size:10px;gap:3px;padding:3px!important}html #worldToolbar #worldBagButton canvas{width:20px;height:20px;flex:0 0 20px}html #worldToolbar #nearbyActivitiesButton{min-width:0}}
